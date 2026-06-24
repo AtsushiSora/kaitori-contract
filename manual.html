@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>使い方説明書｜オーダーオート契約作成システム</title>
+    <meta
+      name="description"
+      content="オーダーオート契約作成システムのテスト用使い方説明書です。"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header" aria-label="サイトヘッダー">
+      <a class="brand" href="admin.html" aria-label="オーダーオート 管理画面">
+        <span class="brand-mark" aria-hidden="true">
+          <img src="assets/logo-mark.png" alt="" />
+        </span>
+        <span>
+          <strong>オーダーオート　使い方説明書</strong>
+          <small>契約作成システム</small>
+        </span>
+      </a>
+      <nav class="nav" aria-label="メインナビゲーション">
+        <a href="admin.html">管理ログイン</a>
+        <a href="contract.html">契約作成</a>
+      </nav>
+      <a class="header-call" href="tel:08029128616">080-2912-8616</a>
+    </header>
+
+    <main class="page-main manual-main">
+      <section class="manual-layout">
+        <div class="manual-card">
+          <p class="eyebrow">Test Guide</p>
+          <h1>テスト用 使い方説明書</h1>
+          <p>
+            まずはテスト用の架空データで、紙印刷、タブレット署名、メール電子同意の3パターンを確認してください。
+            実在するお客様情報は、動作確認が終わるまで入力しないでください。
+          </p>
+
+          <div class="manual-actions">
+            <a class="button button-primary" href="admin.html">管理ログインを開く</a>
+            <a class="button button-outline" href="contract.html">契約作成を開く</a>
+          </div>
+        </div>
+
+        <div class="manual-grid">
+          <article class="manual-section">
+            <h2>1. 初回ログイン</h2>
+            <ol>
+              <li><a href="admin.html">管理ログイン</a>を開きます。</li>
+              <li>初回は管理者パスコードを設定します。</li>
+              <li>確認欄にも同じパスコードを入力して保存します。</li>
+              <li>ログイン後、自動で契約作成画面へ移動します。</li>
+            </ol>
+            <p class="manual-note">
+              テスト用でも8文字以上のパスコードを使ってください。共有端末では作業後にログアウトしてください。
+            </p>
+          </article>
+
+          <article class="manual-section">
+            <h2>2. 契約書を作る</h2>
+            <ol>
+              <li>左側の「新規」を押します。</li>
+              <li>契約区分を「買取金額あり」または「買取金額0円 / 無償引取」から選びます。</li>
+              <li>完結方法を「紙で印刷」「タブレット署名」「メール電子同意」から選びます。</li>
+              <li>売主情報、車両情報、金額・引取情報を入力します。</li>
+              <li>右側の契約書プレビューに反映される内容を確認します。</li>
+              <li>「下書き保存」を押すと、この端末のブラウザ内に保存されます。</li>
+            </ol>
+          </article>
+
+          <article class="manual-section">
+            <h2>3. 紙で印刷してサイン</h2>
+            <ol>
+              <li>完結方法で「紙で印刷」を選びます。</li>
+              <li>入力内容と契約書プレビューを確認します。</li>
+              <li>「印刷」を押します。</li>
+              <li>紙に印刷し、お客様とオーダーオート側で署名または押印します。</li>
+              <li>完了後、画面右上の「完了にする」を押します。</li>
+            </ol>
+          </article>
+
+          <article class="manual-section">
+            <h2>4. タブレット署名</h2>
+            <ol>
+              <li>完結方法で「タブレット署名」を選びます。</li>
+              <li>画面下部の署名欄にお客様が指またはペンで署名します。</li>
+              <li>署名をやり直す場合は「署名クリア」を押します。</li>
+              <li>署名後に「印刷」を押して紙またはPDFにします。</li>
+              <li>必要に応じてメール添付でお客様へ送ります。</li>
+            </ol>
+          </article>
+
+          <article class="manual-section">
+            <h2>5. メール電子同意</h2>
+            <ol>
+              <li>完結方法で「メール電子同意」を選びます。</li>
+              <li>売主のメールアドレスを入力します。</li>
+              <li>「暗号化URL生成」を押します。</li>
+              <li>「URLコピー」で確認URLをコピーし、お客様へメール送信します。</li>
+              <li>「パスコードコピー」で開封パスコードをコピーし、SMSや電話など別の方法で伝えます。</li>
+              <li>お客様はURLを開き、パスコード入力後に内容確認と電子署名を行います。</li>
+            </ol>
+            <p class="manual-note">
+              確認URLとパスコードは同じメールに入れないでください。URLは7日で期限切れになります。
+            </p>
+          </article>
+
+          <article class="manual-section">
+            <h2>6. 契約一覧とバックアップ</h2>
+            <ol>
+              <li>保存した契約は左側の契約一覧に表示されます。</li>
+              <li>氏名、車名、契約番号で検索できます。</li>
+              <li>「JSON出力」でバックアップファイルを保存できます。</li>
+              <li>別端末へ移す場合は「JSON取込」でバックアップファイルを読み込みます。</li>
+            </ol>
+            <p class="manual-note">
+              ブラウザの保存データを消すと契約一覧も消えます。テスト後も必要なデータはJSON出力してください。
+            </p>
+          </article>
+
+          <article class="manual-section manual-section-wide">
+            <h2>テスト用入力例</h2>
+            <dl class="manual-dl">
+              <div><dt>氏名</dt><dd>山田 太郎</dd></div>
+              <div><dt>電話番号</dt><dd>080-0000-0000</dd></div>
+              <div><dt>メール</dt><dd>自分が確認できるテスト用メールアドレス</dd></div>
+              <div><dt>車名</dt><dd>テスト車両</dd></div>
+              <div><dt>登録番号</dt><dd>広島 500 あ 12-34</dd></div>
+              <div><dt>車台番号</dt><dd>TEST-CHASSIS-0001</dd></div>
+              <div><dt>買取金額あり</dt><dd>50000</dd></div>
+              <div><dt>無償引取</dt><dd>買取金額 0、支払方法 支払いなし</dd></div>
+            </dl>
+          </article>
+
+          <article class="manual-section manual-section-wide">
+            <h2>確認してほしいポイント</h2>
+            <ul>
+              <li>買取金額ありの契約書タイトルと金額が正しく表示される。</li>
+              <li>買取金額0円の契約書で、重量税・自賠責・リサイクル券・自動車税の還付なし文言が出る。</li>
+              <li>印刷画面で契約書部分だけが表示される。</li>
+              <li>タブレット署名がプレビューと印刷に反映される。</li>
+              <li>メール電子同意URLに氏名や住所などの平文が入っていない。</li>
+              <li>別送パスコードでお客様確認ページを開ける。</li>
+            </ul>
+          </article>
+
+          <article class="manual-section manual-section-wide">
+            <h2>セキュリティ上の注意</h2>
+            <ul>
+              <li>このシステムの管理ログインはブラウザ側の保護です。</li>
+              <li>実運用で強い保護が必要な場合は、サーバー側ログインとデータベース保存が必要です。</li>
+              <li>本番データを扱う前に、管理者パスコードを必ず強いものに変更してください。</li>
+              <li>お客様確認URLと開封パスコードは必ず別々に送ってください。</li>
+              <li>共有端末やタブレットでは、作業後に必ずログアウトしてください。</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <div>
+          <p><strong>オーダーオート　契約作成システム</strong></p>
+          <p>テスト中は架空データを使い、動作確認後に本番データを入力してください。</p>
+        </div>
+        <nav class="footer-links" aria-label="補足ページ">
+          <a href="admin.html">管理ログイン</a>
+          <a href="contract.html">契約作成</a>
+          <a href="manual.html">使い方</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>
