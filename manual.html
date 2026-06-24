@@ -40,12 +40,26 @@
           </p>
 
           <div class="manual-actions">
+            <a class="button button-primary" href="index.html">テスト入口を開く</a>
             <a class="button button-primary" href="admin.html">管理ログインを開く</a>
             <a class="button button-outline" href="contract.html">契約作成を開く</a>
           </div>
         </div>
 
         <div class="manual-grid">
+          <article class="manual-section">
+            <h2>0. テスト用ログイン</h2>
+            <ol>
+              <li><a href="index.html">テスト入口</a>を開きます。</li>
+              <li>「テスト用ログインで開始」を押します。</li>
+              <li>確認画面でOKを押すと、登録なしで契約作成画面へ進めます。</li>
+              <li>テスト用ログインは2時間だけ有効です。</li>
+            </ol>
+            <p class="manual-note">
+              本番公開前に、テスト用ログインボタンとテストログイン処理を削除してください。
+            </p>
+          </article>
+
           <article class="manual-section">
             <h2>1. 初回ログイン</h2>
             <ol>
@@ -151,6 +165,7 @@
             <h2>セキュリティ上の注意</h2>
             <ul>
               <li>このシステムの管理ログインはブラウザ側の保護です。</li>
+              <li>テスト用ログインは本番前に必ず削除してください。</li>
               <li>実運用で強い保護が必要な場合は、サーバー側ログインとデータベース保存が必要です。</li>
               <li>本番データを扱う前に、管理者パスコードを必ず強いものに変更してください。</li>
               <li>お客様確認URLと開封パスコードは必ず別々に送ってください。</li>

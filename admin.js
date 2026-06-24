@@ -77,8 +77,19 @@ function resetAdminSettings() {
   setMode();
 }
 
+function handleTestLogin() {
+  const ok = window.confirm(
+    "テスト用ログインで契約作成画面へ進みます。本番公開前にはこのボタンを削除してください。",
+  );
+  if (!ok) return;
+  window.OrderAutoAdminAuth.testLogin();
+  setAdminMessage("テスト用ログインで入りました。2時間だけ有効です。", "success");
+  window.location.href = adminNextUrl();
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   setMode();
   document.querySelector("#admin-form").addEventListener("submit", handleAdminSubmit);
   document.querySelector("#admin-reset").addEventListener("click", resetAdminSettings);
+  document.querySelector("#test-login")?.addEventListener("click", handleTestLogin);
 });

@@ -2,6 +2,7 @@ const ADMIN_CREDENTIAL_KEY = "orderAutoAdminCredential";
 const ADMIN_SESSION_KEY = "orderAutoAdminSession";
 const ADMIN_ITERATIONS = 210000;
 const ADMIN_SESSION_HOURS = 12;
+const ADMIN_TEST_SESSION_HOURS = 2;
 
 function adminBytesToBase64(bytes) {
   const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
@@ -51,7 +52,7 @@ function adminCredential() {
 }
 
 function adminHasCredential() {
-  return Boolean(adminCredential()?.hash);
+  return Boolean(adminCredential()?.hash) || adminIsTestSession();
 }
 
 async function adminSetup(passcode) {
@@ -87,12 +88,21 @@ async function adminLogin(passcode) {
 }
 
 function adminCreateSession() {
-  const expiresAt = Date.now() + ADMIN_SESSION_HOURS * 60 * 60 * 1000;
+  adminStoreSession(ADMIN_SESSION_HOURS, false);
+}
+
+function adminCreateTestSession() {
+  adminStoreSession(ADMIN_TEST_SESSION_HOURS, true);
+}
+
+function adminStoreSession(hours, testMode) {
+  const expiresAt = Date.now() + hours * 60 * 60 * 1000;
   sessionStorage.setItem(
     ADMIN_SESSION_KEY,
     JSON.stringify({
       expiresAt,
       createdAt: Date.now(),
+      testMode,
     }),
   );
 }
@@ -108,6 +118,22 @@ function adminIsAuthenticated() {
   } catch (error) {
     return false;
   }
+}
+
+function adminIsTestSession() {
+  try {
+    const session = JSON.parse(sessionStorage.getItem(ADMIN_SESSION_KEY) || "null");
+    if (!session?.testMode || !session?.expiresAt || Date.now() > session.expiresAt) {
+      return false;
+    }
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function adminTestLogin() {
+  adminCreateTestSession();
 }
 
 function adminLogout() {
@@ -129,4 +155,5 @@ window.OrderAutoAdminAuth = {
   logout: adminLogout,
   requireAuth: adminRequireAuth,
   setup: adminSetup,
+  testLogin: adminTestLogin,
 };
