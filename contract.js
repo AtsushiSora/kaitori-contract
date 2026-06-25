@@ -74,6 +74,39 @@ function safeValue(value, fallback = "未入力") {
   return cleaned ? escapeHtml(cleaned) : fallback;
 }
 
+function joinName(lastName, firstName) {
+  return [lastName, firstName]
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
+function splitLegacyName(name) {
+  const cleaned = String(name ?? "").trim();
+  if (!cleaned) return ["", ""];
+  const parts = cleaned.split(/\s+/);
+  if (parts.length === 1) return [parts[0], ""];
+  return [parts[0], parts.slice(1).join(" ")];
+}
+
+function normalizeSellerNameFields(data) {
+  if (!data.sellerLastName && !data.sellerFirstName && data.sellerName) {
+    const [lastName, firstName] = splitLegacyName(data.sellerName);
+    data.sellerLastName = lastName;
+    data.sellerFirstName = firstName;
+  }
+
+  if (!data.sellerLastKana && !data.sellerFirstKana && data.sellerKana) {
+    const [lastKana, firstKana] = splitLegacyName(data.sellerKana);
+    data.sellerLastKana = lastKana;
+    data.sellerFirstKana = firstKana;
+  }
+
+  data.sellerName = joinName(data.sellerLastName, data.sellerFirstName) || String(data.sellerName ?? "").trim();
+  data.sellerKana = joinName(data.sellerLastKana, data.sellerFirstKana) || String(data.sellerKana ?? "").trim();
+  return data;
+}
+
 function yen(value) {
   const number = Number(value);
   if (!Number.isFinite(number) || number <= 0) {
@@ -112,6 +145,7 @@ function getFormData() {
   data.contractType = form.elements.contractType.value;
   data.completionMethod = form.elements.completionMethod.value;
   data.consents = new FormData(form).getAll("consents");
+  normalizeSellerNameFields(data);
 
   if (data.contractType === "free") {
     data.purchaseAmount = "0";
@@ -139,6 +173,7 @@ function populateForm(contract) {
   form.reset();
 
   const data = contract?.data || {};
+  normalizeSellerNameFields(data);
   Object.entries(data).forEach(([key, value]) => {
     if (key === "documents" || key === "consents") return;
     setFieldValue(form, key, value);
@@ -260,6 +295,7 @@ function renderDocument(contract) {
         <h3>当事者</h3>
         <dl class="document-dl">
           ${row("売主氏名", data.sellerName)}
+          ${row("フリガナ", data.sellerKana)}
           ${row("売主住所", data.sellerAddress)}
           ${row("電話番号", data.sellerPhone)}
           ${row("メール", data.sellerEmail)}
@@ -668,6 +704,8 @@ function buildCloudPayload(contract = currentContract()) {
     contractType: contractTypeLabel(data),
     completionMethod: completionLabel(data),
     sellerName: data.sellerName || "",
+    sellerLastName: data.sellerLastName || "",
+    sellerFirstName: data.sellerFirstName || "",
     sellerPhone: data.sellerPhone || "",
     sellerEmail: data.sellerEmail || "",
     carName: data.carName || "",

@@ -79,7 +79,7 @@
             </div>
             <label class="contract-search">
               <span>検索</span>
-              <input id="contract-search" type="search" placeholder="氏名・車名・契約番号" />
+              <input id="contract-search" type="search" placeholder="名字・名前・車名・契約番号" />
             </label>
             <div class="status-tabs" aria-label="ステータス絞り込み">
               <button type="button" class="active" data-filter="all">すべて</button>
@@ -141,8 +141,10 @@
                 <fieldset>
                   <legend>売主情報</legend>
                   <div class="form-grid">
-                    <label>氏名<input name="sellerName" autocomplete="name" required /></label>
-                    <label>フリガナ<input name="sellerKana" /></label>
+                    <label>名字<input name="sellerLastName" autocomplete="family-name" required /></label>
+                    <label>名前<input name="sellerFirstName" autocomplete="given-name" required /></label>
+                    <label>フリガナ（名字）<input name="sellerLastKana" /></label>
+                    <label>フリガナ（名前）<input name="sellerFirstKana" /></label>
                     <label class="full">住所<input name="sellerAddress" autocomplete="street-address" /></label>
                     <label>電話番号<input name="sellerPhone" autocomplete="tel" /></label>
                     <label>メールアドレス<input name="sellerEmail" type="email" autocomplete="email" /></label>
@@ -313,6 +315,8 @@
       <input name="contractType" />
       <input name="completionMethod" />
       <input name="sellerName" />
+      <input name="sellerLastName" />
+      <input name="sellerFirstName" />
       <input name="sellerPhone" />
       <input name="sellerEmail" />
       <input name="carName" />
