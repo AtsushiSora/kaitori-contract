@@ -112,6 +112,38 @@ function normalizeSellerNameFields(data) {
   return data;
 }
 
+function joinPlateNumber(area, classification, kana, digits) {
+  return [area, classification, kana, digits]
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
+function splitPlateNumber(plateNumber) {
+  const cleaned = String(plateNumber ?? "").trim();
+  if (!cleaned) return ["", "", "", ""];
+  const parts = cleaned.split(/\s+/);
+  if (parts.length >= 4) {
+    return [parts[0], parts[1], parts[2], parts.slice(3).join(" ")];
+  }
+  return [cleaned, "", "", ""];
+}
+
+function normalizePlateNumberFields(data) {
+  if (!data.plateArea && !data.plateClass && !data.plateKana && !data.plateNumberDigits && data.plateNumber) {
+    const [area, classification, kana, digits] = splitPlateNumber(data.plateNumber);
+    data.plateArea = area;
+    data.plateClass = classification;
+    data.plateKana = kana;
+    data.plateNumberDigits = digits;
+  }
+
+  data.plateNumber =
+    joinPlateNumber(data.plateArea, data.plateClass, data.plateKana, data.plateNumberDigits) ||
+    String(data.plateNumber ?? "").trim();
+  return data;
+}
+
 function yen(value) {
   const number = Number(value);
   if (!Number.isFinite(number) || number <= 0) {
@@ -252,6 +284,7 @@ function getFormData() {
   data.completionMethod = form.elements.completionMethod.value;
   data.consents = new FormData(form).getAll("consents");
   normalizeSellerNameFields(data);
+  normalizePlateNumberFields(data);
 
   if (data.contractType === "free") {
     data.purchaseAmount = "0";
@@ -280,6 +313,7 @@ function populateForm(contract) {
 
   const data = contract?.data || {};
   normalizeSellerNameFields(data);
+  normalizePlateNumberFields(data);
   Object.entries(data).forEach(([key, value]) => {
     if (key === "documents" || key === "consents") return;
     setFieldValue(form, key, value);
@@ -875,6 +909,10 @@ function buildCloudPayload(contract = currentContract()) {
     identityPhotoCount: String(identityFiles.length),
     carName: data.carName || "",
     plateNumber: data.plateNumber || "",
+    plateArea: data.plateArea || "",
+    plateClass: data.plateClass || "",
+    plateKana: data.plateKana || "",
+    plateNumberDigits: data.plateNumberDigits || "",
     purchaseAmount: data.contractType === "free" ? "0" : data.purchaseAmount || "",
     contractJson: JSON.stringify(snapshot),
     previewText: document.querySelector("#contract-preview")?.innerText || "",
@@ -1044,6 +1082,17 @@ function setupEvents() {
   document.querySelector("#email-url").addEventListener("input", buildEmailBody);
   document.querySelector("#contract-search").addEventListener("input", renderList);
   document.querySelector("#identity-photo-input").addEventListener("change", handleIdentityPhotoSelect);
+  document.querySelectorAll("[data-date-picker]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const field = form.elements[button.dataset.datePicker];
+      if (!field) return;
+      if (typeof field.showPicker === "function") {
+        field.showPicker();
+      } else {
+        field.focus();
+      }
+    });
+  });
   document.querySelector("#identity-photo-list").addEventListener("click", (event) => {
     const button = event.target.closest("[data-remove-identity-photo]");
     if (!button) return;
