@@ -30,9 +30,14 @@ let contracts = [];
 let activeId = "";
 let activeFilter = "all";
 let signatureData = "";
+let identityFiles = [];
 let isDrawing = false;
 
 const CRYPTO_ITERATIONS = 200000;
+const MAX_IDENTITY_FILES = 4;
+const MAX_IDENTITY_FILE_BYTES = 8 * 1024 * 1024;
+const IDENTITY_IMAGE_MAX_EDGE = 1600;
+const IDENTITY_IMAGE_QUALITY = 0.82;
 
 function formatDate(date = new Date()) {
   return new Intl.DateTimeFormat("ja-JP", {
@@ -124,7 +129,16 @@ function loadContracts() {
 }
 
 function persistContracts() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(contracts));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(contracts));
+    return true;
+  } catch (error) {
+    setSaveStatus(
+      "ブラウザの保存容量を超えました。本人確認写真を減らすか、JSON出力後に不要な契約を整理してください。",
+      "warning",
+    );
+    return false;
+  }
 }
 
 function currentContract() {
@@ -136,6 +150,98 @@ function setSaveStatus(message, tone = "neutral") {
   if (!status) return;
   status.textContent = message;
   status.dataset.tone = tone;
+}
+
+function dataUrlSize(dataUrl) {
+  const base64 = String(dataUrl || "").split(",")[1] || "";
+  return Math.round((base64.length * 3) / 4);
+}
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0KB";
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result || "")));
+    reader.addEventListener("error", reject);
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImage(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener("load", () => resolve(image));
+    image.addEventListener("error", reject);
+    image.src = dataUrl;
+  });
+}
+
+async function compressIdentityImage(file) {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("画像ファイルだけ添付できます。");
+  }
+
+  if (file.size > MAX_IDENTITY_FILE_BYTES) {
+    throw new Error("1枚あたり8MB以下の画像を選択してください。");
+  }
+
+  const originalDataUrl = await readFileAsDataUrl(file);
+  const image = await loadImage(originalDataUrl);
+  const scale = Math.min(1, IDENTITY_IMAGE_MAX_EDGE / Math.max(image.width, image.height));
+  const width = Math.max(1, Math.round(image.width * scale));
+  const height = Math.max(1, Math.round(image.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  context.drawImage(image, 0, 0, width, height);
+  const dataUrl = canvas.toDataURL("image/jpeg", IDENTITY_IMAGE_QUALITY);
+
+  return {
+    id: `ID-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    name: file.name,
+    type: "image/jpeg",
+    size: dataUrlSize(dataUrl),
+    originalSize: file.size,
+    width,
+    height,
+    addedAt: formatDateTime(),
+    dataUrl,
+  };
+}
+
+function identityFileSummary(files = identityFiles) {
+  return files.map(({ dataUrl, ...file }) => file);
+}
+
+function renderIdentityFiles() {
+  const list = document.querySelector("#identity-photo-list");
+  if (!list) return;
+
+  if (!identityFiles.length) {
+    list.innerHTML = '<p class="empty-state">本人確認書類の写真は未添付です。</p>';
+    return;
+  }
+
+  list.innerHTML = identityFiles
+    .map((file, index) => {
+      return `
+        <div class="identity-photo-item">
+          <img src="${file.dataUrl}" alt="${escapeHtml(file.name)}" />
+          <div>
+            <strong>${escapeHtml(file.name || `本人確認写真${index + 1}`)}</strong>
+            <span>${escapeHtml(formatBytes(file.size))} / ${escapeHtml(file.width)}x${escapeHtml(file.height)}</span>
+          </div>
+          <button class="mini-button" type="button" data-remove-identity-photo="${index}">削除</button>
+        </div>
+      `;
+    })
+    .join("");
 }
 
 function getFormData() {
@@ -185,6 +291,8 @@ function populateForm(contract) {
 
   renderConsents(data.contractType || "sale", data.consents || []);
   signatureData = contract?.signatureData || "";
+  identityFiles = Array.isArray(contract?.identityFiles) ? contract.identityFiles : [];
+  renderIdentityFiles();
   updateModePanels();
   updatePreview();
 }
@@ -199,6 +307,7 @@ function createBlankContract() {
     completedAt: "",
     signedAt: "",
     signatureData: "",
+    identityFiles: [],
     data: {
       contractType: "sale",
       completionMethod: "paper",
@@ -220,12 +329,16 @@ function saveActiveContract(status) {
 
   existing.data = getFormData();
   existing.signatureData = signatureData;
+  existing.identityFiles = identityFiles;
   existing.status = status || existing.status || "下書き";
   existing.updatedAt = formatDateTime();
-  persistContracts();
+  const saved = persistContracts();
   renderList();
   updatePreview();
-  setSaveStatus("この端末に保存しました。Netlify保存で管理画面にも送信できます。");
+  if (saved) {
+    setSaveStatus("この端末に保存しました。Netlify保存で管理画面にも送信できます。");
+  }
+  return saved;
 }
 
 function contractTitle(data) {
@@ -271,6 +384,9 @@ function renderDocument(contract) {
   const data = contract?.data || getFormData();
   const consents = data.consents || [];
   const documents = data.documents || [];
+  const attachedIdentityFiles = Array.isArray(contract?.identityFiles)
+    ? contract.identityFiles
+    : identityFiles;
   const title = contractTitle(data);
   const isFree = data.contractType === "free";
   const isElectronic = data.completionMethod !== "paper";
@@ -349,6 +465,15 @@ function renderDocument(contract) {
       <section class="document-section">
         <h3>必要書類</h3>
         <p>${documents.length ? documents.map(escapeHtml).join("、") : "未確認"}</p>
+      </section>
+
+      <section class="document-section">
+        <h3>本人確認書類写真</h3>
+        <p>${
+          attachedIdentityFiles.length
+            ? `添付済み：${attachedIdentityFiles.map((file) => escapeHtml(file.name || "本人確認写真")).join("、")}`
+            : "未添付"
+        }</p>
       </section>
 
       <section class="document-section">
@@ -629,6 +754,40 @@ async function copyConsentPasscode() {
   }
 }
 
+async function handleIdentityPhotoSelect(event) {
+  const files = Array.from(event.target.files || []);
+  event.target.value = "";
+  if (!files.length) return;
+
+  const available = MAX_IDENTITY_FILES - identityFiles.length;
+  if (available <= 0) {
+    setSaveStatus(`本人確認書類の写真は最大${MAX_IDENTITY_FILES}枚までです。`, "warning");
+    return;
+  }
+
+  const selected = files.slice(0, available);
+  if (files.length > available) {
+    setSaveStatus(`最大${MAX_IDENTITY_FILES}枚までのため、先頭${available}枚だけ追加します。`, "warning");
+  } else {
+    setSaveStatus("本人確認書類の写真を読み込み中です。", "pending");
+  }
+
+  try {
+    const compressed = [];
+    for (const file of selected) {
+      compressed.push(await compressIdentityImage(file));
+    }
+    identityFiles = [...identityFiles, ...compressed];
+    renderIdentityFiles();
+    const saved = saveActiveContract(currentContract()?.status || "下書き");
+    if (saved) {
+      setSaveStatus("本人確認書類の写真を添付しました。この端末内に保存されています。", "success");
+    }
+  } catch (error) {
+    setSaveStatus(error.message || "本人確認書類の写真を読み込めませんでした。", "warning");
+  }
+}
+
 function exportContracts() {
   const payload = {
     exportedAt: formatDateTime(),
@@ -690,10 +849,15 @@ function importContractsFile(file) {
 function buildCloudPayload(contract = currentContract()) {
   const data = getFormData();
   const snapshot = {
-    ...(contract || {}),
     id: contract?.id || activeId,
+    status: contract?.status || "下書き",
+    createdAt: contract?.createdAt || "",
+    updatedAt: contract?.updatedAt || "",
+    completedAt: contract?.completedAt || "",
+    signedAt: contract?.signedAt || "",
     data,
     signatureSaved: Boolean(signatureData),
+    identityFiles: identityFileSummary(contract?.identityFiles || identityFiles),
     savedAt: formatDateTime(),
   };
 
@@ -708,6 +872,7 @@ function buildCloudPayload(contract = currentContract()) {
     sellerFirstName: data.sellerFirstName || "",
     sellerPhone: data.sellerPhone || "",
     sellerEmail: data.sellerEmail || "",
+    identityPhotoCount: String(identityFiles.length),
     carName: data.carName || "",
     plateNumber: data.plateNumber || "",
     purchaseAmount: data.contractType === "free" ? "0" : data.purchaseAmount || "",
@@ -878,6 +1043,16 @@ function setupEvents() {
   document.querySelector("#open-email").addEventListener("click", openEmail);
   document.querySelector("#email-url").addEventListener("input", buildEmailBody);
   document.querySelector("#contract-search").addEventListener("input", renderList);
+  document.querySelector("#identity-photo-input").addEventListener("change", handleIdentityPhotoSelect);
+  document.querySelector("#identity-photo-list").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-remove-identity-photo]");
+    if (!button) return;
+    const index = Number(button.dataset.removeIdentityPhoto);
+    identityFiles = identityFiles.filter((_, itemIndex) => itemIndex !== index);
+    renderIdentityFiles();
+    saveActiveContract(currentContract()?.status || "下書き");
+    setSaveStatus("本人確認書類の写真を削除しました。", "success");
+  });
 
   document.querySelector("#contract-list").addEventListener("click", (event) => {
     const item = event.target.closest("[data-id]");

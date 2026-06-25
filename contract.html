@@ -158,6 +158,13 @@
                         <option>その他</option>
                       </select>
                     </label>
+                    <label class="full">本人確認書類の写真
+                      <input id="identity-photo-input" type="file" accept="image/*" multiple />
+                    </label>
+                    <div class="identity-upload-note full">
+                      表面・裏面など最大4枚まで添付できます。画像は圧縮してこの端末のブラウザ内に保存します。
+                    </div>
+                    <div id="identity-photo-list" class="identity-photo-list full" aria-live="polite"></div>
                   </div>
                 </fieldset>
 
@@ -319,6 +326,7 @@
       <input name="sellerFirstName" />
       <input name="sellerPhone" />
       <input name="sellerEmail" />
+      <input name="identityPhotoCount" />
       <input name="carName" />
       <input name="plateNumber" />
       <input name="purchaseAmount" />
