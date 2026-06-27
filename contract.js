@@ -685,8 +685,8 @@ function bytesToBase64Url(bytes) {
 function generatePasscode() {
   const bytes = new Uint8Array(4);
   crypto.getRandomValues(bytes);
-  const number = bytes.reduce((acc, byte) => (acc << 8) + byte, 0) % 100000000;
-  return String(number).padStart(8, "0").replace(/(\d{4})(\d{4})/, "$1-$2");
+  const number = bytes.reduce((acc, byte) => acc * 256 + byte, 0) % 100000000;
+  return String(number).padStart(8, "0");
 }
 
 async function deriveEncryptionKey(passcode, salt) {

@@ -72,6 +72,33 @@ async function decryptEnvelope(envelope, passcode) {
   return JSON.parse(new TextDecoder().decode(plaintext));
 }
 
+async function decryptEnvelopeWithPasscodeVariants(envelope, passcode) {
+  const cleaned = String(passcode || "").trim();
+  const digitsOnly = cleaned.replaceAll("-", "");
+  const variants = [cleaned];
+
+  if (digitsOnly && digitsOnly !== cleaned) {
+    variants.push(digitsOnly);
+  }
+
+  if (/^\d{8}$/.test(digitsOnly)) {
+    variants.push(`${digitsOnly.slice(0, 4)}-${digitsOnly.slice(4)}`);
+  }
+
+  const uniqueVariants = [...new Set(variants)];
+  let lastError;
+
+  for (const candidate of uniqueVariants) {
+    try {
+      return await decryptEnvelope(envelope, candidate);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error("Invalid passcode");
+}
+
 function formatDateTime(date = new Date()) {
   return new Intl.DateTimeFormat("ja-JP", {
     year: "numeric",
@@ -164,7 +191,7 @@ async function unlockConsent() {
       throw new Error("Missing encrypted payload");
     }
 
-    loadedContract = await decryptEnvelope(envelope, passcode);
+    loadedContract = await decryptEnvelopeWithPasscodeVariants(envelope, passcode);
 
     if (loadedContract.expiresAt && Date.now() > loadedContract.expiresAt) {
       throw new Error("Expired contract URL");
