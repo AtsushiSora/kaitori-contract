@@ -677,6 +677,26 @@ function buildEmailBody() {
   document.querySelector("#email-body").value = body;
 }
 
+function buildLineMessage() {
+  const data = getFormData();
+  const url = document.querySelector("#email-url").value.trim() || "【確認URL】";
+
+  return [
+    `${safePlain(data.sellerName, "お客様")} 様`,
+    "",
+    "オーダーオートです。",
+    "車両契約の内容確認をお願いします。",
+    "",
+    `契約区分：${contractTypeLabel(data)}`,
+    `車両：${safePlain(data.carName)} ${safePlain(data.plateNumber)}`,
+    "",
+    `確認URL：${url}`,
+    "",
+    "開封パスコードは安全のため、このLINEには記載していません。",
+    "別途お伝えする8桁のパスコードを入力して確認してください。",
+  ].join("\n");
+}
+
 function bytesToBase64Url(bytes) {
   const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
   return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
@@ -785,6 +805,21 @@ async function copyConsentPasscode() {
   } catch (error) {
     field.select();
     setSaveStatus("パスコード欄を選択しました。手動でコピーしてください。", "warning");
+  }
+}
+
+async function copyLineMessage() {
+  if (!document.querySelector("#email-url").value.trim()) {
+    await generateConsentUrl();
+  }
+
+  const message = buildLineMessage();
+
+  try {
+    await navigator.clipboard.writeText(message);
+    setSaveStatus("LINE送信用の文面をコピーしました。パスコードは別送してください。", "success");
+  } catch (error) {
+    setSaveStatus("LINE文面をコピーできませんでした。URLコピーを使って手動で送ってください。", "warning");
   }
 }
 
@@ -1077,6 +1112,7 @@ function setupEvents() {
     generateConsentUrl();
   });
   document.querySelector("#copy-consent-url").addEventListener("click", copyConsentUrl);
+  document.querySelector("#copy-line-message").addEventListener("click", copyLineMessage);
   document.querySelector("#copy-consent-passcode").addEventListener("click", copyConsentPasscode);
   document.querySelector("#open-email").addEventListener("click", openEmail);
   document.querySelector("#email-url").addEventListener("input", buildEmailBody);
