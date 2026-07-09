@@ -1,5 +1,4 @@
 const STORAGE_KEY = "orderAutoContracts";
-const CLOUD_FORM_NAME = "contract-record";
 const COMPANY = {
   name: "オーダーオート",
   representative: "空 篤志",
@@ -175,6 +174,10 @@ function persistContracts() {
 
 function currentContract() {
   return contracts.find((contract) => contract.id === activeId);
+}
+
+function cloudEnabled() {
+  return Boolean(window.OrderAutoCloud?.isConfigured() && window.OrderAutoCloud?.isAuthenticated());
 }
 
 function setSaveStatus(message, tone = "neutral") {
@@ -357,6 +360,55 @@ function createBlankContract() {
   renderList();
 }
 
+async function loadCloudContracts() {
+  if (!cloudEnabled()) return;
+
+  try {
+    setSaveStatus("Supabaseから契約一覧を読み込み中です。", "pending");
+    const cloudContracts = await window.OrderAutoCloud.listContracts();
+    if (cloudContracts.length) {
+      const localById = new Map(contracts.map((contract) => [contract.id, contract]));
+      contracts = cloudContracts.map((cloudContract) => ({
+        ...(localById.get(cloudContract.id) || {}),
+        ...cloudContract,
+      }));
+      activeId = contracts[0]?.id || activeId;
+      persistContracts();
+      populateForm(currentContract());
+      renderList();
+    }
+    setSaveStatus("Supabaseと同期しました。", "success");
+  } catch (error) {
+    setSaveStatus("Supabaseから契約一覧を読み込めませんでした。ローカル保存で続行します。", "warning");
+  }
+}
+
+async function syncActiveContractToCloud() {
+  if (!cloudEnabled()) return false;
+  const contract = currentContract();
+  if (!contract) return false;
+
+  try {
+    setSaveStatus("Supabaseへ保存中です。", "pending");
+    const identitySummary = await window.OrderAutoCloud.uploadIdentityFiles(
+      contract.id,
+      contract.identityFiles || [],
+    );
+    const saved = await window.OrderAutoCloud.upsertContract(contract, identitySummary);
+    if (saved) {
+      contract.cloudSavedAt = formatDateTime();
+      contract.consentStatus = saved.consentStatus || contract.consentStatus || "";
+      persistContracts();
+      renderList();
+    }
+    setSaveStatus("Supabaseへ保存しました。", "success");
+    return true;
+  } catch (error) {
+    setSaveStatus("Supabaseへ保存できませんでした。この端末には保存済みです。", "warning");
+    return false;
+  }
+}
+
 function saveActiveContract(status) {
   const existing = currentContract();
   if (!existing) return;
@@ -370,7 +422,7 @@ function saveActiveContract(status) {
   renderList();
   updatePreview();
   if (saved) {
-    setSaveStatus("この端末に保存しました。Netlify保存で管理画面にも送信できます。");
+    setSaveStatus("この端末に保存しました。Supabase設定後はクラウドにも保存できます。");
   }
   return saved;
 }
@@ -752,6 +804,16 @@ async function encryptPayload(payload, passcode) {
 function buildConsentPayload(contract = currentContract()) {
   const data = getFormData();
   const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
+  if (cloudEnabled()) {
+    return {
+      id: contract?.id || activeId,
+      cloudMode: true,
+      createdAt: contract?.createdAt || formatDateTime(),
+      expiresAt,
+      company: COMPANY,
+    };
+  }
+
   return {
     id: contract?.id || activeId,
     createdAt: contract?.createdAt || formatDateTime(),
@@ -763,6 +825,9 @@ function buildConsentPayload(contract = currentContract()) {
 
 async function generateConsentUrl() {
   saveActiveContract("送信済み");
+  if (cloudEnabled()) {
+    await syncActiveContractToCloud();
+  }
   const payload = buildConsentPayload();
   const passcode = generatePasscode();
   const encrypted = await encryptPayload(payload, passcode);
@@ -915,75 +980,18 @@ function importContractsFile(file) {
   reader.readAsText(file);
 }
 
-function buildCloudPayload(contract = currentContract()) {
-  const data = getFormData();
-  const snapshot = {
-    id: contract?.id || activeId,
-    status: contract?.status || "下書き",
-    createdAt: contract?.createdAt || "",
-    updatedAt: contract?.updatedAt || "",
-    completedAt: contract?.completedAt || "",
-    signedAt: contract?.signedAt || "",
-    data,
-    signatureSaved: Boolean(signatureData),
-    identityFiles: identityFileSummary(contract?.identityFiles || identityFiles),
-    savedAt: formatDateTime(),
-  };
-
-  return {
-    "form-name": CLOUD_FORM_NAME,
-    contractId: snapshot.id,
-    status: snapshot.status || "下書き",
-    contractType: contractTypeLabel(data),
-    completionMethod: completionLabel(data),
-    sellerName: data.sellerName || "",
-    sellerLastName: data.sellerLastName || "",
-    sellerFirstName: data.sellerFirstName || "",
-    sellerPhone: data.sellerPhone || "",
-    sellerEmail: data.sellerEmail || "",
-    identityPhotoCount: String(identityFiles.length),
-    carName: data.carName || "",
-    plateNumber: data.plateNumber || "",
-    plateArea: data.plateArea || "",
-    plateClass: data.plateClass || "",
-    plateKana: data.plateKana || "",
-    plateNumberDigits: data.plateNumberDigits || "",
-    purchaseAmount: data.contractType === "free" ? "0" : data.purchaseAmount || "",
-    contractJson: JSON.stringify(snapshot),
-    previewText: document.querySelector("#contract-preview")?.innerText || "",
-  };
-}
-
 async function submitCloudRecord() {
   saveActiveContract(currentContract()?.status || "下書き");
-  setSaveStatus("Netlifyへ送信中です。", "pending");
 
-  const payload = buildCloudPayload();
-
-  try {
-    const response = await fetch("/", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams(payload).toString(),
-      keepalive: true,
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const contract = currentContract();
-    if (contract) {
-      contract.cloudSavedAt = formatDateTime();
-      persistContracts();
-    }
-    setSaveStatus("Netlify Formsに送信しました。管理画面のFormsで確認できます。", "success");
-  } catch (error) {
-    setSaveStatus(
-      "この端末には保存済みです。Netlify公開環境ではFormsへ送信されます。",
-      "warning",
-    );
+  if (cloudEnabled()) {
+    await syncActiveContractToCloud();
+    return;
   }
+
+  setSaveStatus(
+    "この端末には保存済みです。クラウド保存を使うにはsupabase-config.jsを設定してください。",
+    "warning",
+  );
 }
 
 function safePlain(value, fallback = "未入力") {
@@ -1171,4 +1179,6 @@ document.addEventListener("DOMContentLoaded", () => {
     populateForm(currentContract());
     renderList();
   }
+
+  loadCloudContracts();
 });

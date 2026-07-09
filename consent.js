@@ -177,6 +177,25 @@ function renderContract() {
   document.querySelector("#consent-error").hidden = true;
 }
 
+async function hydrateCloudContractIfNeeded(contract) {
+  if (!contract?.cloudMode) return contract;
+  if (!window.OrderAutoCloud?.isConfigured()) {
+    throw new Error("Supabase is not configured");
+  }
+
+  const cloudContract = await window.OrderAutoCloud.getContract(contract.id);
+  if (!cloudContract?.data) {
+    throw new Error("Contract was not found");
+  }
+
+  return {
+    ...contract,
+    ...cloudContract,
+    expiresAt: contract.expiresAt,
+    company: contract.company || cloudContract.company,
+  };
+}
+
 async function unlockConsent() {
   const passcode = document.querySelector("#consent-passcode-input").value.trim();
   if (!passcode) {
@@ -192,6 +211,7 @@ async function unlockConsent() {
     }
 
     loadedContract = await decryptEnvelopeWithPasscodeVariants(envelope, passcode);
+    loadedContract = await hydrateCloudContractIfNeeded(loadedContract);
 
     if (loadedContract.expiresAt && Date.now() > loadedContract.expiresAt) {
       throw new Error("Expired contract URL");
@@ -267,7 +287,7 @@ function setupSignature() {
   });
 }
 
-function completeConsent() {
+async function completeConsent() {
   if (!loadedContract?.data) return;
 
   if (!allConsentsChecked()) {
@@ -284,6 +304,27 @@ function completeConsent() {
   const data = loadedContract.data;
   const completedAt = formatDateTime();
   const amount = data.contractType === "free" ? "0円" : yen(data.purchaseAmount);
+  const result = {
+    contractId: loadedContract.id,
+    completedAt,
+    customerName: name,
+    checkedConsents: checkedConsents(),
+    contractType: data.contractType,
+    carName: data.carName,
+    plateNumber: data.plateNumber,
+    amount,
+    userAgent: navigator.userAgent,
+  };
+
+  if (loadedContract.cloudMode && window.OrderAutoCloud?.isConfigured()) {
+    try {
+      await window.OrderAutoCloud.saveConsentResult(loadedContract.id, result);
+    } catch (error) {
+      alert("同意結果をクラウド保存できませんでした。通信状況を確認してください。");
+      return;
+    }
+  }
+
   const body = [
     "契約内容を確認し、電子同意しました。",
     "",
@@ -295,7 +336,7 @@ function completeConsent() {
     `金額：${amount}`,
     "",
     "確認した重要事項：",
-    ...checkedConsents().map((item) => `・${item}`),
+    ...result.checkedConsents.map((item) => `・${item}`),
     "",
     "このメールは、お客様が契約確認ページで同意操作を行った記録として送信しています。",
   ].join("\n");

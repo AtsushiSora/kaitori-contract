@@ -10,6 +10,8 @@
     />
     <meta name="robots" content="noindex,nofollow" />
     <link rel="stylesheet" href="styles.css" />
+    <script src="supabase-config.js"></script>
+    <script src="supabase-api.js"></script>
     <script src="admin-auth.js"></script>
     <script>
       window.OrderAutoAdminAuth.requireAuth();
@@ -99,7 +101,7 @@
               </div>
               <div class="toolbar-actions">
                 <button class="button button-outline" type="button" id="save-contract">下書き保存</button>
-                <button class="button button-outline" type="button" id="cloud-save-contract">Netlify保存</button>
+                <button class="button button-outline" type="button" id="cloud-save-contract">クラウド保存</button>
                 <button class="button button-primary" type="button" id="print-contract">印刷</button>
               </div>
             </div>
@@ -290,7 +292,7 @@
                   <button class="mini-button" type="button" id="complete-contract">完了にする</button>
                 </div>
                 <p id="cloud-save-status" class="save-status" role="status" aria-live="polite">
-                  この端末に保存中。Netlify保存で管理画面にも送信できます。
+                  この端末に保存中。Supabase設定後はクラウドにも保存できます。
                 </p>
                 <div id="contract-preview" class="contract-document"></div>
 
@@ -346,35 +348,11 @@
       </section>
     </main>
 
-    <form name="contract-record" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden>
-      <input type="hidden" name="form-name" value="contract-record" />
-      <input name="bot-field" />
-      <input name="contractId" />
-      <input name="status" />
-      <input name="contractType" />
-      <input name="completionMethod" />
-      <input name="sellerName" />
-      <input name="sellerLastName" />
-      <input name="sellerFirstName" />
-      <input name="sellerPhone" />
-      <input name="sellerEmail" />
-      <input name="identityPhotoCount" />
-      <input name="carName" />
-      <input name="plateNumber" />
-      <input name="plateArea" />
-      <input name="plateClass" />
-      <input name="plateKana" />
-      <input name="plateNumberDigits" />
-      <input name="purchaseAmount" />
-      <textarea name="contractJson"></textarea>
-      <textarea name="previewText"></textarea>
-    </form>
-
     <footer class="site-footer">
       <div class="container footer-inner">
         <div>
           <p><strong>オーダーオート　おまかせ廃車</strong></p>
-          <p>広島県広島市佐伯区皆賀1-10-20。電話：080-2912-8616。契約作成データは、このブラウザ内とNetlify Formsに保存できます。</p>
+          <p>広島県広島市佐伯区皆賀1-10-20。電話：080-2912-8616。契約作成データは、このブラウザ内とSupabaseに保存できます。</p>
         </div>
         <nav class="footer-links" aria-label="補足ページ">
           <a href="admin.html">管理ログイン</a>

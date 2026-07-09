@@ -52,6 +52,7 @@ function adminCredential() {
 }
 
 function adminHasCredential() {
+  if (window.OrderAutoCloud?.isConfigured()) return true;
   return Boolean(adminCredential()?.hash) || adminIsTestSession();
 }
 
@@ -72,6 +73,12 @@ async function adminSetup(passcode) {
 }
 
 async function adminLogin(passcode) {
+  if (window.OrderAutoCloud?.isConfigured()) {
+    const email = document.querySelector("#admin-email")?.value.trim();
+    await window.OrderAutoCloud.signIn(email, passcode);
+    return true;
+  }
+
   const credential = adminCredential();
   if (!credential?.hash || !credential?.salt) return false;
 
@@ -108,6 +115,10 @@ function adminStoreSession(hours, testMode) {
 }
 
 function adminIsAuthenticated() {
+  if (window.OrderAutoCloud?.isConfigured()) {
+    return window.OrderAutoCloud.isAuthenticated();
+  }
+
   try {
     const session = JSON.parse(sessionStorage.getItem(ADMIN_SESSION_KEY) || "null");
     if (!session?.expiresAt || Date.now() > session.expiresAt) {
@@ -137,6 +148,9 @@ function adminTestLogin() {
 }
 
 function adminLogout() {
+  if (window.OrderAutoCloud?.isConfigured()) {
+    window.OrderAutoCloud.signOut();
+  }
   sessionStorage.removeItem(ADMIN_SESSION_KEY);
   window.location.href = "admin.html";
 }

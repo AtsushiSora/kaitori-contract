@@ -10,6 +10,8 @@
       content="オーダーオート契約作成システムの管理人ログインページです。"
     />
     <link rel="stylesheet" href="styles.css" />
+    <script src="supabase-config.js"></script>
+    <script src="supabase-api.js"></script>
     <script src="admin-auth.js" defer></script>
     <script src="admin.js" defer></script>
   </head>
@@ -43,6 +45,14 @@
           </div>
 
           <form id="admin-form" class="admin-form">
+            <label id="admin-email-wrap" hidden>
+              メールアドレス
+              <input
+                id="admin-email"
+                type="email"
+                autocomplete="username"
+              />
+            </label>
             <label>
               管理者パスコード
               <input

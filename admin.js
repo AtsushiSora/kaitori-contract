@@ -10,7 +10,29 @@ function setAdminMessage(message, tone = "neutral") {
 }
 
 function setMode() {
+  const isCloud = window.OrderAutoCloud?.isConfigured();
   const isSetup = !window.OrderAutoAdminAuth.hasCredential();
+
+  if (isCloud) {
+    document.querySelector("#admin-title").textContent = "管理者ログイン";
+    document.querySelector("#admin-copy").textContent =
+      "Supabaseの管理者メールアドレスとパスワードでログインしてください。";
+    document.querySelector("#admin-email-wrap").hidden = false;
+    document.querySelector("#admin-email").required = true;
+    document.querySelector("#admin-confirm-wrap").hidden = true;
+    document.querySelector("#admin-passcode").autocomplete = "current-password";
+    document.querySelector("#admin-submit").textContent = "ログイン";
+    document.querySelector("#admin-reset").hidden = true;
+    document.querySelector("#test-login").hidden = true;
+
+    if (window.OrderAutoAdminAuth.isAuthenticated()) {
+      setAdminMessage("Supabaseにログイン済みです。契約作成へ進めます。", "success");
+    } else {
+      setAdminMessage("Supabase接続が有効です。本番ログインで保護されます。", "success");
+    }
+    return;
+  }
+
   document.querySelector("#admin-title").textContent = isSetup
     ? "初回管理者設定"
     : "管理人ログイン";
@@ -34,7 +56,13 @@ async function handleAdminSubmit(event) {
   event.preventDefault();
   const passcode = document.querySelector("#admin-passcode").value;
   const confirm = document.querySelector("#admin-passcode-confirm").value;
+  const isCloud = window.OrderAutoCloud?.isConfigured();
   const isSetup = !window.OrderAutoAdminAuth.hasCredential();
+
+  if (isCloud && !document.querySelector("#admin-email").value.trim()) {
+    setAdminMessage("メールアドレスを入力してください。", "warning");
+    return;
+  }
 
   if (passcode.length < 8) {
     setAdminMessage("パスコードは8文字以上にしてください。", "warning");
@@ -42,6 +70,13 @@ async function handleAdminSubmit(event) {
   }
 
   try {
+    if (isCloud) {
+      await window.OrderAutoAdminAuth.login(passcode);
+      setAdminMessage("Supabaseにログインしました。", "success");
+      window.location.href = adminNextUrl();
+      return;
+    }
+
     if (isSetup) {
       if (passcode !== confirm) {
         setAdminMessage("確認用パスコードが一致しません。", "warning");
