@@ -6,20 +6,21 @@ const ORDER_AUTO = {
   phone: "080-2912-8616",
 };
 
-const CONSENT_TEXTS = {
-  sale: [
-    "契約内容を確認しました",
-    "車両情報に間違いありません",
-    "買取金額に同意します",
-    "還付金等は買取金額に含まれることに同意します",
-  ],
-  free: [
-    "契約内容を確認しました",
-    "買取金額が0円であることに同意します",
-    "引取後に買取代金を請求しません",
-    "重量税・自賠責・リサイクル券・自動車税の還付または返戻金を請求しません",
-  ],
-};
+const COMMON_CONSENT_TEXTS = [
+  "契約内容を確認しました",
+  "車両情報に間違いありません",
+];
+
+const PAID_CONSENT_TEXTS = [
+  "買取金額に同意します",
+  "還付金等は買取金額に含まれることに同意します",
+];
+
+const ZERO_AMOUNT_CONSENT_TEXTS = [
+  "買取金額が0円であることに同意します",
+  "引取後に買取代金を請求しません",
+  "重量税・自賠責・リサイクル券・自動車税の還付または返戻金を請求しません",
+];
 
 let loadedContract = null;
 let isDrawing = false;
@@ -115,6 +116,29 @@ function yen(value) {
   return `${number.toLocaleString("ja-JP")}円`;
 }
 
+function hasAmountInput(data) {
+  return String(data?.purchaseAmount ?? "").trim() !== "";
+}
+
+function isZeroAmountContract(data) {
+  if (data?.contractType === "free") return true;
+  if (!hasAmountInput(data)) return false;
+  const number = Number(data.purchaseAmount);
+  return Number.isFinite(number) && number <= 0;
+}
+
+function amountLabel(data) {
+  if (!hasAmountInput(data)) return "";
+  return isZeroAmountContract(data) ? "0円" : yen(data.purchaseAmount);
+}
+
+function consentItems(data) {
+  return [
+    ...COMMON_CONSENT_TEXTS,
+    ...(isZeroAmountContract(data) ? ZERO_AMOUNT_CONSENT_TEXTS : PAID_CONSENT_TEXTS),
+  ];
+}
+
 function text(value, fallback = "未入力") {
   const cleaned = String(value ?? "").trim();
   return cleaned || fallback;
@@ -133,8 +157,13 @@ function summaryRow(label, value) {
   return `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(text(value))}</dd></div>`;
 }
 
-function contractTypeLabel(type) {
-  return type === "free" ? "買取金額0円 / 無償引取" : "買取金額あり";
+function contractTypeLabel(data) {
+  return isZeroAmountContract(data) ? "売買契約（買取金額0円）" : "売買契約";
+}
+
+function displayContractNumber(contract) {
+  const number = Number(contract?.contractNumber);
+  return Number.isInteger(number) && number > 0 ? String(number) : text(contract?.id);
 }
 
 function renderContract() {
@@ -144,11 +173,12 @@ function renderContract() {
   }
 
   const data = loadedContract.data;
-  const amount = data.contractType === "free" ? "0円" : yen(data.purchaseAmount);
+  const amount = amountLabel(data);
+  const contractNumber = displayContractNumber(loadedContract);
   document.querySelector("#customer-name").value = data.sellerName || "";
   document.querySelector("#summary-list").innerHTML = [
-    summaryRow("契約番号", loadedContract.id),
-    summaryRow("契約区分", contractTypeLabel(data.contractType)),
+    summaryRow("契約番号", contractNumber),
+    summaryRow("契約内容", contractTypeLabel(data)),
     summaryRow("売主氏名", data.sellerName),
     summaryRow("電話番号", data.sellerPhone),
     summaryRow("メール", data.sellerEmail),
@@ -163,7 +193,7 @@ function renderContract() {
     summaryRow("所在地", ORDER_AUTO.address),
   ].join("");
 
-  const items = CONSENT_TEXTS[data.contractType || "sale"];
+  const items = consentItems(data);
   document.querySelector("#customer-consents").innerHTML = items
     .map((item) => {
       return `<label><input type="checkbox" name="customerConsent" value="${escapeHtml(item)}" />${escapeHtml(item)}</label>`;
@@ -303,13 +333,16 @@ async function completeConsent() {
 
   const data = loadedContract.data;
   const completedAt = formatDateTime();
-  const amount = data.contractType === "free" ? "0円" : yen(data.purchaseAmount);
+  const amount = amountLabel(data) || "未入力";
+  const contractNumber = displayContractNumber(loadedContract);
   const result = {
     contractId: loadedContract.id,
+    contractNumber,
     completedAt,
     customerName: name,
     checkedConsents: checkedConsents(),
-    contractType: data.contractType,
+    contractType: data.contractType || "unified",
+    contractLabel: contractTypeLabel(data),
     carName: data.carName,
     plateNumber: data.plateNumber,
     amount,
@@ -328,10 +361,10 @@ async function completeConsent() {
   const body = [
     "契約内容を確認し、電子同意しました。",
     "",
-    `契約番号：${text(loadedContract.id)}`,
+    `契約番号：${contractNumber}`,
     `同意日時：${completedAt}`,
     `氏名：${name}`,
-    `契約区分：${contractTypeLabel(data.contractType)}`,
+    `契約内容：${contractTypeLabel(data)}`,
     `車両：${text(data.carName)} ${text(data.plateNumber)}`,
     `金額：${amount}`,
     "",
@@ -342,7 +375,7 @@ async function completeConsent() {
   ].join("\n");
 
   const params = new URLSearchParams({
-    subject: `契約同意完了 ${text(loadedContract.id)}`,
+    subject: `契約同意完了 ${contractNumber}`,
     body,
   });
   window.location.href = `mailto:${ORDER_AUTO_EMAIL}?${params.toString()}`;

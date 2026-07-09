@@ -6,7 +6,7 @@
     <title>契約作成システム｜オーダーオート</title>
     <meta
       name="description"
-      content="オーダーオートの車両売買契約書・車両無償引取契約書を作成、印刷、タブレット署名、メール送信できる契約作成システムです。"
+      content="オーダーオートの車両売買契約書を作成、印刷、タブレット署名、メール送信できる契約作成システムです。"
     />
     <meta name="robots" content="noindex,nofollow" />
     <link rel="stylesheet" href="styles.css" />
@@ -26,7 +26,7 @@
         </span>
         <span>
           <strong>オーダーオート　契約作成</strong>
-          <small>車両売買・無償引取</small>
+          <small>車両売買・引取</small>
         </span>
       </a>
       <nav class="nav" aria-label="メインナビゲーション">
@@ -44,7 +44,7 @@
             <p class="eyebrow">Contract System</p>
             <h1>契約情報を入力して、紙・タブレット・メールで完結。</h1>
             <p>
-              買取金額ありの車両売買契約と、買取金額0円の車両無償引取契約に対応します。入力内容はこの端末に保存され、印刷用の契約書に反映されます。
+              車両売買・引取契約を作成します。買取金額が0円の場合は、無料引取および還付なしの確認事項を同じ契約書に反映します。
             </p>
           </div>
           <div class="contract-flow-summary" aria-label="完結方法">
@@ -109,16 +109,10 @@
             <div class="contract-grid">
               <form id="contract-form" class="contract-form-panel">
                 <fieldset>
-                  <legend>契約区分</legend>
-                  <div class="choice-grid">
-                    <label>
-                      <input type="radio" name="contractType" value="sale" checked />
-                      <span>買取金額あり</span>
-                    </label>
-                    <label>
-                      <input type="radio" name="contractType" value="free" />
-                      <span>買取金額0円 / 無償引取</span>
-                    </label>
+                  <legend>契約内容</legend>
+                  <input type="hidden" name="contractType" value="unified" />
+                  <div class="form-note">
+                    車両売買・引取契約として作成します。買取金額が0円の場合は、無料引取および還付なしの確認事項を同じ契約書内に表示します。
                   </div>
                 </fieldset>
 

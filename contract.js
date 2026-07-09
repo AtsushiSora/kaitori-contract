@@ -6,24 +6,26 @@ const COMPANY = {
   phone: "080-2912-8616",
 };
 
-const CONSENTS = {
-  sale: [
-    "車両情報に間違いありません",
-    "事故歴・修復歴・不具合について、知る限り正確に申告しました",
-    "表示された買取金額に同意します",
-    "還付金等は買取金額に含まれることに同意します",
-    "引渡し後の名義変更・抹消登録手続きに協力します",
-  ],
-  free: [
-    "買取金額が0円であることに同意します",
-    "引取後に買取代金を請求しません",
-    "自動車重量税の還付を請求しません",
-    "自賠責保険料の返戻金を請求しません",
-    "リサイクル券・リサイクル料金の返金を請求しません",
-    "自動車税種別割の還付を請求しません",
-    "還付金等が発生する可能性を理解したうえで同意します",
-  ],
-};
+const COMMON_CONSENTS = [
+  "車両情報に間違いありません",
+  "事故歴・修復歴・不具合について、知る限り正確に申告しました",
+  "引渡し後の名義変更・抹消登録手続きに協力します",
+];
+
+const PAID_CONSENTS = [
+  "表示された買取金額に同意します",
+  "還付金等は買取金額に含まれることに同意します",
+];
+
+const ZERO_AMOUNT_CONSENTS = [
+  "買取金額が0円であることに同意します",
+  "引取後に買取代金を請求しません",
+  "自動車重量税の還付を請求しません",
+  "自賠責保険料の返戻金を請求しません",
+  "リサイクル券・リサイクル料金の返金を請求しません",
+  "自動車税種別割の還付を請求しません",
+  "還付金等が発生する可能性を理解したうえで同意します",
+];
 
 let contracts = [];
 let activeId = "";
@@ -151,12 +153,73 @@ function yen(value) {
   return `${number.toLocaleString("ja-JP")}円`;
 }
 
+function hasAmountInput(data) {
+  return String(data?.purchaseAmount ?? "").trim() !== "";
+}
+
+function isZeroAmountContract(data) {
+  if (data?.contractType === "free") return true;
+  if (!hasAmountInput(data)) return false;
+  const number = Number(data.purchaseAmount);
+  return Number.isFinite(number) && number <= 0;
+}
+
+function amountLabel(data) {
+  if (!hasAmountInput(data)) return "";
+  return isZeroAmountContract(data) ? "0円" : yen(data.purchaseAmount);
+}
+
+function consentItems(data) {
+  return [
+    ...COMMON_CONSENTS,
+    ...(isZeroAmountContract(data) ? ZERO_AMOUNT_CONSENTS : PAID_CONSENTS),
+  ];
+}
+
+function normalizeContractMode(data) {
+  if (!data || data.contractType !== "free") return;
+  if (!hasAmountInput(data)) data.purchaseAmount = "0";
+  data.contractType = "unified";
+}
+
+function contractNumberValue(contract) {
+  const value = Number(contract?.contractNumber ?? contract?.data?.contractNumber);
+  return Number.isInteger(value) && value > 0 ? value : 0;
+}
+
+function nextContractNumber() {
+  const maxNumber = contracts.reduce((max, contract) => {
+    return Math.max(max, contractNumberValue(contract));
+  }, 0);
+  return maxNumber + 1;
+}
+
+function ensureContractNumbers() {
+  const used = new Set(
+    contracts
+      .map(contractNumberValue)
+      .filter((value) => value > 0),
+  );
+  let nextNumber = 1;
+
+  contracts
+    .slice()
+    .reverse()
+    .forEach((contract) => {
+      if (!contract || contractNumberValue(contract)) return;
+      while (used.has(nextNumber)) nextNumber += 1;
+      contract.contractNumber = nextNumber;
+      used.add(nextNumber);
+    });
+}
+
 function loadContracts() {
   try {
     contracts = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
   } catch (error) {
     contracts = [];
   }
+  ensureContractNumbers();
 }
 
 function persistContracts() {
@@ -283,14 +346,13 @@ function getFormData() {
   const form = document.querySelector("#contract-form");
   const data = Object.fromEntries(new FormData(form).entries());
   data.documents = new FormData(form).getAll("documents");
-  data.contractType = form.elements.contractType.value;
+  data.contractType = form.elements.contractType?.value || "unified";
   data.completionMethod = form.elements.completionMethod.value;
   data.consents = new FormData(form).getAll("consents");
   normalizeSellerNameFields(data);
   normalizePlateNumberFields(data);
 
-  if (data.contractType === "free") {
-    data.purchaseAmount = "0";
+  if (isZeroAmountContract(data) && !data.paymentMethod) {
     data.paymentMethod = "支払いなし";
   }
 
@@ -317,6 +379,7 @@ function populateForm(contract) {
   const data = contract?.data || {};
   normalizeSellerNameFields(data);
   normalizePlateNumberFields(data);
+  normalizeContractMode(data);
   Object.entries(data).forEach(([key, value]) => {
     if (key === "documents" || key === "consents") return;
     setFieldValue(form, key, value);
@@ -326,7 +389,7 @@ function populateForm(contract) {
     checkbox.checked = (data.documents || []).includes(checkbox.value);
   });
 
-  renderConsents(data.contractType || "sale", data.consents || []);
+  renderConsents(data, data.consents || []);
   signatureData = contract?.signatureData || "";
   identityFiles = Array.isArray(contract?.identityFiles) ? contract.identityFiles : [];
   renderIdentityFiles();
@@ -338,6 +401,7 @@ function createBlankContract() {
   const id = createContractId();
   const contract = {
     id,
+    contractNumber: nextContractNumber(),
     status: "下書き",
     createdAt: formatDateTime(),
     updatedAt: formatDateTime(),
@@ -346,7 +410,7 @@ function createBlankContract() {
     signatureData: "",
     identityFiles: [],
     data: {
-      contractType: "sale",
+      contractType: "unified",
       completionMethod: "paper",
       purchaseAmount: "",
       paymentMethod: "振込",
@@ -372,6 +436,7 @@ async function loadCloudContracts() {
         ...(localById.get(cloudContract.id) || {}),
         ...cloudContract,
       }));
+      ensureContractNumbers();
       activeId = contracts[0]?.id || activeId;
       persistContracts();
       populateForm(currentContract());
@@ -428,19 +493,11 @@ function saveActiveContract(status) {
 }
 
 function contractTitle(data) {
-  if (data.contractType === "free") {
-    return data.completionMethod === "paper"
-      ? "車両無償引取契約書"
-      : "電子車両無償引取契約書";
-  }
-
-  return data.completionMethod === "paper"
-    ? "車両売買契約書"
-    : "電子車両売買契約書";
+  return data.completionMethod === "paper" ? "車両売買契約書" : "電子車両売買契約書";
 }
 
 function contractTypeLabel(data) {
-  return data.contractType === "free" ? "買取金額0円 / 無償引取" : "買取金額あり";
+  return isZeroAmountContract(data) ? "売買契約（買取金額0円）" : "売買契約";
 }
 
 function completionLabel(data) {
@@ -452,9 +509,9 @@ function completionLabel(data) {
   return labels[data.completionMethod] || "紙で印刷";
 }
 
-function renderConsents(type, checkedItems = []) {
+function renderConsents(data, checkedItems = []) {
   const list = document.querySelector("#consent-list");
-  list.innerHTML = CONSENTS[type]
+  list.innerHTML = consentItems(data)
     .map((text) => {
       const checked = checkedItems.includes(text) ? "checked" : "";
       return `<label><input type="checkbox" name="consents" value="${escapeHtml(text)}" ${checked} />${escapeHtml(text)}</label>`;
@@ -466,167 +523,295 @@ function row(label, value) {
   return `<div><dt>${escapeHtml(label)}</dt><dd>${safeValue(value)}</dd></div>`;
 }
 
+function formValue(value) {
+  return safeValue(value, "");
+}
+
+function dateParts(value) {
+  const cleaned = String(value || "").trim();
+  const match = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return { year: "", month: "", day: "", raw: cleaned };
+  return { year: match[1], month: String(Number(match[2])), day: String(Number(match[3])), raw: cleaned };
+}
+
+function dateLine(value) {
+  const parts = dateParts(value);
+  if (parts.year) {
+    return `${escapeHtml(parts.year)} 年 ${escapeHtml(parts.month)} 月 ${escapeHtml(parts.day)} 日`;
+  }
+  return formValue(value) || "　 年 　月 　日";
+}
+
+function amountNumber(data) {
+  if (!hasAmountInput(data)) return "";
+  if (isZeroAmountContract(data)) return "0";
+  const number = Number(data.purchaseAmount);
+  if (!Number.isFinite(number) || number < 0) return "";
+  return String(Math.round(number));
+}
+
+function yenBox(data) {
+  const amount = amountNumber(data);
+  return amount ? `${Number(amount).toLocaleString("ja-JP")}` : "";
+}
+
+function amountDigitCells(data) {
+  const amount = amountNumber(data);
+  const digits = amount ? amount.slice(-7).padStart(7, " ") : "       ";
+  return Array.from(digits)
+    .map((digit) => `<td>${escapeHtml(digit.trim())}</td>`)
+    .join("");
+}
+
+function choiceMark(value, expected) {
+  return String(value || "") === expected ? "●" : "○";
+}
+
+function documentCheck(documents, name) {
+  return documents.includes(name) ? "☑" : "□";
+}
+
+function displayContractNumber(contract) {
+  const number = contractNumberValue(contract);
+  return number ? String(number) : "1";
+}
+
 function renderDocument(contract) {
   const data = contract?.data || getFormData();
-  const consents = data.consents || [];
   const documents = data.documents || [];
-  const attachedIdentityFiles = Array.isArray(contract?.identityFiles)
-    ? contract.identityFiles
-    : identityFiles;
-  const title = contractTitle(data);
-  const isFree = data.contractType === "free";
-  const isElectronic = data.completionMethod !== "paper";
-
-  const amount = isFree ? "0円" : yen(data.purchaseAmount);
+  const contractDate = dateParts(new Date().toISOString().slice(0, 10));
+  const sellerBirth = dateParts(data.sellerBirthdate);
+  const amount = yenBox(data);
   const signatureBlock = signatureData
     ? `<img class="signature-image" src="${signatureData}" alt="売主電子署名" />`
-    : '<span class="signature-placeholder">未署名</span>';
+    : "";
+  const bankLine = [data.bankName, data.branchName, data.accountType].filter(Boolean).join(" / ");
+  const sellerPhone = [data.sellerPhone, data.sellerMobile].filter(Boolean).join(" / ");
 
   return `
-    <article class="print-sheet">
-      <header class="document-header">
-        <div>
-          <p>契約番号：${safeValue(contract?.id || activeId)}</p>
-          <p>契約日：${formatDate()}</p>
+    <article class="print-sheet vehicle-contract-sheet">
+      <header class="vehicle-contract-head">
+        <div class="contract-date">契約日： ${contractDate.year || "　"} 年 ${contractDate.month || "　"} 月 ${contractDate.day || "　"} 日</div>
+        <h2>車両売買契約書</h2>
+        <div class="contract-number">
+          <span>（お客様控え）</span>
+          契約書番号 No. ${escapeHtml(displayContractNumber(contract))}
         </div>
-        <h2>${escapeHtml(title)}</h2>
-        <p>${escapeHtml(contractTypeLabel(data))} / ${escapeHtml(completionLabel(data))}</p>
       </header>
 
-      <section class="document-section">
-        <h3>当事者</h3>
-        <dl class="document-dl">
-          ${row("売主氏名", data.sellerName)}
-          ${row("フリガナ", data.sellerKana)}
-          ${row("売主住所", data.sellerAddress)}
-          ${row("電話番号", data.sellerPhone)}
-          ${row("メール", data.sellerEmail)}
-          ${row("買主 / 引取事業者", COMPANY.name)}
-          ${row("代表者", COMPANY.representative)}
-          ${row("所在地", COMPANY.address)}
-          ${row("電話番号", COMPANY.phone)}
-        </dl>
+      <p class="vehicle-contract-guide">お客様へ、裏面の契約条項をご確認いただきご承認いただいたうえで太枠線内にご記入ください。</p>
+
+      <section class="vehicle-form-section">
+        <h3>1.契約車両の表示及び状況 <span>査定ID：</span></h3>
+        <table class="vehicle-form-table vehicle-info-table">
+          <tr>
+            <th>車　名</th>
+            <td colspan="6">${formValue(data.carName)}</td>
+            <th>車台番号</th>
+            <td colspan="5">${formValue(data.chassisNumber)}</td>
+          </tr>
+          <tr>
+            <th>グレード</th>
+            <td colspan="6">${formValue(data.carGrade)}</td>
+            <th>登録番号</th>
+            <td colspan="5">${formValue(data.plateNumber)}</td>
+          </tr>
+          <tr>
+            <th>年　式</th>
+            <td colspan="2">${formValue(data.carYear)}</td>
+            <th>色</th>
+            <td colspan="3">${formValue(data.carColor)}</td>
+            <th>在庫番号</th>
+            <td colspan="5"></td>
+          </tr>
+          <tr>
+            <th>走行距離</th>
+            <td colspan="3">${formValue(data.mileage)}</td>
+            <td colspan="9" class="condition-line">
+              エンジンの不具合 ${choiceMark(data.defect, "無")}無・${choiceMark(data.defect, "有")}有　
+              オートマミッションの不具合 ○無・○有　
+              パワーステアリングの不具合 ○無・○有<br>
+              サスペンションの不具合 ○無・○有　
+              走行上の不都合 ${choiceMark(data.drivable, "可")}無・${choiceMark(data.drivable, "不可")}有
+            </td>
+          </tr>
+          <tr>
+            <th>駐車違反放置違反金未納</th>
+            <td colspan="2">○無・○有</td>
+            <th>修復歴</th>
+            <td colspan="2">${choiceMark(data.repairHistory, "無")}無・${choiceMark(data.repairHistory, "有")}有</td>
+            <th colspan="3">メーター戻し・交換・走行距離不明</th>
+            <td colspan="2">○無・○有</td>
+            <th>災害歴</th>
+            <td>○無・○有</td>
+          </tr>
+        </table>
       </section>
 
-      <section class="document-section">
-        <h3>車両情報</h3>
-        <dl class="document-dl">
-          ${row("車名", data.carName)}
-          ${row("グレード", data.carGrade)}
-          ${row("年式", data.carYear)}
-          ${row("登録番号", data.plateNumber)}
-          ${row("車台番号", data.chassisNumber)}
-          ${row("走行距離", data.mileage)}
-          ${row("車検満了日", data.inspectionDate)}
-          ${row("色", data.carColor)}
-          ${row("修復歴", data.repairHistory)}
-          ${row("不具合", data.defect)}
-          ${row("自走可否", data.drivable)}
-          ${row("鍵の本数", data.keyCount)}
-        </dl>
+      <section class="vehicle-form-section">
+        <h3>2.売買契約金額 <small>（消費税等込み）</small></h3>
+        <div class="amount-area">
+          <table class="vehicle-form-table amount-table">
+            <tr class="amount-labels">
+              <th></th><th>百万</th><th>十万</th><th>万</th><th>千</th><th>百</th><th>十</th><th>一</th><th>円</th>
+            </tr>
+            <tr class="amount-digits">
+              <td></td>${amountDigitCells(data)}<td>円</td>
+            </tr>
+          </table>
+          <p>
+            なお、左記価格は自賠責保険未経過保険料相当額、未経過自動車税、重量税、リサイクル預託金額を含むものとします。
+          </p>
+        </div>
+
+        <table class="vehicle-form-table money-table">
+          <tr>
+            <th>自動車税（種別割）</th>
+            <td>完納・未納・課税保留・減免</td>
+            <th>未納金額</th>
+            <td class="yen-field">円</td>
+          </tr>
+          <tr>
+            <th>残債先</th>
+            <td>${formValue(data.loanCompany)}</td>
+            <th>残債金額</th>
+            <td class="yen-field">円</td>
+          </tr>
+          <tr>
+            <th rowspan="3" class="vertical-label">振込先</th>
+            <td>${formValue(bankLine) || "銀行　　　　　　　　　支店"}</td>
+            <th rowspan="3">口座番号<br><small>右詰めでご記入ください</small></th>
+            <td rowspan="3">
+              <div class="account-line">口座番号　${formValue(data.accountNumber)}</div>
+              <div>カナ　${formValue(data.accountHolder)}</div>
+              <div>漢字　${formValue(data.accountHolder)}</div>
+            </td>
+          </tr>
+          <tr><td>普通・当座　${formValue(data.accountType)}</td></tr>
+          <tr><td>ゆうちょ銀行　記号　　　　番号</td></tr>
+          <tr>
+            <th colspan="2">支払代金</th>
+            <td colspan="2" class="yen-field">${escapeHtml(amount)} 円</td>
+          </tr>
+        </table>
       </section>
 
-      <section class="document-section">
-        <h3>契約内容</h3>
-        <dl class="document-dl">
-          ${row("契約区分", contractTypeLabel(data))}
-          ${row("買取金額", amount)}
-          ${row("支払方法", data.paymentMethod)}
-          ${row("支払予定日", data.paymentDate)}
-          ${row("引取予定日", data.pickupDate)}
-          ${row("引取場所", data.pickupPlace)}
-          ${row("振込先", [data.bankName, data.branchName, data.accountType, data.accountNumber, data.accountHolder].filter(Boolean).join(" / "))}
-        </dl>
+      <section class="vehicle-form-section">
+        <h3>3.車両引渡期限、移転登録書類等 引渡期限及び支払期限</h3>
+        <table class="vehicle-form-table deadline-table">
+          <tr>
+            <th>車両引渡期限</th>
+            <td>${dateLine(data.pickupDate)}</td>
+            <th>書類引渡期限</th>
+            <td></td>
+            <th>支払期限</th>
+            <td>${dateLine(data.paymentDate)}</td>
+          </tr>
+        </table>
       </section>
 
-      <section class="document-section">
-        <h3>重要事項確認</h3>
-        <ul class="document-checks">
-          ${CONSENTS[data.contractType || "sale"]
-            .map((item) => `<li>${consents.includes(item) ? "☑" : "□"} ${escapeHtml(item)}</li>`)
-            .join("")}
-        </ul>
+      <section class="vehicle-form-section">
+        <h3>4.特記事項</h3>
+        <div class="special-note">${formValue(data.vehicleNote)}</div>
       </section>
 
-      <section class="document-section">
-        <h3>必要書類</h3>
-        <p>${documents.length ? documents.map(escapeHtml).join("、") : "未確認"}</p>
+      <section class="vehicle-form-section">
+        <h3>5.お振込口座 <small>口座名義は原則として申込者（売主）またはご所有者のものに限ります。</small></h3>
+        <table class="vehicle-form-table bank-table">
+          <tr>
+            <th rowspan="3" class="vertical-label">振込先</th>
+            <td>${formValue(bankLine) || "銀行　　　　　　　　　支店"}</td>
+            <th rowspan="3">口座番号<br><small>右詰めでご記入ください</small></th>
+            <td rowspan="3">
+              <div>口座番号　${formValue(data.accountNumber)}</div>
+              <div>カナ　${formValue(data.accountHolder)}</div>
+              <div>漢字　${formValue(data.accountHolder)}</div>
+            </td>
+          </tr>
+          <tr><td>普通・当座　${formValue(data.accountType)}</td></tr>
+          <tr><td>ゆうちょ銀行　記号　　　　番号</td></tr>
+        </table>
+        <p class="payment-note">支払代金は、原則として車両及び移転登録書類等の引渡しがいずれも完了した日の翌日を起算日とする金融機関の3営業日以内に、お振込いたします。</p>
       </section>
 
-      <section class="document-section">
-        <h3>本人確認書類写真</h3>
-        <p>${
-          attachedIdentityFiles.length
-            ? `添付済み：${attachedIdentityFiles.map((file) => escapeHtml(file.name || "本人確認写真")).join("、")}`
-            : "未添付"
-        }</p>
+      <section class="vehicle-form-section">
+        <h3>6.車両名義人 <small>申込者（売主）は、車両の名義人がご自身と異なる場合、正当な権限があることを保証します。</small></h3>
+        <table class="vehicle-form-table owner-table">
+          <tr><th>所有者</th><td>申込者・販売会社・信販会社・その他（名義人　　　　　　　　　）</td><th>申込者との関係</th><td></td></tr>
+          <tr><th>使用者</th><td>申込者・その他（名義人　　　　　　　　　）</td><th>申込者との関係</th><td></td></tr>
+        </table>
       </section>
 
-      <section class="document-section">
-        <h3>契約条項</h3>
-        ${isFree ? freeTerms() : saleTerms()}
+      <p class="application-statement">
+        売主は買主に対し、上記内容及び裏面の契約条項を承認し、上記車両について売買契約を締結します。
+      </p>
+
+      <section class="party-boxes">
+        <div class="party-box buyer-box">
+          <h3>買主</h3>
+          <p class="buyer-address">${escapeHtml(COMPANY.address)}</p>
+          <p class="buyer-company">${escapeHtml(COMPANY.name)}</p>
+          <p class="buyer-rep">代表　${escapeHtml(COMPANY.representative)}</p>
+          <div class="shop-line">店</div>
+          <div>担当者</div>
+          <div>TEL　${escapeHtml(COMPANY.phone)}</div>
+        </div>
+        <div class="party-box seller-box">
+          <h3>売主</h3>
+          <div class="seller-grid">
+            <span>フリガナ</span><strong>${formValue(data.sellerKana)}</strong><em>印</em>
+            <span>お名前</span><strong>${formValue(data.sellerName)}</strong><em></em>
+            <span>〒</span><strong>${formValue(data.sellerAddress)}</strong><em></em>
+            <span>ご住所</span><strong></strong><em></em>
+            <span>電話</span><strong>${formValue(sellerPhone)}</strong><em></em>
+            <span>生年月日</span><strong>${sellerBirth.year || "　"} 年 ${sellerBirth.month || "　"} 月 ${sellerBirth.day || "　"} 日</strong><em></em>
+            <span>ご勤務先名</span><strong>${formValue(data.workplace)}</strong><em></em>
+          </div>
+          ${signatureBlock ? `<div class="seller-signature">${signatureBlock}</div>` : ""}
+        </div>
       </section>
 
-      <section class="document-section signature-section">
-        <h3>${isElectronic ? "電子契約記録" : "署名欄"}</h3>
-        ${
-          isElectronic
-            ? `
-              <dl class="document-dl">
-                ${row("契約成立日時", contract?.completedAt)}
-                ${row("同意日時", contract?.signedAt || contract?.completedAt)}
-                ${row("送信先メール", data.sellerEmail)}
-                ${row("保存形式", "ブラウザ保存 / 印刷PDF")}
-              </dl>
-              <div class="signature-box">
-                <strong>売主電子署名</strong>
-                ${signatureBlock}
-              </div>
-            `
-            : `
-              <div class="paper-signatures">
-                <div>
-                  <strong>甲 売主</strong>
-                  <p>住所：</p>
-                  <p>氏名：</p>
-                  <p>署名・押印：</p>
-                </div>
-                <div>
-                  <strong>乙 買主 / 引取事業者</strong>
-                  <p>${escapeHtml(COMPANY.name)}</p>
-                  <p>代表者 ${escapeHtml(COMPANY.representative)}</p>
-                  <p>署名・押印：</p>
-                </div>
-              </div>
-            `
-        }
+      <section class="identity-row">
+        <div>身分証明書番号※左づめで記入</div>
+        <div class="identity-cells"></div>
+        <div>${documentCheck(documents, "本人確認書類")}本人であることを確認しました。</div>
+        <div>社長</div>
+        <div>拠点長</div>
       </section>
+      <section class="identity-row identity-docs">
+        <div>本人確認書類　${escapeHtml(data.identityType || "")}</div>
+        <div>運転免許証　パスポート　健康保険証　その他（　　　）</div>
+        <div>担当者署名</div>
+        <div>管理者署名</div>
+      </section>
+
+      <footer class="vehicle-contract-footer">
+        このたびはご利用ありがとうございました。<br>
+        この書面は、お客様がお車を売却された事を証明する書類ですので、大切に保管してください。
+      </footer>
     </article>
   `;
 }
 
-function saleTerms() {
-  return `
-    <ol class="terms-list">
-      <li>売主は対象車両を買主に売り渡し、買主はこれを買い受ける。</li>
+function unifiedTerms(data) {
+  const zeroAmountItems = isZeroAmountContract(data)
+    ? `
+      <li>本契約における買取金額は0円とし、買主または引取事業者は売主に買取代金その他名目を問わず金銭を支払わない。</li>
+      <li>売主は、自動車重量税、自賠責保険料、リサイクル料金、リサイクル券、自動車税種別割その他還付金、返戻金、精算金等を一切請求しない。</li>
+      <li>引渡し後に還付金等が発生する場合、その受領権限および経済的利益は買主または引取事業者に帰属する。</li>
+    `
+    : `
       <li>売買代金は本契約書に表示された金額とし、買主は現金または振込により支払う。</li>
       <li>自動車重量税、自賠責保険料、リサイクル料金、自動車税種別割その他還付金等は売買代金に含まれ、売主は別途請求しない。</li>
-      <li>売主は事故歴、修復歴、不具合、残債、所有権留保その他重要事項を正確に申告する。</li>
-      <li>申告内容に重大な誤りまたは虚偽がある場合、買主は契約解除または売買代金の減額を請求できる。</li>
-      <li>本契約に関する紛争は、買主所在地を管轄する裁判所を第一審の専属的合意管轄裁判所とする。</li>
-    </ol>
-  `;
-}
+    `;
 
-function freeTerms() {
   return `
     <ol class="terms-list">
-      <li>売主は対象車両を引取事業者に無償で譲渡し、引取事業者はこれを引き取る。</li>
-      <li>本契約における車両代金は0円とし、引取事業者は売主に買取代金その他名目を問わず金銭を支払わない。</li>
-      <li>売主は、自動車重量税、自賠責保険料、リサイクル料金、リサイクル券、自動車税種別割その他還付金、返戻金、精算金等を一切請求しない。</li>
-      <li>引渡し後に還付金等が発生する場合、その受領権限および経済的利益は引取事業者に帰属する。</li>
+      <li>売主は対象車両を買主または引取事業者に譲渡し、買主または引取事業者はこれを買い受け、または引き取る。</li>
+      ${zeroAmountItems}
       <li>売主は事故歴、修復歴、不具合、残債、所有権留保その他重要事項を正確に申告する。</li>
-      <li>本契約に関する紛争は、引取事業者所在地を管轄する裁判所を第一審の専属的合意管轄裁判所とする。</li>
+      <li>申告内容に重大な誤りまたは虚偽がある場合、買主または引取事業者は契約解除または売買代金の減額を請求できる。</li>
+      <li>本契約に関する紛争は、買主または引取事業者の所在地を管轄する裁判所を第一審の専属的合意管轄裁判所とする。</li>
     </ol>
   `;
 }
@@ -687,12 +872,11 @@ function renderList() {
 
 function updateModePanels() {
   const data = getFormData();
-  const isFree = data.contractType === "free";
+  const isZeroAmount = isZeroAmountContract(data);
   const isTablet = data.completionMethod === "tablet";
   const isEmail = data.completionMethod === "email";
 
-  document.querySelector('[name="purchaseAmount"]').disabled = isFree;
-  document.querySelector('[name="paymentMethod"]').value = isFree
+  document.querySelector('[name="paymentMethod"]').value = isZeroAmount
     ? "支払いなし"
     : document.querySelector('[name="paymentMethod"]').value || "振込";
   document.querySelector("#signature-panel").hidden = !isTablet;
@@ -709,9 +893,9 @@ function buildEmailBody() {
     "オーダーオートです。",
     "車両契約の内容確認をお願いいたします。",
     "",
-    `契約区分：${contractTypeLabel(data)}`,
+    `契約内容：${contractTypeLabel(data)}`,
     `車両：${safePlain(data.carName)} ${safePlain(data.plateNumber)}`,
-    `金額：${data.contractType === "free" ? "0円" : yen(data.purchaseAmount)}`,
+    `金額：${amountLabel(data) || "未入力"}`,
     "",
     `確認URL：${url}`,
     "",
@@ -739,7 +923,7 @@ function buildLineMessage() {
     "オーダーオートです。",
     "車両契約の内容確認をお願いします。",
     "",
-    `契約区分：${contractTypeLabel(data)}`,
+    `契約内容：${contractTypeLabel(data)}`,
     `車両：${safePlain(data.carName)} ${safePlain(data.plateNumber)}`,
     "",
     `確認URL：${url}`,
@@ -807,6 +991,7 @@ function buildConsentPayload(contract = currentContract()) {
   if (cloudEnabled()) {
     return {
       id: contract?.id || activeId,
+      contractNumber: contract?.contractNumber,
       cloudMode: true,
       createdAt: contract?.createdAt || formatDateTime(),
       expiresAt,
@@ -816,6 +1001,7 @@ function buildConsentPayload(contract = currentContract()) {
 
   return {
     id: contract?.id || activeId,
+    contractNumber: contract?.contractNumber,
     createdAt: contract?.createdAt || formatDateTime(),
     expiresAt,
     data,
@@ -968,6 +1154,7 @@ function importContractsFile(file) {
         });
 
       contracts = [...normalized, ...contracts];
+      ensureContractNumbers();
       activeId = contracts[0]?.id || "";
       persistContracts();
       populateForm(currentContract());
@@ -1080,16 +1267,16 @@ function setupEvents() {
   });
 
   form.addEventListener("input", (event) => {
-    if (event.target.name === "contractType") {
-      renderConsents(form.elements.contractType.value, []);
+    if (event.target.name === "purchaseAmount") {
+      renderConsents(getFormData(), new FormData(form).getAll("consents"));
     }
     updateModePanels();
     updatePreview();
   });
 
   form.addEventListener("change", (event) => {
-    if (event.target.name === "contractType") {
-      renderConsents(form.elements.contractType.value, []);
+    if (event.target.name === "purchaseAmount") {
+      renderConsents(getFormData(), new FormData(form).getAll("consents"));
     }
     updateModePanels();
     updatePreview();
