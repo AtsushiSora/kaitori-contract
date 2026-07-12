@@ -46,6 +46,10 @@
             <p>
               車両売買・引取契約を作成します。買取金額が0円の場合は、無料引取および還付なしの確認事項を同じ契約書に反映します。
             </p>
+            <div class="hero-actions">
+              <a class="button button-primary" href="#contract-form">入力を開始</a>
+              <a class="button button-outline hero-button-outline" href="#contract-preview">PDFプレビューを見る</a>
+            </div>
           </div>
           <div class="contract-flow-summary" aria-label="完結方法">
             <div>
@@ -102,12 +106,29 @@
               <div class="toolbar-actions">
                 <button class="button button-outline" type="button" id="save-contract">下書き保存</button>
                 <button class="button button-outline" type="button" id="cloud-save-contract">クラウド保存</button>
-                <button class="button button-primary" type="button" id="print-contract">印刷</button>
+                <a
+                  class="button button-outline"
+                  href="templates/order_auto_blank_shop_template.pdf"
+                  download="order-auto-shop-copy-template.pdf"
+                >店控えベースPDF</a>
+                <button class="button button-primary" type="button" id="print-contract">PDF印刷</button>
               </div>
             </div>
 
             <div class="contract-grid">
               <form id="contract-form" class="contract-form-panel">
+                <fieldset class="input-index">
+                  <legend>入力項目</legend>
+                  <div class="input-index-grid">
+                    <a href="#completion-fields">完結方法</a>
+                    <a href="#seller-fields">売主情報</a>
+                    <a href="#vehicle-fields">車両情報</a>
+                    <a href="#amount-fields">金額・引取</a>
+                    <a href="#title-fields">車両名義人</a>
+                    <a href="#document-fields">必要書類</a>
+                  </div>
+                </fieldset>
+
                 <fieldset>
                   <legend>契約内容</legend>
                   <input type="hidden" name="contractType" value="unified" />
@@ -116,7 +137,7 @@
                   </div>
                 </fieldset>
 
-                <fieldset>
+                <fieldset id="completion-fields">
                   <legend>完結方法</legend>
                   <div class="choice-grid three">
                     <label>
@@ -134,15 +155,17 @@
                   </div>
                 </fieldset>
 
-                <fieldset>
+                <fieldset id="seller-fields">
                   <legend>売主情報</legend>
                   <div class="form-grid">
                     <label>名字<input name="sellerLastName" autocomplete="family-name" placeholder="例：山田" required /></label>
                     <label>名前<input name="sellerFirstName" autocomplete="given-name" placeholder="例：太郎" required /></label>
                     <label>フリガナ（名字）<input name="sellerLastKana" placeholder="例：ヤマダ" /></label>
                     <label>フリガナ（名前）<input name="sellerFirstKana" placeholder="例：タロウ" /></label>
+                    <label>郵便番号<input name="sellerPostalCode" autocomplete="postal-code" placeholder="例：730-0000" /></label>
                     <label class="full">住所<input name="sellerAddress" autocomplete="street-address" /></label>
-                    <label>電話番号<input name="sellerPhone" autocomplete="tel" /></label>
+                    <label>自宅電話<input name="sellerHomePhone" autocomplete="tel" placeholder="例：082-000-0000" /></label>
+                    <label>携帯電話<input name="sellerMobile" autocomplete="tel" placeholder="例：090-0000-0000" /></label>
                     <label>メールアドレス<input name="sellerEmail" type="email" autocomplete="email" /></label>
                     <label>生年月日
                       <span class="date-input-wrap">
@@ -150,15 +173,21 @@
                         <button class="mini-button date-picker-button" type="button" data-date-picker="sellerBirthdate">選択</button>
                       </span>
                     </label>
+                    <label>勤務先名<input name="sellerWorkplace" placeholder="例：株式会社〇〇" /></label>
+                    <label>勤務先電話<input name="sellerWorkplacePhone" autocomplete="tel" placeholder="例：082-000-0000" /></label>
+                    <label>身分証明書番号<input name="identityNumber" inputmode="numeric" placeholder="例：123456789012" /></label>
                     <label>本人確認書類
                       <select name="identityType">
                         <option value="">選択してください</option>
                         <option>運転免許証</option>
-                        <option>マイナンバーカード</option>
+                        <option>パスポート</option>
+                        <option>マイナンバー</option>
                         <option>健康保険証</option>
                         <option>その他</option>
                       </select>
                     </label>
+                    <label>担当者署名名<input name="staffSignatureName" /></label>
+                    <label>管理者署名名<input name="managerSignatureName" /></label>
                     <label class="full">本人確認書類の写真
                       <input id="identity-photo-input" type="file" accept="image/*" multiple />
                     </label>
@@ -169,7 +198,7 @@
                   </div>
                 </fieldset>
 
-                <fieldset>
+                <fieldset id="vehicle-fields">
                   <legend>車両情報</legend>
                   <div class="form-grid">
                     <label>車名<input name="carName" /></label>
@@ -194,36 +223,101 @@
                       </span>
                     </label>
                     <label>色<input name="carColor" /></label>
-                    <label>修復歴
-                      <select name="repairHistory">
-                        <option>不明</option>
-                        <option>無</option>
-                        <option>有</option>
-                      </select>
-                    </label>
-                    <label>不具合
-                      <select name="defect">
-                        <option>不明</option>
-                        <option>無</option>
-                        <option>有</option>
-                      </select>
-                    </label>
-                    <label>自走可否
-                      <select name="drivable">
-                        <option>不明</option>
-                        <option>可</option>
-                        <option>不可</option>
-                      </select>
-                    </label>
+                    <div class="full">
+                      <span class="field-label">車両状態（契約書の有・無）</span>
+                      <div class="vehicle-condition-input-grid">
+                        <label>エンジンの不具合
+                          <select name="engineDefect">
+                            <option>無</option>
+                            <option>有</option>
+                          </select>
+                        </label>
+                        <label>オートマミッションの不具合
+                          <select name="transmissionDefect">
+                            <option>無</option>
+                            <option>有</option>
+                          </select>
+                        </label>
+                        <label>パワーステアリングの不具合
+                          <select name="powerSteeringDefect">
+                            <option>無</option>
+                            <option>有</option>
+                          </select>
+                        </label>
+                        <label>サスペンションの不具合
+                          <select name="suspensionDefect">
+                            <option>無</option>
+                            <option>有</option>
+                          </select>
+                        </label>
+                        <label>走行上の不都合
+                          <select name="drivingDefect">
+                            <option>無</option>
+                            <option>有</option>
+                          </select>
+                        </label>
+                        <label>駐車違反放置違反金未納
+                          <select name="parkingViolationUnpaid">
+                            <option>無</option>
+                            <option>有</option>
+                          </select>
+                        </label>
+                        <label>修復歴
+                          <select name="repairHistory">
+                            <option>無</option>
+                            <option>有</option>
+                          </select>
+                        </label>
+                        <label>メーター戻し・交換・走行距離不明
+                          <select name="meterIssue">
+                            <option>無</option>
+                            <option>有</option>
+                          </select>
+                        </label>
+                        <label>災害歴（水害・ヒョウ害等）
+                          <select name="disasterHistory">
+                            <option>無</option>
+                            <option>有</option>
+                          </select>
+                        </label>
+                      </div>
+                    </div>
                     <label>鍵の本数<input name="keyCount" type="number" min="0" /></label>
-                    <label class="full">備考<textarea name="vehicleNote" rows="3"></textarea></label>
+                    <label class="full">特記事項<textarea name="vehicleNote" rows="3"></textarea></label>
                   </div>
                 </fieldset>
 
-                <fieldset>
+                <fieldset id="amount-fields">
                   <legend>金額・引取情報</legend>
                   <div class="form-grid">
                     <label>買取金額<input name="purchaseAmount" type="number" min="0" step="1000" /></label>
+                    <label>自動車税（種別割）
+                      <select name="automobileTaxStatus">
+                        <option>完納</option>
+                        <option>未納</option>
+                        <option>課税保留</option>
+                        <option>減免</option>
+                      </select>
+                    </label>
+                    <label id="automobile-tax-unpaid-field" hidden>自動車税 未納金額
+                      <input name="automobileTaxUnpaidAmount" type="number" min="0" step="1000" placeholder="例：12345" />
+                    </label>
+                    <label>残債
+                      <select name="loanStatus">
+                        <option>無</option>
+                        <option>有</option>
+                      </select>
+                    </label>
+                    <div id="loan-detail-fields" class="conditional-fields full" hidden>
+                      <label>残債先<input name="loanCompany" placeholder="例：〇〇ファイナンス" /></label>
+                      <label>振込希望日
+                        <span class="date-input-wrap">
+                          <input name="loanTransferDate" type="date" />
+                          <button class="mini-button date-picker-button" type="button" data-date-picker="loanTransferDate">選択</button>
+                        </span>
+                      </label>
+                      <label>残債金額<input name="loanBalanceAmount" type="number" min="0" step="1000" placeholder="例：500000" /></label>
+                    </div>
                     <label>支払方法
                       <select name="paymentMethod">
                         <option>振込</option>
@@ -231,29 +325,50 @@
                         <option>支払いなし</option>
                       </select>
                     </label>
-                    <label>支払予定日
-                      <span class="date-input-wrap">
-                        <input name="paymentDate" type="date" />
-                        <button class="mini-button date-picker-button" type="button" data-date-picker="paymentDate">選択</button>
-                      </span>
-                    </label>
-                    <label>引取予定日
-                      <span class="date-input-wrap">
-                        <input name="pickupDate" type="date" />
-                        <button class="mini-button date-picker-button" type="button" data-date-picker="pickupDate">選択</button>
-                      </span>
-                    </label>
+                    <div class="deadline-input-group full">
+                      <label>車両引渡期限（日付）
+                        <span class="date-input-wrap">
+                          <input name="pickupDate" type="date" />
+                          <button class="mini-button date-picker-button" type="button" data-date-picker="pickupDate">選択</button>
+                        </span>
+                      </label>
+                      <label>車両引渡期限（時間）<input name="pickupTime" type="time" step="3600" /></label>
+                      <label>書類引渡期限（日付）
+                        <span class="date-input-wrap">
+                          <input name="documentDeliveryDate" type="date" />
+                          <button class="mini-button date-picker-button" type="button" data-date-picker="documentDeliveryDate">選択</button>
+                        </span>
+                      </label>
+                      <label>書類引渡期限（時間）<input name="documentDeliveryTime" type="time" step="3600" /></label>
+                      <label>支払期限（日付）
+                        <span class="date-input-wrap">
+                          <input name="paymentDate" type="date" />
+                          <button class="mini-button date-picker-button" type="button" data-date-picker="paymentDate">選択</button>
+                        </span>
+                      </label>
+                      <label>支払期限（時間）<input name="paymentTime" type="time" step="3600" /></label>
+                    </div>
                     <label class="full">引取場所<input name="pickupPlace" /></label>
-                    <label>銀行名<input name="bankName" /></label>
-                    <label>支店名<input name="branchName" /></label>
-                    <label>口座種別
-                      <select name="accountType">
-                        <option>普通</option>
-                        <option>当座</option>
+                    <label>振込
+                      <select name="bankTransferStatus">
+                        <option>無</option>
+                        <option>有</option>
                       </select>
                     </label>
-                    <label>口座番号<input name="accountNumber" inputmode="numeric" /></label>
-                    <label class="full">口座名義<input name="accountHolder" /></label>
+                    <div id="bank-detail-fields" class="conditional-fields full" hidden>
+                      <label>銀行名<input name="bankName" /></label>
+                      <label>支店名<input name="branchName" /></label>
+                      <label>口座種別
+                        <select name="accountType">
+                          <option>普通</option>
+                          <option>当座</option>
+                          <option>その他</option>
+                        </select>
+                      </label>
+                      <label>口座番号<input name="accountNumber" inputmode="numeric" /></label>
+                      <label>口座名義カナ<input name="accountHolderKana" placeholder="例：ヤマダ タロウ" /></label>
+                      <label>口座名義漢字<input name="accountHolder" placeholder="例：山田 太郎" /></label>
+                    </div>
                   </div>
                 </fieldset>
 
@@ -262,7 +377,31 @@
                   <div id="consent-list" class="consent-list"></div>
                 </fieldset>
 
-                <fieldset>
+                <fieldset id="title-fields">
+                  <legend>車両名義人</legend>
+                  <div class="form-grid">
+                    <label>所有者区分
+                      <select name="ownerType">
+                        <option>売主</option>
+                        <option>販売会社</option>
+                        <option>信販会社</option>
+                        <option>その他</option>
+                      </select>
+                    </label>
+                    <label>所有者名義人<input name="ownerName" placeholder="例：〇〇ファイナンス" /></label>
+                    <label class="full">所有者と売主との関係<input name="ownerRelationship" placeholder="例：本人、家族、所有権留保" /></label>
+                    <label>使用者区分
+                      <select name="userType">
+                        <option>売主</option>
+                        <option>その他</option>
+                      </select>
+                    </label>
+                    <label>使用者名義人<input name="userName" placeholder="例：山田 太郎" /></label>
+                    <label class="full">使用者と売主との関係<input name="userRelationship" placeholder="例：本人、家族、勤務先" /></label>
+                  </div>
+                </fieldset>
+
+                <fieldset id="document-fields">
                   <legend>必要書類</legend>
                   <div class="check-grid">
                     <label><input type="checkbox" name="documents" value="車検証" />車検証</label>
@@ -283,7 +422,13 @@
                     <p class="preview-label">PDFプレビュー</p>
                     <strong id="preview-status">下書き</strong>
                   </div>
-                  <button class="mini-button" type="button" id="complete-contract">完了にする</button>
+                  <div class="preview-toolbar">
+                    <div class="preview-copy-tabs" aria-label="控え切り替え">
+                      <button type="button" class="active" data-preview-copy="customer">お客様控え</button>
+                      <button type="button" data-preview-copy="shop">店控え</button>
+                    </div>
+                    <button class="mini-button" type="button" id="complete-contract">完了にする</button>
+                  </div>
                 </div>
                 <p id="cloud-save-status" class="save-status" role="status" aria-live="polite">
                   この端末に保存中。Supabase設定後はクラウドにも保存できます。

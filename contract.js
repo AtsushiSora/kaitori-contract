@@ -30,6 +30,7 @@ const ZERO_AMOUNT_CONSENTS = [
 let contracts = [];
 let activeId = "";
 let activeFilter = "all";
+let activePreviewCopy = "customer";
 let signatureData = "";
 let identityFiles = [];
 let isDrawing = false;
@@ -351,6 +352,21 @@ function getFormData() {
   data.consents = new FormData(form).getAll("consents");
   normalizeSellerNameFields(data);
   normalizePlateNumberFields(data);
+  if (!hasLoan(data)) {
+    data.loanStatus = "無";
+    data.loanCompany = "";
+    data.loanTransferDate = "";
+    data.loanBalanceAmount = "";
+  }
+  if (!hasBankTransfer(data)) {
+    data.bankTransferStatus = "無";
+    data.bankName = "";
+    data.branchName = "";
+    data.accountType = "";
+    data.accountNumber = "";
+    data.accountHolderKana = "";
+    data.accountHolder = "";
+  }
 
   if (isZeroAmountContract(data) && !data.paymentMethod) {
     data.paymentMethod = "支払いなし";
@@ -413,7 +429,19 @@ function createBlankContract() {
       contractType: "unified",
       completionMethod: "paper",
       purchaseAmount: "",
+      automobileTaxStatus: "完納",
+      loanStatus: "無",
+      bankTransferStatus: "無",
       paymentMethod: "振込",
+      engineDefect: "無",
+      transmissionDefect: "無",
+      powerSteeringDefect: "無",
+      suspensionDefect: "無",
+      drivingDefect: "無",
+      parkingViolationUnpaid: "無",
+      repairHistory: "無",
+      meterIssue: "無",
+      disasterHistory: "無",
     },
   };
 
@@ -534,12 +562,23 @@ function dateParts(value) {
   return { year: match[1], month: String(Number(match[2])), day: String(Number(match[3])), raw: cleaned };
 }
 
-function dateLine(value) {
-  const parts = dateParts(value);
+function timeText(value) {
+  const cleaned = String(value || "").trim();
+  const match = cleaned.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return cleaned;
+  return String(Number(match[1]));
+}
+
+function deadlineLine(dateValue, timeValue) {
+  const parts = dateParts(dateValue);
+  const time = timeText(timeValue);
+  if (parts.year && time) {
+    return `${escapeHtml(parts.year)} 年 ${escapeHtml(parts.month)} 月 ${escapeHtml(parts.day)} 日 ${escapeHtml(time)}`;
+  }
   if (parts.year) {
     return `${escapeHtml(parts.year)} 年 ${escapeHtml(parts.month)} 月 ${escapeHtml(parts.day)} 日`;
   }
-  return formValue(value) || "　 年 　月 　日";
+  return time ? escapeHtml(time) : "";
 }
 
 function amountNumber(data) {
@@ -550,8 +589,43 @@ function amountNumber(data) {
   return String(Math.round(number));
 }
 
+function automobileTaxUnpaidAmountNumber(data) {
+  if (data?.automobileTaxStatus !== "未納") return "0";
+  const number = Number(data.automobileTaxUnpaidAmount);
+  if (!Number.isFinite(number) || number < 0) return "0";
+  return String(Math.round(number));
+}
+
+function hasLoan(data) {
+  return String(data?.loanStatus || "無") === "有";
+}
+
+function loanBalanceAmountNumber(data) {
+  if (!hasLoan(data)) return "";
+  const number = Number(data.loanBalanceAmount);
+  if (!Number.isFinite(number) || number < 0) return "";
+  return String(Math.round(number));
+}
+
+function hasBankTransfer(data) {
+  return String(data?.bankTransferStatus || "無") === "有";
+}
+
+function paymentAmountNumber(data) {
+  const amount = Number(amountNumber(data) || 0);
+  const unpaidAmount = Number(automobileTaxUnpaidAmountNumber(data) || 0);
+  const loanAmount = Number(loanBalanceAmountNumber(data) || 0);
+  if (!Number.isFinite(amount) || !Number.isFinite(unpaidAmount) || !Number.isFinite(loanAmount)) return "";
+  return String(Math.max(Math.round(amount - unpaidAmount - loanAmount), 0));
+}
+
 function yenBox(data) {
   const amount = amountNumber(data);
+  return amount ? `${Number(amount).toLocaleString("ja-JP")}` : "";
+}
+
+function paymentYenBox(data) {
+  const amount = paymentAmountNumber(data);
   return amount ? `${Number(amount).toLocaleString("ja-JP")}` : "";
 }
 
@@ -559,12 +633,23 @@ function amountDigitCells(data) {
   const amount = amountNumber(data);
   const digits = amount ? amount.slice(-7).padStart(7, " ") : "       ";
   return Array.from(digits)
-    .map((digit) => `<td>${escapeHtml(digit.trim())}</td>`)
+    .map((digit) => `<td class="${digit.trim() ? "filled" : ""}">${escapeHtml(digit.trim())}</td>`)
     .join("");
 }
 
 function choiceMark(value, expected) {
   return String(value || "") === expected ? "●" : "○";
+}
+
+function yesNoValue(value, fallback = "無") {
+  return String(value || "") === "有" ? "有" : String(value || "") === "無" ? "無" : fallback;
+}
+
+function legacyDrivingDefectValue(data) {
+  if (data?.drivingDefect) return data.drivingDefect;
+  if (data?.drivable === "不可") return "有";
+  if (data?.drivable === "可") return "無";
+  return "無";
 }
 
 function documentCheck(documents, name) {
@@ -576,17 +661,449 @@ function displayContractNumber(contract) {
   return number ? String(number) : "1";
 }
 
+function onlyDigits(value) {
+  return String(value ?? "").replace(/\D/g, "");
+}
+
+function pdfField(x, y, value, size = 9, anchor = "start") {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  return `<text x="${x}" y="${y}" font-size="${size * 2}" font-weight="700" text-anchor="${anchor}">${escapeHtml(text)}</text>`;
+}
+
+function splitPdfLines(value, maxChars = 44, maxLines = 2) {
+  const cleaned = String(value ?? "").replace(/\s+/g, " ").trim();
+  if (!cleaned) return [];
+
+  const lines = [];
+  let rest = cleaned;
+  while (rest && lines.length < maxLines) {
+    if (rest.length <= maxChars) {
+      lines.push(rest);
+      rest = "";
+      break;
+    }
+    lines.push(rest.slice(0, maxChars));
+    rest = rest.slice(maxChars).trim();
+  }
+
+  if (rest && lines.length) {
+    const lastIndex = lines.length - 1;
+    lines[lastIndex] = `${lines[lastIndex].slice(0, Math.max(0, maxChars - 3))}...`;
+  }
+
+  return lines;
+}
+
+function pdfMultilineField(x, y, value, size = 7.2, lineHeight = 15) {
+  const lines = splitPdfLines(value, 64, 2);
+  const adjustedSize = String(value ?? "").length > 64 ? 6.7 : size;
+  return lines
+    .map((line, index) => pdfField(x, y + index * lineHeight, line, adjustedSize))
+    .join("");
+}
+
+function pdfWhiteRect(x, y, width, height) {
+  return `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="#fff" />`;
+}
+
+function pdfBox(x, y, width, height, strokeWidth = 1.1) {
+  return `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="none" stroke="#000" stroke-width="${strokeWidth}" />`;
+}
+
+function pdfCircle(x, y, radius = 7.5) {
+  return `<circle cx="${x}" cy="${y}" r="${radius}" fill="none" stroke="#000" stroke-width="1.3" />`;
+}
+
+function pdfOval(x, y, width, height) {
+  return `<ellipse cx="${x}" cy="${y}" rx="${width / 2}" ry="${height / 2}" fill="none" stroke="#000" stroke-width="1.3" />`;
+}
+
+function pdfLine(x1, y1, x2, y2, width = 1.1) {
+  return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#000" stroke-width="${width}" />`;
+}
+
+function pdfIdentityNumberCells(x, y, value) {
+  const cellWidth = 24;
+  const cellCount = 12;
+  const digits = onlyDigits(value).slice(0, cellCount);
+  const boxes = Array.from({ length: cellCount })
+    .map((_, index) => pdfBox(x + index * cellWidth, y, cellWidth, 30, 0.9))
+    .join("");
+  const chars = digits
+    .split("")
+    .map((char, index) => pdfField(x + index * cellWidth + cellWidth / 2, y + 22, char, 7.2, "middle"))
+    .join("");
+  return `${boxes}${chars}`;
+}
+
+function pdfCheckbox(x, y, checked = false) {
+  return `
+    ${pdfBox(x, y, 13, 13, 1)}
+    ${
+      checked
+        ? `<path d="M ${x + 2.5} ${y + 7} L ${x + 5.5} ${y + 10} L ${x + 11} ${y + 3}" fill="none" stroke="#000" stroke-width="1.4" />`
+        : ""
+    }
+  `;
+}
+
+function pdfYesNoCircle(value, noX, yesX, y) {
+  const selectedX = yesNoValue(value) === "有" ? yesX : noX;
+  return pdfCircle(selectedX, y, 9.5);
+}
+
+function pdfTaxStatusCircle(value) {
+  const positions = {
+    完納: [210, 523, 64, 27],
+    未納: [278, 523, 64, 27],
+    課税保留: [352, 523, 104, 27],
+    減免: [421, 523, 64, 27],
+  };
+  const selected = positions[String(value || "完納")] || positions["完納"];
+  return pdfOval(...selected);
+}
+
+function pdfAccountTypeCircle(value) {
+  const positions = {
+    普通: [524, 962],
+    当座: [524, 980],
+    その他: [524, 998],
+  };
+  const selected = positions[String(value || "普通")];
+  return selected ? pdfCircle(selected[0], selected[1], 6.5) : "";
+}
+
+function pdfOwnerTypeCircle(value) {
+  const positions = {
+    売主: [186, 1134, 68, 20],
+    販売会社: [274, 1134, 78, 20],
+    信販会社: [368, 1134, 78, 20],
+    その他: [452, 1134, 64, 20],
+  };
+  const selected = positions[String(value || "売主")];
+  return selected ? pdfOval(...selected) : "";
+}
+
+function pdfUserTypeCircle(value) {
+  const positions = {
+    売主: [186, 1166, 68, 20],
+    その他: [258, 1166, 64, 20],
+  };
+  const selected = positions[String(value || "売主")];
+  return selected ? pdfOval(...selected) : "";
+}
+
+function pdfDeadlineText(parts, timeValue) {
+  const time = timeText(timeValue);
+  const hasDate = Boolean(parts?.year || parts?.month || parts?.day);
+  if (!hasDate && !time) return "";
+  const dateText = hasDate ? `${parts.year}年　${parts.month}月　${parts.day}日` : "";
+  return [dateText, time].filter(Boolean).join(" ");
+}
+
+function pdfDeadlineLine(rectX, rectY, rectWidth, rectHeight, textX, textY, parts, timeValue) {
+  const text = pdfDeadlineText(parts, timeValue);
+  if (!text) return "";
+  return `${pdfWhiteRect(rectX, rectY, rectWidth, rectHeight)}${pdfField(textX, textY, text, 7.2)}`;
+}
+
+function pdfIdentityTypeOval(value) {
+  const positions = {
+    運転免許証: [176, 1656, 68, 20],
+    パスポート: [255, 1659, 62, 20],
+    マイナンバー: [337, 1659, 78, 20],
+    マイナンバーカード: [337, 1659, 78, 20],
+    健康保険証: [423, 1659, 76, 20],
+    その他: [506, 1659, 70, 20],
+  };
+  const selected = positions[String(value || "")];
+  return selected ? pdfOval(...selected) : "";
+}
+
+function pdfShopIdentityFooter(data) {
+  const y = 1600;
+
+  return `
+    ${pdfSpacedFields([296, 320, 344, 368, 392, 416, 440, 464, 488, 512, 536, 560], y + 24, data.identityNumber, 7.2)}
+    ${pdfCheckbox(62, y + 17, data.identityConfirmed)}
+    ${pdfIdentityTypeOval(data.identityType)}
+    ${pdfField(1090, y + 24, data.staffSignatureName, 5.8)}
+    ${pdfField(1090, y + 58, data.managerSignatureName, 5.8)}
+  `;
+}
+
+function pdfSpacedFields(xPositions, y, value, size = 9) {
+  const chars = onlyDigits(value).slice(-xPositions.length).padStart(xPositions.length, " ").split("");
+  return chars
+    .map((char, index) => {
+      if (!char.trim()) return "";
+      return pdfField(xPositions[index], y, char, size, "middle");
+    })
+    .join("");
+}
+
+function pdfSpacedFieldsWithoutOnes(xPositions, y, value, size = 9) {
+  const digits = onlyDigits(value);
+  if (!digits) return "";
+  return pdfSpacedFields(xPositions, y, digits.slice(0, -1) || "0", size);
+}
+
+function pdfLeftAlignedDigits(xPositions, y, value, size = 9) {
+  return onlyDigits(value)
+    .slice(0, xPositions.length)
+    .split("")
+    .map((char, index) => pdfField(xPositions[index], y, char, size, "middle"))
+    .join("");
+}
+
+function pdfDateParts(value) {
+  const parts = dateParts(value);
+  return {
+    year: parts.year || "",
+    month: parts.month || "",
+    day: parts.day || "",
+  };
+}
+
+function contractTemplateData(contract) {
+  const data = contract?.data || getFormData();
+  const contractDate = pdfDateParts(new Date().toISOString().slice(0, 10));
+  const pickupDate = pdfDateParts(data.pickupDate);
+  const documentDate = pdfDateParts(data.documentDeliveryDate);
+  const paymentDate = pdfDateParts(data.paymentDate);
+  const loanTransferDate = pdfDateParts(data.loanTransferDate);
+  const sellerBirth = pdfDateParts(data.sellerBirthdate);
+
+  return {
+    contractNumber: displayContractNumber(contract),
+    contractDate,
+    carName: data.carName,
+    carGrade: data.carGrade,
+    carYear: data.carYear,
+    carColor: data.carColor,
+    chassisNumber: data.chassisNumber,
+    plateNumber: data.plateNumber,
+    mileage: data.mileage,
+    engineDefect: yesNoValue(data.engineDefect || data.defect),
+    transmissionDefect: yesNoValue(data.transmissionDefect),
+    powerSteeringDefect: yesNoValue(data.powerSteeringDefect),
+    suspensionDefect: yesNoValue(data.suspensionDefect),
+    drivingDefect: yesNoValue(legacyDrivingDefectValue(data)),
+    parkingViolationUnpaid: yesNoValue(data.parkingViolationUnpaid),
+    repairHistory: yesNoValue(data.repairHistory),
+    meterIssue: yesNoValue(data.meterIssue),
+    disasterHistory: yesNoValue(data.disasterHistory),
+    automobileTaxStatus: data.automobileTaxStatus || "完納",
+    automobileTaxUnpaidAmount: automobileTaxUnpaidAmountNumber(data),
+    amount: amountNumber(data) || "0",
+    paymentAmount: paymentAmountNumber(data) || "0",
+    loanStatus: hasLoan(data) ? "有" : "無",
+    loanCompany: hasLoan(data) ? data.loanCompany : "",
+    loanTransferDate,
+    loanBalanceAmount: loanBalanceAmountNumber(data),
+    pickupDate,
+    pickupTime: data.pickupTime,
+    documentDate,
+    documentDeliveryTime: data.documentDeliveryTime,
+    paymentDate,
+    paymentTime: data.paymentTime,
+    vehicleNote: data.vehicleNote,
+    bankTransferStatus: hasBankTransfer(data) ? "有" : "無",
+    bankName: hasBankTransfer(data) ? data.bankName : "",
+    branchName: hasBankTransfer(data) ? data.branchName : "",
+    accountType: hasBankTransfer(data) ? data.accountType : "",
+    accountNumber: hasBankTransfer(data) ? data.accountNumber : "",
+    accountHolderKana: hasBankTransfer(data) ? data.accountHolderKana : "",
+    accountHolder: hasBankTransfer(data) ? data.accountHolder : "",
+    ownerType: data.ownerType || "売主",
+    ownerName: data.ownerName,
+    ownerRelationship: data.ownerRelationship,
+    userType: data.userType || "売主",
+    userName: data.userName,
+    userRelationship: data.userRelationship,
+    sellerKana: data.sellerKana,
+    sellerName: data.sellerName,
+    sellerPostalCode: data.sellerPostalCode,
+    sellerAddress: data.sellerAddress,
+    sellerHomePhone: data.sellerHomePhone || data.sellerPhone,
+    sellerMobile: data.sellerMobile,
+    sellerWorkplace: data.sellerWorkplace || data.workplace,
+    sellerWorkplacePhone: data.sellerWorkplacePhone,
+    identityNumber: data.identityNumber,
+    identityType: data.identityType,
+    identityConfirmed: Boolean(data.identityConfirmed || data.documents?.includes?.("本人確認書類")),
+    staffSignatureName: data.staffSignatureName,
+    managerSignatureName: data.managerSignatureName,
+    sellerBirth,
+  };
+}
+
+function contractTemplateSvg(contract, copyType = "customer") {
+  const templateFile = copyType === "shop" ? "order_auto_blank_shop.png" : "order_auto_blank_customer.png";
+  const imageUrl = new URL(`templates/${templateFile}`, window.location.href).href;
+  const data = contractTemplateData(contract);
+  const isShopCopy = copyType === "shop";
+
+  return `
+    <svg class="pdf-contract-svg" viewBox="0 0 1191 1684" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="車両売買契約書">
+      <image href="${escapeHtml(imageUrl)}" x="0" y="0" width="1191" height="1684" preserveAspectRatio="none" />
+      <g fill="#000" font-family="Hiragino Kaku Gothic ProN, Yu Gothic, Meiryo, sans-serif">
+        ${pdfField(202, 72, data.contractDate.year, 8.5, "end")}
+        ${pdfField(282, 72, data.contractDate.month, 8.5, "end")}
+        ${pdfField(356, 72, data.contractDate.day, 8.5, "end")}
+        ${pdfField(1052, 70, data.contractNumber, 10)}
+
+        ${pdfField(180, 188, data.carName, 10)}
+        ${pdfField(180, 240, data.carGrade, 10)}
+        ${pdfField(224, 290, data.carYear, 8.5)}
+        ${pdfField(712, 188, data.chassisNumber, 9)}
+        ${pdfField(712, 240, data.plateNumber, 9)}
+        ${pdfField(712, 293, data.carColor, 9)}
+        ${pdfSpacedFields([215, 252, 290, 328, 366, 404], 348, data.mileage, 9)}
+        ${pdfYesNoCircle(data.engineDefect, 614, 642, 320)}
+        ${pdfYesNoCircle(data.transmissionDefect, 839, 869, 320)}
+        ${pdfYesNoCircle(data.powerSteeringDefect, 1084, 1110, 320)}
+        ${pdfYesNoCircle(data.suspensionDefect, 647, 677, 338)}
+        ${pdfYesNoCircle(data.drivingDefect, 812, 841, 338)}
+        ${pdfYesNoCircle(data.parkingViolationUnpaid, 274, 304, 374)}
+        ${pdfYesNoCircle(data.repairHistory, 432, 472, 374)}
+        ${pdfYesNoCircle(data.meterIssue, 782, 819, 375)}
+        ${pdfYesNoCircle(data.disasterHistory, 1066, 1103, 375)}
+
+        ${pdfSpacedFields([161, 234, 307, 380, 453, 526, 593], 480, data.amount, 13)}
+        ${pdfSpacedFields([660, 733, 806, 879, 952, 1026, 1093], 762, data.paymentAmount, 10)}
+        ${pdfTaxStatusCircle(data.automobileTaxStatus)}
+        ${data.automobileTaxUnpaidAmount !== "0" ? pdfSpacedFieldsWithoutOnes([733, 806, 879, 953, 1026], 538, data.automobileTaxUnpaidAmount, 10) : ""}
+        ${
+          data.loanStatus === "有"
+            ? `
+              ${pdfField(70, 598, data.loanCompany, 7.8)}
+              ${pdfField(372, 598, data.loanTransferDate.year, 7.2, "end")}
+              ${pdfField(412, 598, data.loanTransferDate.month, 7.2, "end")}
+              ${pdfField(454, 598, data.loanTransferDate.day, 7.2, "end")}
+              ${pdfSpacedFields([660, 733, 806, 879, 952, 1026, 1093], 596, data.loanBalanceAmount, 10)}
+            `
+            : ""
+        }
+
+        ${pdfDeadlineLine(350, 812, 176, 24, 362, 832, data.pickupDate, data.pickupTime)}
+        ${pdfDeadlineLine(648, 812, 176, 24, 660, 832, data.documentDate, data.documentDeliveryTime)}
+        ${pdfDeadlineLine(936, 812, 176, 24, 928, 832, data.paymentDate, data.paymentTime)}
+        ${pdfMultilineField(205, 878, data.vehicleNote)}
+        ${
+          data.bankTransferStatus === "有"
+            ? `
+              ${pdfField(155, 988, data.bankName, 7.4, "middle")}
+              ${pdfField(395, 988, data.branchName, 7.4, "middle")}
+              ${pdfAccountTypeCircle(data.accountType)}
+              ${pdfLeftAlignedDigits([604, 638, 672, 714, 748, 782, 816], 1000, data.accountNumber, 7.4)}
+              ${pdfField(990, 982, data.accountHolderKana, 7.2, "middle")}
+              ${pdfField(990, 1028, data.accountHolder, 7.2, "middle")}
+            `
+            : ""
+        }
+        ${pdfOwnerTypeCircle(data.ownerType)}
+        ${pdfField(610, 1134, data.ownerName, 7.2)}
+        ${pdfField(920, 1134, data.ownerRelationship, 7.2)}
+        ${pdfUserTypeCircle(data.userType)}
+        ${pdfField(410, 1166, data.userName, 7.2)}
+        ${pdfField(920, 1166, data.userRelationship, 7.2)}
+
+        ${pdfField(690, 1308, data.sellerKana, 8)}
+        ${pdfField(690, 1338, data.sellerName, 9.5)}
+        ${pdfField(704, 1396, data.sellerPostalCode, 7.8)}
+        ${pdfField(690, 1418, data.sellerAddress, 7.8)}
+        ${pdfLine(581, 1450, 1134, 1450, 1)}
+        ${pdfField(704, 1468, data.sellerHomePhone, 7.6)}
+        ${pdfField(704, 1488, data.sellerMobile, 7.6)}
+        ${pdfField(850, 1506, data.sellerBirth.year, 7.3)}
+        ${pdfField(966, 1506, data.sellerBirth.month, 7.3)}
+        ${pdfField(1056, 1506, data.sellerBirth.day, 7.3)}
+        ${pdfField(690, 1546, data.sellerWorkplace, 7.5)}
+        ${pdfField(704, 1568, data.sellerWorkplacePhone, 7.5)}
+        ${isShopCopy ? pdfShopIdentityFooter(data) : ""}
+      </g>
+    </svg>
+  `;
+}
+
+function printTemplateContract(contract) {
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    setSaveStatus("印刷画面を開けませんでした。ブラウザのポップアップ許可を確認してください。", "warning");
+    return;
+  }
+
+  printWindow.document.write(`
+    <!doctype html>
+    <html lang="ja">
+      <head>
+        <meta charset="UTF-8" />
+        <title>車両売買契約書</title>
+        <style>
+          @page { size: A4 portrait; margin: 0; }
+          html, body { margin: 0; background: #fff; }
+          body { display: grid; place-items: start center; }
+          .pdf-contract-svg {
+            display: block;
+            width: 210mm;
+            height: 297mm;
+          }
+          .print-page {
+            width: 210mm;
+            height: 297mm;
+            page-break-after: always;
+          }
+          .print-page:last-of-type {
+            page-break-after: auto;
+          }
+          @media screen {
+            body { padding: 16px; background: #e5e5e5; }
+            .pdf-contract-svg { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); background: #fff; }
+            .print-page { margin-bottom: 16px; }
+          }
+          @media print {
+            body { padding: 0; }
+            .pdf-contract-svg { box-shadow: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="print-page">${contractTemplateSvg(contract, "customer")}</div>
+        <div class="print-page">${contractTemplateSvg(contract, "shop")}</div>
+        <script>
+          window.addEventListener("load", () => {
+            setTimeout(() => window.print(), 250);
+          });
+        <\/script>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
+}
+
 function renderDocument(contract) {
   const data = contract?.data || getFormData();
   const documents = data.documents || [];
   const contractDate = dateParts(new Date().toISOString().slice(0, 10));
   const sellerBirth = dateParts(data.sellerBirthdate);
   const amount = yenBox(data);
+  const paymentAmount = paymentYenBox(data);
+  const loanTransferDate = dateParts(data.loanTransferDate);
+  const loanCompany = hasLoan(data) ? data.loanCompany : "";
+  const loanBalanceAmount = hasLoan(data) ? loanBalanceAmountNumber(data) : "";
+  const bankName = hasBankTransfer(data) ? data.bankName : "";
+  const branchName = hasBankTransfer(data) ? data.branchName : "";
+  const accountType = hasBankTransfer(data) ? data.accountType : "";
+  const accountNumber = hasBankTransfer(data) ? data.accountNumber : "";
+  const accountHolderKana = hasBankTransfer(data) ? data.accountHolderKana : "";
+  const accountHolder = hasBankTransfer(data) ? data.accountHolder : "";
   const signatureBlock = signatureData
     ? `<img class="signature-image" src="${signatureData}" alt="売主電子署名" />`
     : "";
-  const bankLine = [data.bankName, data.branchName, data.accountType].filter(Boolean).join(" / ");
-  const sellerPhone = [data.sellerPhone, data.sellerMobile].filter(Boolean).join(" / ");
+  const sellerHomePhone = data.sellerHomePhone || data.sellerPhone || "";
+  const sellerMobile = data.sellerMobile || "";
 
   return `
     <article class="print-sheet vehicle-contract-sheet">
@@ -602,55 +1119,79 @@ function renderDocument(contract) {
       <p class="vehicle-contract-guide">お客様へ、裏面の契約条項をご確認いただきご承認いただいたうえで太枠線内にご記入ください。</p>
 
       <section class="vehicle-form-section">
-        <h3>1.契約車両の表示及び状況 <span>査定ID：</span></h3>
+        <h3>1.契約車両の表示及び状況</h3>
         <table class="vehicle-form-table vehicle-info-table">
+          <colgroup>
+            <col class="vehicle-label-col">
+            <col>
+            <col class="vehicle-label-col">
+            <col>
+          </colgroup>
           <tr>
             <th>車　名</th>
-            <td colspan="6">${formValue(data.carName)}</td>
+            <td>${formValue(data.carName)}</td>
             <th>車台番号</th>
-            <td colspan="5">${formValue(data.chassisNumber)}</td>
+            <td>${formValue(data.chassisNumber)}</td>
           </tr>
           <tr>
             <th>グレード</th>
-            <td colspan="6">${formValue(data.carGrade)}</td>
+            <td>${formValue(data.carGrade)}</td>
             <th>登録番号</th>
-            <td colspan="5">${formValue(data.plateNumber)}</td>
+            <td>${formValue(data.plateNumber)}</td>
           </tr>
           <tr>
             <th>年　式</th>
-            <td colspan="2">${formValue(data.carYear)}</td>
+            <td>${formValue(data.carYear)}</td>
             <th>色</th>
-            <td colspan="3">${formValue(data.carColor)}</td>
-            <th>在庫番号</th>
-            <td colspan="5"></td>
+            <td>${formValue(data.carColor)}</td>
           </tr>
-          <tr>
+          <tr class="vehicle-condition-row">
             <th>走行距離</th>
-            <td colspan="3">${formValue(data.mileage)}</td>
-            <td colspan="9" class="condition-line">
-              エンジンの不具合 ${choiceMark(data.defect, "無")}無・${choiceMark(data.defect, "有")}有　
-              オートマミッションの不具合 ○無・○有　
-              パワーステアリングの不具合 ○無・○有<br>
-              サスペンションの不具合 ○無・○有　
-              走行上の不都合 ${choiceMark(data.drivable, "可")}無・${choiceMark(data.drivable, "不可")}有
+            <td class="mileage-cell">
+              <span>${formValue(data.mileage)}</span>
+              <b>km</b>
             </td>
-          </tr>
-          <tr>
-            <th>駐車違反放置違反金未納</th>
-            <td colspan="2">○無・○有</td>
-            <th>修復歴</th>
-            <td colspan="2">${choiceMark(data.repairHistory, "無")}無・${choiceMark(data.repairHistory, "有")}有</td>
-            <th colspan="3">メーター戻し・交換・走行距離不明</th>
-            <td colspan="2">○無・○有</td>
-            <th>災害歴</th>
-            <td>○無・○有</td>
+            <td colspan="2" class="condition-matrix">
+              <table>
+                <tr>
+                  <th>エンジンの不具合</th>
+                  <th>オートマミッションの不具合</th>
+                  <th>パワーステアリングの不具合</th>
+                </tr>
+                <tr>
+                  <td>${choiceMark(yesNoValue(data.engineDefect || data.defect), "無")}無　${choiceMark(yesNoValue(data.engineDefect || data.defect), "有")}有</td>
+                  <td>${choiceMark(yesNoValue(data.transmissionDefect), "無")}無　${choiceMark(yesNoValue(data.transmissionDefect), "有")}有</td>
+                  <td>${choiceMark(yesNoValue(data.powerSteeringDefect), "無")}無　${choiceMark(yesNoValue(data.powerSteeringDefect), "有")}有</td>
+                </tr>
+                <tr>
+                  <th>サスペンションの不具合</th>
+                  <th>走行上の不都合</th>
+                  <th>駐車違反放置違反金未納</th>
+                </tr>
+                <tr>
+                  <td>${choiceMark(yesNoValue(data.suspensionDefect), "無")}無　${choiceMark(yesNoValue(data.suspensionDefect), "有")}有</td>
+                  <td>${choiceMark(yesNoValue(legacyDrivingDefectValue(data)), "無")}無　${choiceMark(yesNoValue(legacyDrivingDefectValue(data)), "有")}有</td>
+                  <td>${choiceMark(yesNoValue(data.parkingViolationUnpaid), "無")}無　${choiceMark(yesNoValue(data.parkingViolationUnpaid), "有")}有</td>
+                </tr>
+                <tr>
+                  <th>修復歴</th>
+                  <th>メーター戻し・交換・走行距離不明</th>
+                  <th>災害歴</th>
+                </tr>
+                <tr>
+                  <td>${choiceMark(yesNoValue(data.repairHistory), "無")}無　${choiceMark(yesNoValue(data.repairHistory), "有")}有</td>
+                  <td>${choiceMark(yesNoValue(data.meterIssue), "無")}無　${choiceMark(yesNoValue(data.meterIssue), "有")}有</td>
+                  <td>${choiceMark(yesNoValue(data.disasterHistory), "無")}無　${choiceMark(yesNoValue(data.disasterHistory), "有")}有</td>
+                </tr>
+              </table>
+            </td>
           </tr>
         </table>
       </section>
 
       <section class="vehicle-form-section">
         <h3>2.売買契約金額 <small>（消費税等込み）</small></h3>
-        <div class="amount-area">
+        <div class="amount-area photo-amount-area">
           <table class="vehicle-form-table amount-table">
             <tr class="amount-labels">
               <th></th><th>百万</th><th>十万</th><th>万</th><th>千</th><th>百</th><th>十</th><th>一</th><th>円</th>
@@ -660,38 +1201,39 @@ function renderDocument(contract) {
             </tr>
           </table>
           <p>
-            なお、左記価格は自賠責保険未経過保険料相当額、未経過自動車税、重量税、リサイクル預託金額を含むものとします。
+            なお、左記価格は自賠責保険未経過保険料相当額、未経過自動車税（種別割）、重量税、リサイクル預託金額を含むものとします。<br>
+            また、自動車税（種別割）は今期分までを完納していることを前提とします。
           </p>
         </div>
 
-        <table class="vehicle-form-table money-table">
+        <table class="vehicle-form-table tax-table">
           <tr>
             <th>自動車税（種別割）</th>
-            <td>完納・未納・課税保留・減免</td>
+            <td>
+              （ ${choiceMark(data.automobileTaxStatus || "完納", "完納")}完納 ・
+              ${choiceMark(data.automobileTaxStatus, "未納")}未納 ・
+              ${choiceMark(data.automobileTaxStatus, "課税保留")}課税保留 ・
+              ${choiceMark(data.automobileTaxStatus, "減免")}減免 ）
+            </td>
             <th>未納金額</th>
-            <td class="yen-field">円</td>
+            <td class="amount-mini-cells">十万　　万　　千　　百　　十</td>
+            <td class="yen-field">${escapeHtml(Number(automobileTaxUnpaidAmountNumber(data)).toLocaleString("ja-JP"))} 円</td>
           </tr>
+        </table>
+
+        <table class="vehicle-form-table money-table">
           <tr>
             <th>残債先</th>
-            <td>${formValue(data.loanCompany)}</td>
+            <td>${formValue(loanCompany)}</td>
+            <th>振込希望日</th>
+            <td>${loanTransferDate.year || "　"} 年 ${loanTransferDate.month || "　"} 月 ${loanTransferDate.day || "　"} 日</td>
             <th>残債金額</th>
-            <td class="yen-field">円</td>
+            <td class="yen-field">${loanBalanceAmount ? escapeHtml(Number(loanBalanceAmount).toLocaleString("ja-JP")) : ""} 円</td>
           </tr>
           <tr>
-            <th rowspan="3" class="vertical-label">振込先</th>
-            <td>${formValue(bankLine) || "銀行　　　　　　　　　支店"}</td>
-            <th rowspan="3">口座番号<br><small>右詰めでご記入ください</small></th>
-            <td rowspan="3">
-              <div class="account-line">口座番号　${formValue(data.accountNumber)}</div>
-              <div>カナ　${formValue(data.accountHolder)}</div>
-              <div>漢字　${formValue(data.accountHolder)}</div>
-            </td>
-          </tr>
-          <tr><td>普通・当座　${formValue(data.accountType)}</td></tr>
-          <tr><td>ゆうちょ銀行　記号　　　　番号</td></tr>
-          <tr>
-            <th colspan="2">支払代金</th>
-            <td colspan="2" class="yen-field">${escapeHtml(amount)} 円</td>
+            <th>支払<br>代金</th>
+            <td colspan="4" class="amount-mini-cells">百万　十万　万　千　百　十　一</td>
+            <td class="yen-field">${escapeHtml(paymentAmount)} 円</td>
           </tr>
         </table>
       </section>
@@ -700,12 +1242,12 @@ function renderDocument(contract) {
         <h3>3.車両引渡期限、移転登録書類等 引渡期限及び支払期限</h3>
         <table class="vehicle-form-table deadline-table">
           <tr>
-            <th>車両引渡期限</th>
-            <td>${dateLine(data.pickupDate)}</td>
-            <th>書類引渡期限</th>
-            <td></td>
+            <th>車両引渡<br>期限</th>
+            <td>${deadlineLine(data.pickupDate, data.pickupTime) || ""}</td>
+            <th>書類引渡<br>期限</th>
+            <td>${deadlineLine(data.documentDeliveryDate, data.documentDeliveryTime) || ""}</td>
             <th>支払期限</th>
-            <td>${dateLine(data.paymentDate)}</td>
+            <td>${deadlineLine(data.paymentDate, data.paymentTime) || ""}</td>
           </tr>
         </table>
       </section>
@@ -717,33 +1259,46 @@ function renderDocument(contract) {
 
       <section class="vehicle-form-section">
         <h3>5.お振込口座 <small>口座名義は原則として申込者（売主）またはご所有者のものに限ります。</small></h3>
-        <table class="vehicle-form-table bank-table">
+        <table class="vehicle-form-table bank-table simple-bank-table">
           <tr>
-            <th rowspan="3" class="vertical-label">振込先</th>
-            <td>${formValue(bankLine) || "銀行　　　　　　　　　支店"}</td>
-            <th rowspan="3">口座番号<br><small>右詰めでご記入ください</small></th>
-            <td rowspan="3">
-              <div>口座番号　${formValue(data.accountNumber)}</div>
-              <div>カナ　${formValue(data.accountHolder)}</div>
-              <div>漢字　${formValue(data.accountHolder)}</div>
-            </td>
+            <th>銀行名</th>
+            <th>支店名</th>
+            <th>口座種別</th>
+            <th>口座番号</th>
+            <th>口座名義</th>
           </tr>
-          <tr><td>普通・当座　${formValue(data.accountType)}</td></tr>
-          <tr><td>ゆうちょ銀行　記号　　　　番号</td></tr>
+          <tr>
+            <td>${formValue(bankName)}</td>
+            <td>${formValue(branchName)}</td>
+            <td>${formValue(accountType)}</td>
+            <td>${formValue(accountNumber)}</td>
+            <td>${formValue(accountHolderKana || accountHolder)}</td>
+          </tr>
         </table>
-        <p class="payment-note">支払代金は、原則として車両及び移転登録書類等の引渡しがいずれも完了した日の翌日を起算日とする金融機関の3営業日以内に、お振込いたします。</p>
       </section>
 
       <section class="vehicle-form-section">
         <h3>6.車両名義人 <small>申込者（売主）は、車両の名義人がご自身と異なる場合、正当な権限があることを保証します。</small></h3>
         <table class="vehicle-form-table owner-table">
-          <tr><th>所有者</th><td>申込者・販売会社・信販会社・その他（名義人　　　　　　　　　）</td><th>申込者との関係</th><td></td></tr>
-          <tr><th>使用者</th><td>申込者・その他（名義人　　　　　　　　　）</td><th>申込者との関係</th><td></td></tr>
+          <tr>
+            <th>所有者</th>
+            <td>${formValue(data.ownerType || "売主")}（名義人 ${formValue(data.ownerName, "")}）</td>
+            <th>売主との関係</th>
+            <td>${formValue(data.ownerRelationship, "")}</td>
+          </tr>
+          <tr>
+            <th>使用者</th>
+            <td>${formValue(data.userType || "売主")}（名義人 ${formValue(data.userName, "")}）</td>
+            <th>売主との関係</th>
+            <td>${formValue(data.userRelationship, "")}</td>
+          </tr>
         </table>
       </section>
 
       <p class="application-statement">
-        売主は買主に対し、上記内容及び裏面の契約条項を承認し、上記車両について売買契約を締結します。
+        売主と買主とは、上記内容及び裏面の契約条項を承認し、上記車両について売買契約を締結します。<br>
+        本売買契約をもって、上記車両の売買契約が成立します。詳細は裏面の契約条項をご確認ください。<br>
+        売主は、自賠責保険未経過保険料相当額、未経過自動車税（種別割）、重量税、リサイクル預託金のそれぞれの取扱いについて説明を受け、ご承諾された後、ご署名ください。
       </p>
 
       <section class="party-boxes">
@@ -758,15 +1313,44 @@ function renderDocument(contract) {
         </div>
         <div class="party-box seller-box">
           <h3>売主</h3>
-          <div class="seller-grid">
-            <span>フリガナ</span><strong>${formValue(data.sellerKana)}</strong><em>印</em>
-            <span>お名前</span><strong>${formValue(data.sellerName)}</strong><em></em>
-            <span>〒</span><strong>${formValue(data.sellerAddress)}</strong><em></em>
-            <span>ご住所</span><strong></strong><em></em>
-            <span>電話</span><strong>${formValue(sellerPhone)}</strong><em></em>
-            <span>生年月日</span><strong>${sellerBirth.year || "　"} 年 ${sellerBirth.month || "　"} 月 ${sellerBirth.day || "　"} 日</strong><em></em>
-            <span>ご勤務先名</span><strong>${formValue(data.workplace)}</strong><em></em>
-          </div>
+          <table class="seller-table">
+            <colgroup>
+              <col class="seller-label-col">
+              <col>
+              <col class="seller-stamp-col">
+            </colgroup>
+            <tr class="seller-name-row">
+              <th>フリガナ</th>
+              <td>${formValue(data.sellerKana)}</td>
+              <td class="stamp-cell" rowspan="2">印</td>
+            </tr>
+            <tr class="seller-name-row">
+              <th>お名前</th>
+              <td>${formValue(data.sellerName)}</td>
+            </tr>
+            <tr class="seller-contract-row">
+              <th class="seller-contract-label" rowspan="5">ご契約者</th>
+              <td colspan="2" class="seller-address-block">
+                <div>〒　${formValue(data.sellerPostalCode, "　　　－")}</div>
+                <div>ご住所　${formValue(data.sellerAddress)}</div>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2" class="seller-phone-number-row">
+                <span>自宅電話</span><strong>${formValue(sellerHomePhone)}</strong>
+                <span>携帯電話</span><strong>${formValue(sellerMobile)}</strong>
+              </td>
+            </tr>
+            <tr class="seller-subrow">
+              <td colspan="2"><span>生年月日</span><strong>${sellerBirth.year || "　"} 年 ${sellerBirth.month || "　"} 月 ${sellerBirth.day || "　"} 日</strong></td>
+            </tr>
+            <tr class="seller-subrow">
+              <td colspan="2"><span>ご勤務先名</span><strong>${formValue(data.workplace)}</strong></td>
+            </tr>
+            <tr class="seller-subrow">
+              <td colspan="2"><span>電話</span><strong>（　　　　）　　　　－</strong></td>
+            </tr>
+          </table>
           ${signatureBlock ? `<div class="seller-signature">${signatureBlock}</div>` : ""}
         </div>
       </section>
@@ -827,12 +1411,20 @@ function updatePreview() {
     signatureData,
   };
 
-  preview.innerHTML = renderDocument(previewContract);
+  preview.innerHTML = contractTemplateSvg(previewContract, activePreviewCopy);
   status.textContent = contract?.status || "下書き";
   document.querySelector("#editor-title").textContent = contract
     ? `${contract.id} を編集中`
     : "新規契約作成";
   buildEmailBody();
+}
+
+function setPreviewCopy(copyType) {
+  activePreviewCopy = copyType === "shop" ? "shop" : "customer";
+  document.querySelectorAll("[data-preview-copy]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.previewCopy === activePreviewCopy);
+  });
+  updatePreview();
 }
 
 function renderList() {
@@ -841,7 +1433,7 @@ function renderList() {
 
   const filtered = contracts.filter((contract) => {
     const data = contract.data || {};
-    const text = [contract.id, data.sellerName, data.sellerPhone, data.carName, data.plateNumber]
+    const text = [contract.id, data.sellerName, data.sellerPhone, data.sellerHomePhone, data.sellerMobile, data.carName, data.plateNumber]
       .join(" ")
       .toLowerCase();
     const statusOk = activeFilter === "all" || contract.status === activeFilter;
@@ -875,10 +1467,34 @@ function updateModePanels() {
   const isZeroAmount = isZeroAmountContract(data);
   const isTablet = data.completionMethod === "tablet";
   const isEmail = data.completionMethod === "email";
+  const taxUnpaidField = document.querySelector("#automobile-tax-unpaid-field");
+  const taxUnpaidInput = document.querySelector('[name="automobileTaxUnpaidAmount"]');
+  const loanDetailFields = document.querySelector("#loan-detail-fields");
+  const loanInputs = loanDetailFields ? loanDetailFields.querySelectorAll("input, select, textarea") : [];
+  const bankDetailFields = document.querySelector("#bank-detail-fields");
+  const bankInputs = bankDetailFields ? bankDetailFields.querySelectorAll("input, select, textarea") : [];
 
   document.querySelector('[name="paymentMethod"]').value = isZeroAmount
     ? "支払いなし"
     : document.querySelector('[name="paymentMethod"]').value || "振込";
+  if (taxUnpaidField) {
+    taxUnpaidField.hidden = data.automobileTaxStatus !== "未納";
+  }
+  if (taxUnpaidInput) {
+    taxUnpaidInput.disabled = data.automobileTaxStatus !== "未納";
+  }
+  if (loanDetailFields) {
+    loanDetailFields.hidden = !hasLoan(data);
+  }
+  loanInputs.forEach((input) => {
+    input.disabled = !hasLoan(data);
+  });
+  if (bankDetailFields) {
+    bankDetailFields.hidden = !hasBankTransfer(data);
+  }
+  bankInputs.forEach((input) => {
+    input.disabled = !hasBankTransfer(data);
+  });
   document.querySelector("#signature-panel").hidden = !isTablet;
   document.querySelector("#email-panel").hidden = !isEmail;
 }
@@ -1293,6 +1909,9 @@ function setupEvents() {
   });
   document.querySelector("#save-contract").addEventListener("click", () => saveActiveContract("下書き"));
   document.querySelector("#cloud-save-contract").addEventListener("click", submitCloudRecord);
+  document.querySelectorAll("[data-preview-copy]").forEach((button) => {
+    button.addEventListener("click", () => setPreviewCopy(button.dataset.previewCopy));
+  });
   document.querySelector("#complete-contract").addEventListener("click", () => {
     const contract = currentContract();
     if (contract) contract.completedAt = formatDateTime();
@@ -1301,7 +1920,7 @@ function setupEvents() {
   });
   document.querySelector("#print-contract").addEventListener("click", () => {
     saveActiveContract(currentContract()?.status || "下書き");
-    window.print();
+    printTemplateContract(currentContract());
   });
   document.querySelector("#generate-consent-url").addEventListener("click", () => {
     generateConsentUrl();

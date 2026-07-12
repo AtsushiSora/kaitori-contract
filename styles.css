@@ -824,6 +824,24 @@ textarea {
   color: rgba(255, 255, 255, 0.78);
 }
 
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.hero-button-outline {
+  border-color: rgba(255, 255, 255, 0.44);
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.hero-button-outline:hover {
+  border-color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.14);
+}
+
 .contract-flow-summary {
   display: grid;
   gap: 10px;
@@ -1132,12 +1150,64 @@ textarea {
   grid-column: 1 / -1;
 }
 
+.conditional-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfb;
+}
+
+.conditional-fields[hidden] {
+  display: none;
+}
+
+.deadline-input-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.8fr);
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfb;
+}
+
 .field-label {
   display: block;
   margin-bottom: 6px;
   color: var(--ink);
   font-size: 0.9rem;
   font-weight: 800;
+}
+
+.input-index {
+  background: #fbfdfb;
+}
+
+.input-index-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.input-index-grid a {
+  min-height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(15, 122, 77, 0.22);
+  border-radius: 8px;
+  color: var(--green-dark);
+  background: var(--white);
+  font-size: 0.88rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.input-index-grid a:hover {
+  border-color: var(--green);
+  background: #f1faf4;
 }
 
 .date-input-wrap {
@@ -1163,6 +1233,16 @@ textarea {
 }
 
 .plate-number-grid label {
+  min-width: 0;
+}
+
+.vehicle-condition-input-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.vehicle-condition-input-grid label {
   min-width: 0;
 }
 
@@ -1293,6 +1373,50 @@ textarea {
   border-radius: 8px;
   background: #f4f7f4;
   padding: 12px;
+  overflow: auto;
+}
+
+.preview-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.preview-copy-tabs {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(88px, 1fr));
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid #d6ded8;
+  border-radius: 8px;
+  background: #eef4ef;
+}
+
+.preview-copy-tabs button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.preview-copy-tabs button.active {
+  color: var(--green-dark);
+  background: var(--white);
+  box-shadow: 0 1px 5px rgba(23, 33, 31, 0.12);
+}
+
+.contract-document .pdf-contract-svg {
+  display: block;
+  width: min(100%, 760px);
+  height: auto;
+  margin: 0 auto;
+  background: var(--white);
+  box-shadow: 0 8px 22px rgba(23, 33, 31, 0.12);
 }
 
 .print-sheet {
@@ -1415,13 +1539,13 @@ textarea {
   width: 210mm;
   max-width: 210mm;
   min-height: 297mm;
-  padding: 8mm 8mm 7mm;
+  padding: 6mm 8mm 5mm;
   color: #111;
   border: 1px solid #d0d0d0;
   border-radius: 0;
   font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
-  font-size: 8.1px;
-  line-height: 1.24;
+  font-size: 7.7px;
+  line-height: 1.18;
   box-shadow: 0 12px 32px rgba(23, 33, 31, 0.08);
 }
 
@@ -1430,13 +1554,12 @@ textarea {
   grid-template-columns: 1fr auto 1fr;
   align-items: end;
   gap: 8px;
-  border-bottom: 1.8px solid #111;
-  padding-bottom: 2px;
+  padding-bottom: 1px;
 }
 
 .vehicle-contract-head h2 {
   margin: 0;
-  font-size: 23px;
+  font-size: 25px;
   line-height: 1;
   letter-spacing: 0;
   text-align: center;
@@ -1444,6 +1567,10 @@ textarea {
 }
 
 .contract-date {
+  justify-self: start;
+  min-width: 165px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #111;
   font-size: 9px;
   font-weight: 700;
 }
@@ -1451,6 +1578,10 @@ textarea {
 .contract-number {
   display: grid;
   gap: 1px;
+  justify-self: end;
+  min-width: 170px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #111;
   text-align: right;
   font-size: 9px;
   font-weight: 700;
@@ -1461,13 +1592,13 @@ textarea {
 }
 
 .vehicle-contract-guide {
-  margin: 3px 0 2px;
+  margin: 3px 0 1px;
   font-size: 9px;
   font-weight: 800;
 }
 
 .vehicle-form-section {
-  margin-top: 3px;
+  margin-top: 2px;
 }
 
 .vehicle-form-section h3 {
@@ -1475,8 +1606,8 @@ textarea {
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  margin: 0 0 2px;
-  font-size: 9.3px;
+  margin: 0 0 1px;
+  font-size: 9px;
   line-height: 1.2;
 }
 
@@ -1489,12 +1620,12 @@ textarea {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  border: 1.6px solid #111;
+  border: 1.5px solid #111;
 }
 
 .vehicle-form-table th,
 .vehicle-form-table td {
-  height: 16px;
+  height: 15px;
   border: 0.8px solid #444;
   padding: 1px 3px;
   vertical-align: middle;
@@ -1507,19 +1638,85 @@ textarea {
   text-align: center;
 }
 
-.vehicle-info-table th {
-  width: 10%;
+.vehicle-info-table .vehicle-label-col {
+  width: 9.5%;
 }
 
-.condition-line {
-  font-size: 7px;
-  line-height: 1.25;
+.vehicle-info-table th {
+  font-size: 8.7px;
+}
+
+.vehicle-info-table small {
+  font-size: 6.4px;
+  font-weight: 700;
+}
+
+.vehicle-info-table .vehicle-condition-row > th {
+  height: 70px;
+  font-size: 10px;
+}
+
+.mileage-cell {
+  height: 70px;
+  position: relative;
+}
+
+.mileage-cell span {
+  display: block;
+  min-height: 46px;
+}
+
+.mileage-cell b {
+  position: absolute;
+  right: 8px;
+  bottom: 4px;
+  font-size: 9px;
+}
+
+.condition-matrix {
+  padding: 0 !important;
+}
+
+.condition-matrix table {
+  width: 100%;
+  height: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.condition-matrix th,
+.condition-matrix td {
+  height: 11px;
+  border: 0.8px solid #444;
+  padding: 0 2px;
+  text-align: center;
+  font-size: 6.2px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.condition-matrix tr:first-child th {
+  border-top: 0;
+}
+
+.condition-matrix tr:last-child td {
+  border-bottom: 0;
+}
+
+.condition-matrix th:first-child,
+.condition-matrix td:first-child {
+  border-left: 0;
+}
+
+.condition-matrix th:last-child,
+.condition-matrix td:last-child {
+  border-right: 0;
 }
 
 .amount-area {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(250px, 0.9fr);
-  gap: 6px;
+  grid-template-columns: minmax(0, 1.05fr) minmax(250px, 0.95fr);
+  gap: 5px;
   align-items: stretch;
 }
 
@@ -1531,6 +1728,7 @@ textarea {
 
 .amount-table {
   min-height: 30px;
+  border-width: 1.8px;
 }
 
 .amount-labels th {
@@ -1543,15 +1741,38 @@ textarea {
 }
 
 .amount-digits td {
-  height: 24px;
+  height: 23px;
   text-align: center;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 900;
   line-height: 1;
 }
 
+.amount-digits td.filled {
+  font-size: 20px;
+}
+
 .money-table {
-  margin-top: 3px;
+  margin-top: 2px;
+}
+
+.tax-table {
+  margin-top: 2px;
+}
+
+.tax-table th,
+.tax-table td {
+  height: 18px;
+}
+
+.tax-table th:first-child {
+  width: 28%;
+}
+
+.amount-mini-cells {
+  text-align: center;
+  font-size: 6.8px;
+  background-image: repeating-linear-gradient(90deg, transparent 0, transparent 38px, #aaa 39px);
 }
 
 .money-table th,
@@ -1565,10 +1786,59 @@ textarea {
   height: 18px;
 }
 
+.simple-bank-table th,
+.simple-bank-table td {
+  height: 24px;
+  text-align: center;
+}
+
+.simple-bank-table th:nth-child(1),
+.simple-bank-table td:nth-child(1) {
+  width: 24%;
+}
+
+.simple-bank-table th:nth-child(2),
+.simple-bank-table td:nth-child(2) {
+  width: 18%;
+}
+
+.simple-bank-table th:nth-child(3),
+.simple-bank-table td:nth-child(3) {
+  width: 12%;
+  line-height: 1.3;
+}
+
+.money-table .bank-name-line,
+.bank-table .bank-name-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.account-type-cell {
+  width: 48px;
+  text-align: left;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.account-name-cell {
+  line-height: 1.35;
+}
+
+.debt-note {
+  font-size: 6.9px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .vertical-label {
-  width: 26px;
+  width: 22px;
   writing-mode: vertical-rl;
+  text-orientation: upright;
   letter-spacing: 0;
+  line-height: 1.1;
 }
 
 .yen-field {
@@ -1577,10 +1847,10 @@ textarea {
   font-weight: 900;
 }
 
-.account-line {
-  border-bottom: 1px solid #777;
-  margin-bottom: 2px;
-  padding-bottom: 2px;
+.money-table p,
+.bank-table p {
+  margin: 0;
+  line-height: 1.35;
 }
 
 .deadline-table th {
@@ -1592,7 +1862,7 @@ textarea {
 }
 
 .special-note {
-  min-height: 28px;
+  min-height: 35px;
   border: 1.6px solid #111;
   padding: 4px;
 }
@@ -1600,78 +1870,159 @@ textarea {
 .payment-note,
 .application-statement {
   margin: 3px 0 0;
-  font-size: 7.2px;
+  font-size: 7px;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.25;
 }
 
 .party-boxes {
   display: grid;
-  grid-template-columns: 0.86fr 1.14fr;
+  grid-template-columns: 0.88fr 1.12fr;
   gap: 5px;
-  margin-top: 4px;
+  margin-top: 5px;
 }
 
 .party-box {
-  min-height: 112px;
+  min-height: 168px;
   border: 1.8px solid #111;
-  padding: 5px 7px;
+  padding: 4px 7px;
 }
 
 .party-box h3 {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   font-size: 11px;
 }
 
 .buyer-box p {
   margin: 0 0 2px;
-  font-size: 11px;
+  font-size: 10.8px;
   font-weight: 900;
   line-height: 1.24;
 }
 
 .buyer-box .buyer-address {
-  font-size: 10px;
+  font-size: 10.5px;
 }
 
 .buyer-box .buyer-company,
 .buyer-box .buyer-rep {
-  font-size: 12px;
+  font-size: 12.6px;
 }
 
 .buyer-box .shop-line {
-  margin: 14px 0 3px;
+  margin: 52px 0 3px;
   border-bottom: 1px solid #111;
   text-align: right;
 }
 
-.seller-grid {
-  display: grid;
-  grid-template-columns: 58px minmax(0, 1fr) 28px;
-  border-top: 1px solid #555;
-  border-left: 1px solid #555;
+.seller-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  border: 1px solid #555;
 }
 
-.seller-grid span,
-.seller-grid strong,
-.seller-grid em {
-  min-height: 15px;
-  border-right: 1px solid #555;
-  border-bottom: 1px solid #555;
-  padding: 1px 3px;
-  font-style: normal;
-  font-weight: 500;
+.seller-table .seller-label-col {
+  width: 58px;
 }
 
-.seller-grid span {
+.seller-table .seller-stamp-col {
+  width: 32px;
+}
+
+.seller-table th,
+.seller-table td {
+  height: 16px;
+  border: 1px solid #555;
+  padding: 1px 5px;
+  vertical-align: middle;
+  line-height: 1.3;
+}
+
+.seller-table th {
+  width: 58px;
+  background: #fafafa;
   font-weight: 800;
   text-align: center;
 }
 
-.seller-grid em {
-  display: grid;
-  place-items: center;
+.seller-table .stamp-cell {
+  width: 34px;
+  text-align: center;
   font-weight: 800;
+}
+
+.seller-table .seller-name-row th,
+.seller-table .seller-name-row td {
+  height: 24px;
+}
+
+.seller-table .seller-contract-label {
+  width: 22px;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  letter-spacing: 0;
+  line-height: 1.1;
+  background: #fff;
+}
+
+.seller-table .seller-address-block {
+  height: 46px;
+  vertical-align: top;
+  padding-top: 4px;
+  line-height: 1.5;
+}
+
+.seller-table .seller-phone-number-row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) 72px minmax(0, 1fr);
+  align-items: center;
+  height: 24px;
+  padding: 0;
+}
+
+.seller-table .seller-phone-number-row span {
+  height: 100%;
+  padding: 3px 5px 2px;
+  border-right: 1px solid #555;
+  font-weight: 800;
+  text-align: left;
+  background: #fafafa;
+}
+
+.seller-table .seller-phone-number-row strong {
+  height: 100%;
+  padding: 3px 5px 2px;
+  border-right: 1px solid #555;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.seller-table .seller-phone-number-row strong:last-child {
+  border-right: 0;
+}
+
+.seller-table .seller-subrow td {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  height: 18px;
+  padding: 0;
+}
+
+.seller-table .seller-subrow span {
+  height: 100%;
+  padding: 2px 5px;
+  border-right: 1px solid #555;
+  font-weight: 800;
+  text-align: left;
+  background: #fafafa;
+}
+
+.seller-table .seller-subrow strong {
+  padding: 2px 5px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .seller-signature {
@@ -1692,8 +2043,8 @@ textarea {
 .identity-row {
   display: grid;
   grid-template-columns: 150px 1fr 260px 72px 72px;
-  min-height: 21px;
-  margin-top: 3px;
+  min-height: 18px;
+  margin-top: 5px;
   border-top: 1.2px solid #111;
   border-left: 1.2px solid #111;
 }
@@ -1701,7 +2052,7 @@ textarea {
 .identity-row > div {
   border-right: 1.2px solid #111;
   border-bottom: 1.2px solid #111;
-  padding: 2px 3px;
+  padding: 2px 4px;
 }
 
 .identity-cells {
@@ -1715,9 +2066,9 @@ textarea {
 }
 
 .vehicle-contract-footer {
-  margin-top: 5px;
+  margin-top: 10px;
   text-align: center;
-  font-size: 9.4px;
+  font-size: 9px;
   font-weight: 900;
   line-height: 1.45;
 }
@@ -2141,6 +2492,38 @@ textarea {
     display: none;
   }
 
+  .contract-hero {
+    padding: 88px 0 20px;
+  }
+
+  .contract-hero h1 {
+    font-size: 2.2rem;
+    line-height: 1.22;
+  }
+
+  .contract-hero p:not(.eyebrow) {
+    margin-top: 14px;
+    font-size: 0.96rem;
+    line-height: 1.8;
+  }
+
+  .hero-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .input-index-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .contract-flow-summary {
+    gap: 8px;
+  }
+
+  .contract-flow-summary div {
+    padding: 10px 12px;
+  }
+
   .hero {
     min-height: auto;
     padding: 104px 0 24px;
@@ -2257,7 +2640,8 @@ textarea {
   }
 
   .date-input-wrap,
-  .plate-number-grid {
+  .plate-number-grid,
+  .vehicle-condition-input-grid {
     grid-template-columns: 1fr;
   }
 
@@ -2337,7 +2721,7 @@ textarea {
     width: 210mm;
     max-width: 210mm;
     min-height: 297mm;
-    padding: 8mm;
+    padding: 7mm 8mm 5mm;
     border: 0;
     page-break-after: always;
   }
