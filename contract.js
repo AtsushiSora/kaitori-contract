@@ -348,7 +348,7 @@ function getFormData() {
   const data = Object.fromEntries(new FormData(form).entries());
   data.documents = new FormData(form).getAll("documents");
   data.contractType = form.elements.contractType?.value || "unified";
-  data.completionMethod = form.elements.completionMethod.value;
+  data.completionMethod = form.elements.completionMethod?.value || "paper";
   data.consents = new FormData(form).getAll("consents");
   normalizeSellerNameFields(data);
   normalizePlateNumberFields(data);
@@ -382,6 +382,11 @@ function setFieldValue(form, name, value) {
   if (field instanceof RadioNodeList) {
     const item = Array.from(field).find((option) => option.value === value);
     if (item) item.checked = true;
+    return;
+  }
+
+  if (field.type === "checkbox") {
+    field.checked = Boolean(value);
     return;
   }
 
@@ -540,6 +545,7 @@ function completionLabel(data) {
 
 function renderConsents(data, checkedItems = []) {
   const list = document.querySelector("#consent-list");
+  if (!list) return;
   list.innerHTML = consentItems(data)
     .map((text) => {
       const checked = checkedItems.includes(text) ? "checked" : "";
@@ -1482,8 +1488,6 @@ function renderList() {
 function updateModePanels() {
   const data = getFormData();
   const isZeroAmount = isZeroAmountContract(data);
-  const isTablet = data.completionMethod === "tablet";
-  const isEmail = data.completionMethod === "email";
   const taxUnpaidField = document.querySelector("#automobile-tax-unpaid-field");
   const taxUnpaidInput = document.querySelector('[name="automobileTaxUnpaidAmount"]');
   const loanDetailFields = document.querySelector("#loan-detail-fields");
@@ -1491,9 +1495,10 @@ function updateModePanels() {
   const bankDetailFields = document.querySelector("#bank-detail-fields");
   const bankInputs = bankDetailFields ? bankDetailFields.querySelectorAll("input, select, textarea") : [];
 
-  document.querySelector('[name="paymentMethod"]').value = isZeroAmount
-    ? "支払いなし"
-    : document.querySelector('[name="paymentMethod"]').value || "振込";
+  const paymentMethod = document.querySelector('[name="paymentMethod"]');
+  if (paymentMethod) {
+    paymentMethod.value = isZeroAmount ? "支払いなし" : paymentMethod.value || "振込";
+  }
   if (taxUnpaidField) {
     taxUnpaidField.hidden = data.automobileTaxStatus !== "未納";
   }
@@ -1512,14 +1517,24 @@ function updateModePanels() {
   bankInputs.forEach((input) => {
     input.disabled = !hasBankTransfer(data);
   });
-  document.querySelector("#signature-panel").hidden = !isTablet;
-  document.querySelector("#email-panel").hidden = !isEmail;
+  const signaturePanel = document.querySelector("#signature-panel");
+  const emailPanel = document.querySelector("#email-panel");
+  if (signaturePanel) {
+    signaturePanel.hidden = data.completionMethod !== "tablet";
+  }
+  if (emailPanel) {
+    emailPanel.hidden = data.completionMethod !== "email";
+  }
 }
 
 function buildEmailBody() {
+  const emailBody = document.querySelector("#email-body");
+  const emailUrl = document.querySelector("#email-url");
+  const passcodeField = document.querySelector("#consent-passcode");
+  if (!emailBody || !emailUrl || !passcodeField) return;
   const data = getFormData();
-  const url = document.querySelector("#email-url").value.trim() || "【確認URLをここに入力】";
-  const passcode = document.querySelector("#consent-passcode").value.trim();
+  const url = emailUrl.value.trim() || "【確認URLをここに入力】";
+  const passcode = passcodeField.value.trim();
   const body = [
     `${safePlain(data.sellerName, "お客様")} 様`,
     "",
@@ -1543,12 +1558,12 @@ function buildEmailBody() {
     `TEL ${COMPANY.phone}`,
   ].join("\n");
 
-  document.querySelector("#email-body").value = body;
+  emailBody.value = body;
 }
 
 function buildLineMessage() {
   const data = getFormData();
-  const url = document.querySelector("#email-url").value.trim() || "【確認URL】";
+  const url = document.querySelector("#email-url")?.value.trim() || "【確認URL】";
 
   return [
     `${safePlain(data.sellerName, "お客様")} 様`,
@@ -1643,6 +1658,9 @@ function buildConsentPayload(contract = currentContract()) {
 }
 
 async function generateConsentUrl() {
+  const emailUrl = document.querySelector("#email-url");
+  const passcodeField = document.querySelector("#consent-passcode");
+  if (!emailUrl || !passcodeField) return;
   saveActiveContract("送信済み");
   if (cloudEnabled()) {
     await syncActiveContractToCloud();
@@ -1653,8 +1671,8 @@ async function generateConsentUrl() {
   const encoded = bytesToBase64Url(new TextEncoder().encode(JSON.stringify(encrypted)));
   const url = new URL("consent.html", window.location.href);
   url.hash = `payload=${encoded}`;
-  document.querySelector("#email-url").value = url.toString();
-  document.querySelector("#consent-passcode").value = passcode;
+  emailUrl.value = url.toString();
+  passcodeField.value = passcode;
   buildEmailBody();
   setSaveStatus(
     "暗号化した確認URLと開封パスコードを生成しました。パスコードは別送してください。",
@@ -1664,6 +1682,7 @@ async function generateConsentUrl() {
 
 async function copyConsentUrl() {
   const field = document.querySelector("#email-url");
+  if (!field) return;
   if (!field.value.trim()) {
     await generateConsentUrl();
   }
@@ -1679,6 +1698,7 @@ async function copyConsentUrl() {
 
 async function copyConsentPasscode() {
   const field = document.querySelector("#consent-passcode");
+  if (!field) return;
   if (!field.value.trim()) {
     await generateConsentUrl();
   }
@@ -1693,7 +1713,9 @@ async function copyConsentPasscode() {
 }
 
 async function copyLineMessage() {
-  if (!document.querySelector("#email-url").value.trim()) {
+  const emailUrl = document.querySelector("#email-url");
+  if (!emailUrl) return;
+  if (!emailUrl.value.trim()) {
     await generateConsentUrl();
   }
 
@@ -1820,7 +1842,10 @@ function safePlain(value, fallback = "未入力") {
 }
 
 async function openEmail() {
-  if (!document.querySelector("#email-url").value.trim()) {
+  const emailUrl = document.querySelector("#email-url");
+  const emailBody = document.querySelector("#email-body");
+  if (!emailUrl || !emailBody) return;
+  if (!emailUrl.value.trim()) {
     await generateConsentUrl();
   }
   saveActiveContract("送信済み");
@@ -1828,13 +1853,14 @@ async function openEmail() {
   const subject = `契約内容確認のお願い（${contractTitle(data)}）`;
   const params = new URLSearchParams({
     subject,
-    body: document.querySelector("#email-body").value,
+    body: emailBody.value,
   });
   window.location.href = `mailto:${encodeURIComponent(data.sellerEmail || "")}?${params.toString()}`;
 }
 
 function setupSignatureCanvas() {
   const canvas = document.querySelector("#signature-canvas");
+  if (!canvas) return;
   const context = canvas.getContext("2d");
   context.lineWidth = 4;
   context.lineCap = "round";
@@ -1878,13 +1904,13 @@ function setupSignatureCanvas() {
   canvas.addEventListener("touchmove", move, { passive: false });
   window.addEventListener("touchend", stop);
 
-  document.querySelector("#clear-signature").addEventListener("click", () => {
+  document.querySelector("#clear-signature")?.addEventListener("click", () => {
     context.clearRect(0, 0, canvas.width, canvas.height);
     signatureData = "";
     saveActiveContract("署名待ち");
   });
 
-  document.querySelector("#save-signature").addEventListener("click", () => {
+  document.querySelector("#save-signature")?.addEventListener("click", () => {
     signatureData = canvas.toDataURL("image/png");
     const contract = currentContract();
     if (contract) contract.signedAt = formatDateTime();
@@ -1939,16 +1965,16 @@ function setupEvents() {
     saveActiveContract(currentContract()?.status || "下書き");
     printTemplateContract(currentContract());
   });
-  document.querySelector("#generate-consent-url").addEventListener("click", () => {
+  document.querySelector("#generate-consent-url")?.addEventListener("click", () => {
     generateConsentUrl();
   });
-  document.querySelector("#copy-consent-url").addEventListener("click", copyConsentUrl);
-  document.querySelector("#copy-line-message").addEventListener("click", copyLineMessage);
-  document.querySelector("#copy-consent-passcode").addEventListener("click", copyConsentPasscode);
-  document.querySelector("#open-email").addEventListener("click", openEmail);
-  document.querySelector("#email-url").addEventListener("input", buildEmailBody);
+  document.querySelector("#copy-consent-url")?.addEventListener("click", copyConsentUrl);
+  document.querySelector("#copy-line-message")?.addEventListener("click", copyLineMessage);
+  document.querySelector("#copy-consent-passcode")?.addEventListener("click", copyConsentPasscode);
+  document.querySelector("#open-email")?.addEventListener("click", openEmail);
+  document.querySelector("#email-url")?.addEventListener("input", buildEmailBody);
   document.querySelector("#contract-search").addEventListener("input", renderList);
-  document.querySelector("#identity-photo-input").addEventListener("change", handleIdentityPhotoSelect);
+  document.querySelector("#identity-photo-input")?.addEventListener("change", handleIdentityPhotoSelect);
   document.querySelectorAll("[data-date-picker]").forEach((button) => {
     button.addEventListener("click", () => {
       const field = form.elements[button.dataset.datePicker];
@@ -1960,7 +1986,7 @@ function setupEvents() {
       }
     });
   });
-  document.querySelector("#identity-photo-list").addEventListener("click", (event) => {
+  document.querySelector("#identity-photo-list")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-remove-identity-photo]");
     if (!button) return;
     const index = Number(button.dataset.removeIdentityPhoto);

@@ -9,14 +9,14 @@
       content="オーダーオートの車両売買契約書を作成、印刷、タブレット署名、メール送信できる契約作成システムです。"
     />
     <meta name="robots" content="noindex,nofollow" />
-    <link rel="stylesheet" href="styles.css?v=20260712-recycle" />
+    <link rel="stylesheet" href="styles.css?v=20260712-pdf-fields" />
     <script src="supabase-config.js"></script>
     <script src="supabase-api.js"></script>
     <script src="admin-auth.js"></script>
     <script>
       window.OrderAutoAdminAuth.requireAuth();
     </script>
-    <script src="contract.js?v=20260712-recycle" defer></script>
+    <script src="contract.js?v=20260712-pdf-fields" defer></script>
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -120,38 +120,18 @@
                 <fieldset class="input-index">
                   <legend>入力項目</legend>
                   <div class="input-index-grid">
-                    <a href="#completion-fields">完結方法</a>
                     <a href="#seller-fields">売主情報</a>
                     <a href="#vehicle-fields">車両情報</a>
                     <a href="#amount-fields">金額・引取</a>
                     <a href="#title-fields">車両名義人</a>
-                    <a href="#document-fields">必要書類</a>
-                  </div>
-                </fieldset>
-
-                <fieldset>
-                  <legend>契約内容</legend>
-                  <input type="hidden" name="contractType" value="unified" />
-                  <div class="form-note">
-                    車両売買・引取契約として作成します。買取金額が0円の場合は、無料引取および還付なしの確認事項を同じ契約書内に表示します。
                   </div>
                 </fieldset>
 
                 <fieldset id="completion-fields">
-                  <legend>完結方法</legend>
-                  <div class="choice-grid three">
-                    <label>
-                      <input type="radio" name="completionMethod" value="paper" checked />
-                      <span>紙で印刷</span>
-                    </label>
-                    <label>
-                      <input type="radio" name="completionMethod" value="tablet" />
-                      <span>タブレット署名</span>
-                    </label>
-                    <label>
-                      <input type="radio" name="completionMethod" value="email" />
-                      <span>メール電子同意</span>
-                    </label>
+                  <legend>契約内容</legend>
+                  <input type="hidden" name="contractType" value="unified" />
+                  <div class="form-note">
+                    車両売買・引取契約として作成します。買取金額が0円の場合は、無料引取および還付なしの確認事項を同じ契約書内に表示します。
                   </div>
                 </fieldset>
 
@@ -166,7 +146,6 @@
                     <label class="full">住所<input name="sellerAddress" autocomplete="street-address" /></label>
                     <label>自宅電話<input name="sellerHomePhone" autocomplete="tel" placeholder="例：082-000-0000" /></label>
                     <label>携帯電話<input name="sellerMobile" autocomplete="tel" placeholder="例：090-0000-0000" /></label>
-                    <label>メールアドレス<input name="sellerEmail" type="email" autocomplete="email" /></label>
                     <label>生年月日
                       <span class="date-input-wrap">
                         <input name="sellerBirthdate" type="date" />
@@ -186,15 +165,12 @@
                         <option>その他</option>
                       </select>
                     </label>
+                    <label class="checkbox-field">
+                      <input type="checkbox" name="identityConfirmed" />
+                      <span>本人であることを確認しました</span>
+                    </label>
                     <label>担当者署名名<input name="staffSignatureName" /></label>
                     <label>管理者署名名<input name="managerSignatureName" /></label>
-                    <label class="full">本人確認書類の写真
-                      <input id="identity-photo-input" type="file" accept="image/*" multiple />
-                    </label>
-                    <div class="identity-upload-note full">
-                      表面・裏面など最大4枚まで添付できます。画像は圧縮してこの端末のブラウザ内に保存します。
-                    </div>
-                    <div id="identity-photo-list" class="identity-photo-list full" aria-live="polite"></div>
                   </div>
                 </fieldset>
 
@@ -216,12 +192,6 @@
                     </div>
                     <label class="full">車台番号<input name="chassisNumber" /></label>
                     <label>走行距離<input name="mileage" placeholder="例：120000km" /></label>
-                    <label>車検満了日
-                      <span class="date-input-wrap">
-                        <input name="inspectionDate" type="date" />
-                        <button class="mini-button date-picker-button" type="button" data-date-picker="inspectionDate">選択</button>
-                      </span>
-                    </label>
                     <label>色<input name="carColor" /></label>
                     <div class="full">
                       <span class="field-label">車両状態（契約書の有・無）</span>
@@ -282,7 +252,6 @@
                         </label>
                       </div>
                     </div>
-                    <label>鍵の本数<input name="keyCount" type="number" min="0" /></label>
                     <label class="full">特記事項<textarea name="vehicleNote" rows="3"></textarea></label>
                   </div>
                 </fieldset>
@@ -319,13 +288,6 @@
                       </label>
                       <label>残債金額<input name="loanBalanceAmount" type="number" min="0" step="1000" placeholder="例：500000" /></label>
                     </div>
-                    <label>支払方法
-                      <select name="paymentMethod">
-                        <option>振込</option>
-                        <option>現金</option>
-                        <option>支払いなし</option>
-                      </select>
-                    </label>
                     <div class="deadline-input-group full">
                       <label>車両引渡期限（日付）
                         <span class="date-input-wrap">
@@ -373,11 +335,6 @@
                   </div>
                 </fieldset>
 
-                <fieldset>
-                  <legend>重要事項確認</legend>
-                  <div id="consent-list" class="consent-list"></div>
-                </fieldset>
-
                 <fieldset id="title-fields">
                   <legend>車両名義人</legend>
                   <div class="form-grid">
@@ -402,19 +359,6 @@
                   </div>
                 </fieldset>
 
-                <fieldset id="document-fields">
-                  <legend>必要書類</legend>
-                  <div class="check-grid">
-                    <label><input type="checkbox" name="documents" value="車検証" />車検証</label>
-                    <label><input type="checkbox" name="documents" value="自賠責保険証" />自賠責保険証</label>
-                    <label><input type="checkbox" name="documents" value="リサイクル券" />リサイクル券</label>
-                    <label><input type="checkbox" name="documents" value="印鑑証明書" />印鑑証明書</label>
-                    <label><input type="checkbox" name="documents" value="委任状" />委任状</label>
-                    <label><input type="checkbox" name="documents" value="譲渡証明書" />譲渡証明書</label>
-                    <label><input type="checkbox" name="documents" value="本人確認書類" />本人確認書類</label>
-                    <label><input type="checkbox" name="documents" value="鍵" />鍵</label>
-                  </div>
-                </fieldset>
               </form>
 
               <aside class="preview-panel" aria-label="契約書プレビュー">
@@ -436,51 +380,6 @@
                 </p>
                 <div id="contract-preview" class="contract-document"></div>
 
-                <section class="signature-panel" id="signature-panel">
-                  <div class="signature-head">
-                    <div>
-                      <p class="preview-label">タブレット署名</p>
-                      <strong>売主署名</strong>
-                    </div>
-                    <button class="mini-button" type="button" id="clear-signature">クリア</button>
-                  </div>
-                  <canvas id="signature-canvas" width="760" height="220" aria-label="署名欄"></canvas>
-                  <button class="button button-primary" type="button" id="save-signature">署名を保存</button>
-                </section>
-
-                <section class="email-panel" id="email-panel">
-                  <div>
-                    <p class="preview-label">メール電子同意</p>
-                    <strong>送信用文面</strong>
-                  </div>
-                  <label>確認URL
-                    <input id="email-url" type="url" placeholder="https://example.com/contract/..." />
-                  </label>
-                  <label>開封パスコード
-                    <input id="consent-passcode" type="text" readonly placeholder="8桁の数字で作成されます" />
-                  </label>
-                  <div class="toolbar-actions">
-                    <button class="button button-outline" type="button" id="generate-consent-url">
-                      暗号化URL生成
-                    </button>
-                    <button class="button button-outline" type="button" id="copy-consent-url">
-                      URLコピー
-                    </button>
-                    <button class="button button-outline" type="button" id="copy-line-message">
-                      LINE文面コピー
-                    </button>
-                    <button class="button button-outline" type="button" id="copy-consent-passcode">
-                      パスコードコピー
-                    </button>
-                  </div>
-                  <p class="security-note">
-                    確認URLは暗号化されています。パスコードは同じメールや同じLINEに入れず、電話・SMS・別メッセージなどで別送してください。
-                  </p>
-                  <label>メール本文
-                    <textarea id="email-body" rows="8" readonly></textarea>
-                  </label>
-                  <button class="button button-outline" type="button" id="open-email">メール作成</button>
-                </section>
               </aside>
             </div>
           </div>

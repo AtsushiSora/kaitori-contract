@@ -1135,6 +1135,26 @@ textarea {
   margin-top: 0.36em;
 }
 
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfb;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.checkbox-field input {
+  width: 18px;
+  min-height: 18px;
+  accent-color: var(--green);
+}
+
 .form-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -1146,6 +1166,12 @@ textarea {
   color: var(--ink);
   font-size: 0.9rem;
   font-weight: 800;
+}
+
+.form-grid label.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .form-grid .full {
