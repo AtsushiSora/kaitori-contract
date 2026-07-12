@@ -9,14 +9,14 @@
       content="オーダーオートの車両売買契約書を作成、印刷、タブレット署名、メール送信できる契約作成システムです。"
     />
     <meta name="robots" content="noindex,nofollow" />
-    <link rel="stylesheet" href="styles.css?v=20260712-signature-line-fix" />
+    <link rel="stylesheet" href="styles.css?v=20260712-input-order" />
     <script src="supabase-config.js"></script>
     <script src="supabase-api.js?v=20260712-list-actions"></script>
     <script src="admin-auth.js"></script>
     <script>
       window.OrderAutoAdminAuth.requireAuth();
     </script>
-    <script src="contract.js?v=20260712-signature-line-fix" defer></script>
+    <script src="contract.js?v=20260712-input-order" defer></script>
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -117,70 +117,6 @@
             <div class="contract-grid">
               <form id="contract-form" class="contract-form-panel">
                 <input type="hidden" name="contractType" value="unified" />
-
-                <fieldset id="seller-fields">
-                  <legend>売主情報</legend>
-                  <div class="form-grid">
-                    <label>名字<input name="sellerLastName" autocomplete="family-name" placeholder="例：山田" required /></label>
-                    <label>名前<input name="sellerFirstName" autocomplete="given-name" placeholder="例：太郎" required /></label>
-                    <label>フリガナ（名字）<input name="sellerLastKana" placeholder="例：ヤマダ" /></label>
-                    <label>フリガナ（名前）<input name="sellerFirstKana" placeholder="例：タロウ" /></label>
-                    <label>郵便番号<input name="sellerPostalCode" autocomplete="postal-code" inputmode="numeric" placeholder="例：730-0000" /></label>
-                    <label class="full">住所<input name="sellerAddress" autocomplete="street-address" /></label>
-                    <label>自宅電話<input name="sellerHomePhone" autocomplete="tel" placeholder="例：082-000-0000" /></label>
-                    <label>携帯電話<input name="sellerMobile" autocomplete="tel" placeholder="例：090-0000-0000" /></label>
-                    <label class="full">生年月日
-                      <input name="sellerBirthdate" type="hidden" />
-                      <span class="birthdate-selects">
-                        <select name="sellerBirthYear" aria-label="生年月日 年"></select>
-                        <select name="sellerBirthMonth" aria-label="生年月日 月"></select>
-                        <select name="sellerBirthDay" aria-label="生年月日 日"></select>
-                      </span>
-                    </label>
-                    <label>勤務先名<input name="sellerWorkplace" placeholder="例：株式会社〇〇" /></label>
-                    <label>勤務先電話<input name="sellerWorkplacePhone" autocomplete="tel" placeholder="例：082-000-0000" /></label>
-                    <label>身分証明書番号<input name="identityNumber" inputmode="numeric" placeholder="例：123456789012" /></label>
-                    <label>本人確認書類
-                      <select name="identityType">
-                        <option value="">選択してください</option>
-                        <option>運転免許証</option>
-                        <option>パスポート</option>
-                        <option>マイナンバー</option>
-                        <option>健康保険証</option>
-                        <option>その他</option>
-                      </select>
-                    </label>
-                    <label class="checkbox-field">
-                      <input type="checkbox" name="identityConfirmed" />
-                      <span>本人であることを確認しました</span>
-                    </label>
-                    <label>担当者署名名<input name="staffSignatureName" /></label>
-                    <label>管理者署名名<input name="managerSignatureName" /></label>
-                  </div>
-                </fieldset>
-
-                <fieldset id="completion-fields">
-                  <legend>契約方法</legend>
-                  <div class="form-grid">
-                    <label>完結方法
-                      <select name="completionMethod">
-                        <option value="paper">紙で印刷</option>
-                        <option value="tablet">電子サイン</option>
-                      </select>
-                    </label>
-                  </div>
-                  <div id="signature-panel" class="signature-panel" hidden>
-                    <div class="signature-head">
-                      <strong>売主電子サイン</strong>
-                      <span>保存するとPDFの印欄に反映されます。</span>
-                    </div>
-                    <canvas id="signature-canvas" width="760" height="220" aria-label="売主電子サイン欄"></canvas>
-                    <div class="signature-actions">
-                      <button class="button button-outline" type="button" id="clear-signature">クリア</button>
-                      <button class="button button-primary" type="button" id="save-signature">サインを保存</button>
-                    </div>
-                  </div>
-                </fieldset>
 
                 <fieldset id="vehicle-fields">
                   <legend>車両情報</legend>
@@ -364,6 +300,70 @@
                     </label>
                     <label>使用者名義人<input name="userName" placeholder="例：山田 太郎" /></label>
                     <label class="full">使用者と売主との関係<input name="userRelationship" placeholder="例：本人、家族、勤務先" /></label>
+                  </div>
+                </fieldset>
+
+                <fieldset id="seller-fields">
+                  <legend>売主情報</legend>
+                  <div class="form-grid">
+                    <label>名字<input name="sellerLastName" autocomplete="family-name" placeholder="例：山田" required /></label>
+                    <label>名前<input name="sellerFirstName" autocomplete="given-name" placeholder="例：太郎" required /></label>
+                    <label>フリガナ（名字）<input name="sellerLastKana" placeholder="例：ヤマダ" /></label>
+                    <label>フリガナ（名前）<input name="sellerFirstKana" placeholder="例：タロウ" /></label>
+                    <label>郵便番号<input name="sellerPostalCode" autocomplete="postal-code" inputmode="numeric" placeholder="例：730-0000" /></label>
+                    <label class="full">住所<input name="sellerAddress" autocomplete="street-address" /></label>
+                    <label>自宅電話<input name="sellerHomePhone" autocomplete="tel" placeholder="例：082-000-0000" /></label>
+                    <label>携帯電話<input name="sellerMobile" autocomplete="tel" placeholder="例：090-0000-0000" /></label>
+                    <label class="full">生年月日
+                      <input name="sellerBirthdate" type="hidden" />
+                      <span class="birthdate-selects">
+                        <select name="sellerBirthYear" aria-label="生年月日 年"></select>
+                        <select name="sellerBirthMonth" aria-label="生年月日 月"></select>
+                        <select name="sellerBirthDay" aria-label="生年月日 日"></select>
+                      </span>
+                    </label>
+                    <label>勤務先名<input name="sellerWorkplace" placeholder="例：株式会社〇〇" /></label>
+                    <label>勤務先電話<input name="sellerWorkplacePhone" autocomplete="tel" placeholder="例：082-000-0000" /></label>
+                    <label>身分証明書番号<input name="identityNumber" inputmode="numeric" placeholder="例：123456789012" /></label>
+                    <label>本人確認書類
+                      <select name="identityType">
+                        <option value="">選択してください</option>
+                        <option>運転免許証</option>
+                        <option>パスポート</option>
+                        <option>マイナンバー</option>
+                        <option>健康保険証</option>
+                        <option>その他</option>
+                      </select>
+                    </label>
+                    <label class="checkbox-field">
+                      <input type="checkbox" name="identityConfirmed" />
+                      <span>本人であることを確認しました</span>
+                    </label>
+                    <label>担当者署名名<input name="staffSignatureName" /></label>
+                    <label>管理者署名名<input name="managerSignatureName" /></label>
+                  </div>
+                </fieldset>
+
+                <fieldset id="completion-fields">
+                  <legend>契約方法</legend>
+                  <div class="form-grid">
+                    <label>完結方法
+                      <select name="completionMethod">
+                        <option value="paper">紙で印刷</option>
+                        <option value="tablet">電子サイン</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div id="signature-panel" class="signature-panel" hidden>
+                    <div class="signature-head">
+                      <strong>売主電子サイン</strong>
+                      <span>保存するとPDFの印欄に反映されます。</span>
+                    </div>
+                    <canvas id="signature-canvas" width="760" height="220" aria-label="売主電子サイン欄"></canvas>
+                    <div class="signature-actions">
+                      <button class="button button-outline" type="button" id="clear-signature">クリア</button>
+                      <button class="button button-primary" type="button" id="save-signature">サインを保存</button>
+                    </div>
                   </div>
                 </fieldset>
 
