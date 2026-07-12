@@ -31,6 +31,7 @@ let contracts = [];
 let activeId = "";
 let activeFilter = "all";
 let activePreviewCopy = "customer";
+let activeAppPage = "top";
 let signatureData = "";
 let identityFiles = [];
 let isDrawing = false;
@@ -1487,6 +1488,33 @@ function setPreviewCopy(copyType) {
   updatePreview();
 }
 
+function setAppPage(page, updateHash = true) {
+  const nextPage = ["top", "create", "list"].includes(page) ? page : "top";
+  activeAppPage = nextPage;
+
+  document.querySelectorAll("[data-app-view]").forEach((view) => {
+    view.hidden = view.dataset.appView !== activeAppPage;
+  });
+
+  document.querySelectorAll("[data-app-page]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.appPage === activeAppPage);
+  });
+
+  if (updateHash) {
+    const nextHash = activeAppPage === "top" ? "#top" : activeAppPage === "create" ? "#create" : "#list";
+    if (window.location.hash !== nextHash) {
+      history.replaceState(null, "", nextHash);
+    }
+  }
+}
+
+function appPageFromHash() {
+  const hash = window.location.hash.replace("#", "");
+  if (hash === "create" || hash === "contract-app") return "create";
+  if (hash === "list" || hash === "contracts") return "list";
+  return "top";
+}
+
 function renderList() {
   const list = document.querySelector("#contract-list");
   const query = document.querySelector("#contract-search").value.trim().toLowerCase();
@@ -1978,7 +2006,24 @@ function setupEvents() {
     updatePreview();
   });
 
-  document.querySelector("#new-contract").addEventListener("click", createBlankContract);
+  document.querySelectorAll("[data-app-page]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const page = button.dataset.appPage;
+      if (page === "create" && !contracts.length) {
+        createBlankContract();
+      }
+      setAppPage(page);
+    });
+  });
+
+  window.addEventListener("hashchange", () => {
+    setAppPage(appPageFromHash(), false);
+  });
+
+  document.querySelector("#new-contract").addEventListener("click", () => {
+    createBlankContract();
+    setAppPage("create");
+  });
   document.querySelector("#export-contracts").addEventListener("click", exportContracts);
   document.querySelector("#import-contracts").addEventListener("click", () => {
     document.querySelector("#import-contract-file").click();
@@ -2040,6 +2085,7 @@ function setupEvents() {
     activeId = item.dataset.id;
     populateForm(currentContract());
     renderList();
+    setAppPage("create");
   });
 
   document.querySelectorAll(".status-tabs button").forEach((button) => {
@@ -2066,5 +2112,6 @@ document.addEventListener("DOMContentLoaded", () => {
     renderList();
   }
 
+  setAppPage(appPageFromHash(), false);
   loadCloudContracts();
 });

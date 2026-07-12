@@ -871,10 +871,87 @@ textarea {
 
 .contract-shell {
   display: grid;
-  grid-template-columns: 330px minmax(0, 1fr);
   gap: 18px;
   max-width: 1480px;
   margin: 0 auto;
+}
+
+.app-page-nav {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: 0 12px 42px rgba(23, 33, 31, 0.06);
+}
+
+.app-page-nav button {
+  min-height: 46px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.96rem;
+  font-weight: 900;
+}
+
+.app-page-nav button.active {
+  color: var(--white);
+  border-color: var(--green);
+  background: var(--green);
+}
+
+.app-view[hidden] {
+  display: none !important;
+}
+
+.contract-top-panel {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: 0 12px 42px rgba(23, 33, 31, 0.06);
+}
+
+.contract-top-panel h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.5rem;
+}
+
+.top-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.top-action-card {
+  display: grid;
+  gap: 8px;
+  min-height: 132px;
+  padding: 22px;
+  border: 1px solid rgba(15, 122, 77, 0.28);
+  border-radius: 8px;
+  color: var(--green-dark);
+  background: #f7fbf8;
+  cursor: pointer;
+  text-align: left;
+}
+
+.top-action-card span {
+  font-size: 1.28rem;
+  font-weight: 900;
+}
+
+.top-action-card small {
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 800;
 }
 
 .contract-sidebar,
@@ -2670,6 +2747,20 @@ textarea {
   .print-sheet,
   .manual-section {
     padding: 14px;
+  }
+
+  .app-page-nav,
+  .top-action-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .contract-top-panel {
+    padding: 16px;
+  }
+
+  .top-action-card {
+    min-height: 108px;
+    padding: 18px;
   }
 
   .contract-document {
