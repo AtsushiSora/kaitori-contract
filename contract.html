@@ -9,14 +9,14 @@
       content="オーダーオートの車両売買契約書を作成、印刷、タブレット署名、メール送信できる契約作成システムです。"
     />
     <meta name="robots" content="noindex,nofollow" />
-    <link rel="stylesheet" href="styles.css?v=20260712-signature-stamp" />
+    <link rel="stylesheet" href="styles.css?v=20260712-postal-lookup" />
     <script src="supabase-config.js"></script>
     <script src="supabase-api.js?v=20260712-list-actions"></script>
     <script src="admin-auth.js"></script>
     <script>
       window.OrderAutoAdminAuth.requireAuth();
     </script>
-    <script src="contract.js?v=20260712-signature-stamp" defer></script>
+    <script src="contract.js?v=20260712-postal-lookup" defer></script>
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -125,7 +125,7 @@
                     <label>名前<input name="sellerFirstName" autocomplete="given-name" placeholder="例：太郎" required /></label>
                     <label>フリガナ（名字）<input name="sellerLastKana" placeholder="例：ヤマダ" /></label>
                     <label>フリガナ（名前）<input name="sellerFirstKana" placeholder="例：タロウ" /></label>
-                    <label>郵便番号<input name="sellerPostalCode" autocomplete="postal-code" placeholder="例：730-0000" /></label>
+                    <label>郵便番号<input name="sellerPostalCode" autocomplete="postal-code" inputmode="numeric" placeholder="例：730-0000" /></label>
                     <label class="full">住所<input name="sellerAddress" autocomplete="street-address" /></label>
                     <label>自宅電話<input name="sellerHomePhone" autocomplete="tel" placeholder="例：082-000-0000" /></label>
                     <label>携帯電話<input name="sellerMobile" autocomplete="tel" placeholder="例：090-0000-0000" /></label>

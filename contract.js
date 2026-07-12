@@ -41,6 +41,10 @@ const MAX_IDENTITY_FILES = 4;
 const MAX_IDENTITY_FILE_BYTES = 8 * 1024 * 1024;
 const IDENTITY_IMAGE_MAX_EDGE = 1600;
 const IDENTITY_IMAGE_QUALITY = 0.82;
+const POSTAL_CODE_API_URL = "https://zipcloud.ibsnet.co.jp/api/search";
+
+let postalLookupTimer = 0;
+let lastPostalLookup = "";
 
 function formatDate(date = new Date()) {
   return new Intl.DateTimeFormat("ja-JP", {
@@ -145,6 +149,56 @@ function normalizePlateNumberFields(data) {
     joinPlateNumber(data.plateArea, data.plateClass, data.plateKana, data.plateNumberDigits) ||
     String(data.plateNumber ?? "").trim();
   return data;
+}
+
+function postalCodeDigits(value) {
+  return String(value ?? "").replace(/\D/g, "").slice(0, 7);
+}
+
+function formatPostalCode(value) {
+  const digits = postalCodeDigits(value);
+  if (digits.length !== 7) return value;
+  return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+}
+
+async function fillAddressFromPostalCode(force = false) {
+  const form = document.querySelector("#contract-form");
+  const postalField = form?.elements.sellerPostalCode;
+  const addressField = form?.elements.sellerAddress;
+  if (!postalField || !addressField) return;
+
+  const digits = postalCodeDigits(postalField.value);
+  if (digits.length !== 7) return;
+  if (!force && digits === lastPostalLookup) return;
+
+  lastPostalLookup = digits;
+
+  try {
+    const response = await fetch(`${POSTAL_CODE_API_URL}?zipcode=${encodeURIComponent(digits)}`);
+    if (!response.ok) throw new Error("postal lookup failed");
+    const result = await response.json();
+    const record = result?.results?.[0];
+    if (!record) {
+      setSaveStatus("郵便番号に該当する住所が見つかりませんでした。", "warning");
+      return;
+    }
+
+    if (postalCodeDigits(postalField.value) !== digits) return;
+
+    postalField.value = formatPostalCode(digits);
+    addressField.value = `${record.address1 || ""}${record.address2 || ""}${record.address3 || ""}`;
+    setSaveStatus("郵便番号から住所を自動入力しました。", "success");
+    updatePreview();
+  } catch (error) {
+    setSaveStatus("住所を自動入力できませんでした。住所は手入力してください。", "warning");
+  }
+}
+
+function schedulePostalCodeLookup(force = false) {
+  window.clearTimeout(postalLookupTimer);
+  postalLookupTimer = window.setTimeout(() => {
+    fillAddressFromPostalCode(force);
+  }, force ? 0 : 350);
 }
 
 function yen(value) {
@@ -2103,6 +2157,9 @@ function setupEvents() {
     if (event.target.name === "purchaseAmount") {
       renderConsents(getFormData(), new FormData(form).getAll("consents"));
     }
+    if (event.target.name === "sellerPostalCode" && postalCodeDigits(event.target.value).length === 7) {
+      schedulePostalCodeLookup();
+    }
     updateModePanels();
     updatePreview();
   });
@@ -2110,6 +2167,9 @@ function setupEvents() {
   form.addEventListener("change", (event) => {
     if (event.target.name === "purchaseAmount") {
       renderConsents(getFormData(), new FormData(form).getAll("consents"));
+    }
+    if (event.target.name === "sellerPostalCode") {
+      schedulePostalCodeLookup(true);
     }
     updateModePanels();
     updatePreview();
