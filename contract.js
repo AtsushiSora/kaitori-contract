@@ -580,7 +580,7 @@ function contractTypeLabel(data) {
 function completionLabel(data) {
   const labels = {
     paper: "紙で印刷",
-    tablet: "タブレット署名",
+    tablet: "電子サイン",
     email: "メール電子同意",
   };
   return labels[data.completionMethod] || "紙で印刷";
@@ -993,6 +993,8 @@ function contractTemplateData(contract) {
   return {
     contractNumber: displayContractNumber(contract),
     contractDate,
+    completionMethod: data.completionMethod || "paper",
+    signatureData: contract?.signatureData || signatureData,
     carName: data.carName,
     carGrade: data.carGrade,
     carYear: data.carYear,
@@ -1129,6 +1131,14 @@ function contractTemplateSvg(contract, copyType = "customer") {
 
         ${pdfField(690, 1308, data.sellerKana, 8)}
         ${pdfField(690, 1338, data.sellerName, 9.5)}
+        ${
+          data.completionMethod !== "paper" && data.signatureData
+            ? `
+              <rect x="1038" y="1288" width="94" height="86" fill="#fff" />
+              <image href="${escapeHtml(data.signatureData)}" x="1042" y="1294" width="86" height="74" preserveAspectRatio="xMidYMid meet" />
+            `
+            : ""
+        }
         ${pdfField(704, 1396, data.sellerPostalCode, 7.8)}
         ${pdfField(690, 1418, data.sellerAddress, 7.8)}
         ${pdfLine(581, 1450, 1134, 1450, 1)}
@@ -1253,7 +1263,8 @@ function renderDocument(contract) {
   const accountNumber = hasBankTransfer(data) ? data.accountNumber : "";
   const accountHolderKana = hasBankTransfer(data) ? data.accountHolderKana : "";
   const accountHolder = hasBankTransfer(data) ? data.accountHolder : "";
-  const signatureBlock = signatureData
+  const showElectronicSignature = data.completionMethod !== "paper" && signatureData;
+  const signatureBlock = showElectronicSignature
     ? `<img class="signature-image" src="${signatureData}" alt="売主電子署名" />`
     : "";
   const sellerHomePhone = data.sellerHomePhone || data.sellerPhone || "";
@@ -1476,7 +1487,7 @@ function renderDocument(contract) {
             <tr class="seller-name-row">
               <th>フリガナ</th>
               <td>${formValue(data.sellerKana)}</td>
-              <td class="stamp-cell" rowspan="2">印</td>
+              <td class="stamp-cell" rowspan="2">${signatureBlock || "印"}</td>
             </tr>
             <tr class="seller-name-row">
               <th>お名前</th>
@@ -1505,7 +1516,6 @@ function renderDocument(contract) {
               <td colspan="2"><span>電話</span><strong>（　　　　）　　　　－</strong></td>
             </tr>
           </table>
-          ${signatureBlock ? `<div class="seller-signature">${signatureBlock}</div>` : ""}
         </div>
       </section>
 

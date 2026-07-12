@@ -2064,6 +2064,15 @@ textarea {
   font-weight: 800;
 }
 
+.seller-table .stamp-cell .signature-image {
+  width: 100%;
+  max-width: 32px;
+  max-height: 44px;
+  margin: 0;
+  border: 0;
+  object-fit: contain;
+}
+
 .seller-table .seller-name-row th,
 .seller-table .seller-name-row td {
   height: 24px;
@@ -2207,6 +2216,12 @@ textarea {
   border-radius: 8px;
   background: var(--white);
   touch-action: none;
+}
+
+.signature-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .signature-image {
