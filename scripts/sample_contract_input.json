@@ -27,6 +27,7 @@
   "loanTransferDate": "2026-07-15",
   "loanBalanceAmount": "500000",
   "purchaseAmount": "1100001",
+  "recycleDepositAmount": "7000",
   "pickupDate": "2026-07-20",
   "pickupTime": "18:00",
   "documentDeliveryDate": "2026-07-20",

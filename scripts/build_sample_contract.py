@@ -305,6 +305,13 @@ def money_number(value) -> int:
     return int(digits) if digits else 0
 
 
+def dot_separated_amount(value) -> str:
+    digits = only_digits(value)
+    if not digits:
+        return ""
+    return f"{int(digits):,}".replace(",", ".")
+
+
 def payment_amount(
     price: str,
     automobile_tax_status: str,
@@ -348,6 +355,7 @@ def normalize_input(data: dict) -> dict:
     loan_transfer_year, loan_transfer_month, loan_transfer_day = date_parts(data.get("loanTransferDate"))
     bank_transfer_status = clean(data.get("bankTransferStatus") or "無")
     price = clean(data.get("purchaseAmount") or data.get("price") or "0")
+    recycle_deposit_amount = dot_separated_amount(data.get("recycleDepositAmount"))
 
     return {
         "contract_no": clean(data.get("contractNumber") or data.get("contract_no") or "1"),
@@ -380,6 +388,7 @@ def normalize_input(data: dict) -> dict:
         "disaster_history": clean(data.get("disasterHistory") or "無"),
         "automobile_tax_status": automobile_tax_status,
         "automobile_tax_unpaid_amount": automobile_tax_unpaid_amount,
+        "recycle_deposit_amount": recycle_deposit_amount,
         "price": price,
         "payment_amount": payment_amount(
             price,
@@ -482,6 +491,7 @@ def create_overlay_pdf(sample: dict, copy_type: str = "customer") -> BytesIO:
 
     # Price and deadlines.
     draw_spaced_chars(c, [161, 234, 307, 380, 453, 526, 593], 480, sample["price"], 13)
+    draw_center(c, 870, 456, sample["recycle_deposit_amount"], 8.5)
     draw_spaced_chars(c, [660, 733, 806, 879, 952, 1026, 1093], 762, sample["payment_amount"], 10)
     draw_tax_status_circle(c, sample["automobile_tax_status"])
     if clean(sample["automobile_tax_unpaid_amount"]) != "0":

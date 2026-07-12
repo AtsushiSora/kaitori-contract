@@ -429,6 +429,7 @@ function createBlankContract() {
       contractType: "unified",
       completionMethod: "paper",
       purchaseAmount: "",
+      recycleDepositAmount: "",
       automobileTaxStatus: "完納",
       loanStatus: "無",
       bankTransferStatus: "無",
@@ -594,6 +595,20 @@ function automobileTaxUnpaidAmountNumber(data) {
   const number = Number(data.automobileTaxUnpaidAmount);
   if (!Number.isFinite(number) || number < 0) return "0";
   return String(Math.round(number));
+}
+
+function recycleDepositAmountNumber(data) {
+  const raw = String(data?.recycleDepositAmount ?? "").trim();
+  if (!raw) return "";
+  const number = Number(raw);
+  if (!Number.isFinite(number) || number < 0) return "";
+  return String(Math.round(number));
+}
+
+function dotSeparatedAmount(value) {
+  const digits = onlyDigits(value);
+  if (!digits) return "";
+  return Number(digits).toLocaleString("ja-JP").replaceAll(",", ".");
 }
 
 function hasLoan(data) {
@@ -896,6 +911,7 @@ function contractTemplateData(contract) {
     disasterHistory: yesNoValue(data.disasterHistory),
     automobileTaxStatus: data.automobileTaxStatus || "完納",
     automobileTaxUnpaidAmount: automobileTaxUnpaidAmountNumber(data),
+    recycleDepositAmount: dotSeparatedAmount(recycleDepositAmountNumber(data)),
     amount: amountNumber(data) || "0",
     paymentAmount: paymentAmountNumber(data) || "0",
     loanStatus: hasLoan(data) ? "有" : "無",
@@ -972,6 +988,7 @@ function contractTemplateSvg(contract, copyType = "customer") {
         ${pdfYesNoCircle(data.disasterHistory, 1066, 1103, 375)}
 
         ${pdfSpacedFields([161, 234, 307, 380, 453, 526, 593], 480, data.amount, 13)}
+        ${pdfField(870, 456, data.recycleDepositAmount, 8.5, "middle")}
         ${pdfSpacedFields([660, 733, 806, 879, 952, 1026, 1093], 762, data.paymentAmount, 10)}
         ${pdfTaxStatusCircle(data.automobileTaxStatus)}
         ${data.automobileTaxUnpaidAmount !== "0" ? pdfSpacedFieldsWithoutOnes([733, 806, 879, 953, 1026], 538, data.automobileTaxUnpaidAmount, 10) : ""}
