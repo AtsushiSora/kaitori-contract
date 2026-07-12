@@ -941,7 +941,7 @@ function contractTemplateData(contract) {
 
 function contractTemplateSvg(contract, copyType = "customer") {
   const templateFile = copyType === "shop" ? "order_auto_blank_shop.png" : "order_auto_blank_customer.png";
-  const imageUrl = new URL(`templates/${templateFile}`, window.location.href).href;
+  const imageUrl = new URL(`templates/${templateFile}?v=20260712-template`, window.location.href).href;
   const data = contractTemplateData(contract);
   const isShopCopy = copyType === "shop";
 

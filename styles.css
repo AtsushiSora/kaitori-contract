@@ -1055,6 +1055,7 @@ textarea {
 }
 
 .contract-workspace {
+  min-width: 0;
   padding: 18px;
 }
 
@@ -1073,6 +1074,7 @@ textarea {
   grid-template-columns: minmax(0, 1.02fr) minmax(420px, 0.88fr);
   gap: 16px;
   align-items: start;
+  min-width: 0;
 }
 
 .contract-form-panel {
@@ -1315,6 +1317,7 @@ textarea {
   top: 92px;
   display: grid;
   gap: 14px;
+  min-width: 0;
   max-height: calc(100svh - 112px);
   overflow: auto;
   padding: 18px;
@@ -1369,11 +1372,14 @@ textarea {
 }
 
 .contract-document {
+  display: grid;
+  justify-items: center;
+  min-width: 0;
   border: 1px solid #d6ded8;
   border-radius: 8px;
   background: #f4f7f4;
   padding: 12px;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .preview-toolbar {
@@ -1413,6 +1419,7 @@ textarea {
 .contract-document .pdf-contract-svg {
   display: block;
   width: min(100%, 760px);
+  max-width: 100%;
   height: auto;
   margin: 0 auto;
   background: var(--white);
@@ -2637,6 +2644,15 @@ textarea {
   .print-sheet,
   .manual-section {
     padding: 14px;
+  }
+
+  .contract-document {
+    padding: 8px;
+  }
+
+  .contract-document .pdf-contract-svg {
+    width: 100%;
+    box-shadow: none;
   }
 
   .date-input-wrap,
