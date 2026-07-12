@@ -631,15 +631,6 @@ function contractTypeLabel(data) {
   return isZeroAmountContract(data) ? "売買契約（買取金額0円）" : "売買契約";
 }
 
-function completionLabel(data) {
-  const labels = {
-    paper: "紙で印刷",
-    tablet: "電子サイン",
-    email: "メール電子同意",
-  };
-  return labels[data.completionMethod] || "紙で印刷";
-}
-
 function renderConsents(data, checkedItems = []) {
   const list = document.querySelector("#consent-list");
   if (!list) return;
@@ -649,14 +640,6 @@ function renderConsents(data, checkedItems = []) {
       return `<label><input type="checkbox" name="consents" value="${escapeHtml(text)}" ${checked} />${escapeHtml(text)}</label>`;
     })
     .join("");
-}
-
-function row(label, value) {
-  return `<div><dt>${escapeHtml(label)}</dt><dd>${safeValue(value)}</dd></div>`;
-}
-
-function formValue(value) {
-  return safeValue(value, "");
 }
 
 function dateParts(value) {
@@ -724,18 +707,6 @@ function timeText(value) {
   return String(Number(match[1]));
 }
 
-function deadlineLine(dateValue, timeValue) {
-  const parts = dateParts(dateValue);
-  const time = timeText(timeValue);
-  if (parts.year && time) {
-    return `${escapeHtml(parts.year)} 年 ${escapeHtml(parts.month)} 月 ${escapeHtml(parts.day)} 日 ${escapeHtml(time)}`;
-  }
-  if (parts.year) {
-    return `${escapeHtml(parts.year)} 年 ${escapeHtml(parts.month)} 月 ${escapeHtml(parts.day)} 日`;
-  }
-  return time ? escapeHtml(time) : "";
-}
-
 function amountNumber(data) {
   if (!hasAmountInput(data)) return "";
   if (isZeroAmountContract(data)) return "0";
@@ -788,28 +759,6 @@ function paymentAmountNumber(data) {
   return String(Math.max(Math.round(amount - unpaidAmount - loanAmount), 0));
 }
 
-function yenBox(data) {
-  const amount = amountNumber(data);
-  return amount ? `${Number(amount).toLocaleString("ja-JP")}` : "";
-}
-
-function paymentYenBox(data) {
-  const amount = paymentAmountNumber(data);
-  return amount ? `${Number(amount).toLocaleString("ja-JP")}` : "";
-}
-
-function amountDigitCells(data) {
-  const amount = amountNumber(data);
-  const digits = amount ? amount.slice(-7).padStart(7, " ") : "       ";
-  return Array.from(digits)
-    .map((digit) => `<td class="${digit.trim() ? "filled" : ""}">${escapeHtml(digit.trim())}</td>`)
-    .join("");
-}
-
-function choiceMark(value, expected) {
-  return String(value || "") === expected ? "●" : "○";
-}
-
 function yesNoValue(value, fallback = "無") {
   return String(value || "") === "有" ? "有" : String(value || "") === "無" ? "無" : fallback;
 }
@@ -819,10 +768,6 @@ function legacyDrivingDefectValue(data) {
   if (data?.drivable === "不可") return "有";
   if (data?.drivable === "可") return "無";
   return "無";
-}
-
-function documentCheck(documents, name) {
-  return documents.includes(name) ? "☑" : "□";
 }
 
 function displayContractNumber(contract) {
@@ -1302,321 +1247,113 @@ function printTemplateContract(contract) {
   printWindow.document.close();
 }
 
-function renderDocument(contract) {
-  const data = contract?.data || getFormData();
-  const documents = data.documents || [];
-  const contractDate = dateParts(new Date().toISOString().slice(0, 10));
-  const sellerBirth = dateParts(data.sellerBirthdate);
-  const amount = yenBox(data);
-  const paymentAmount = paymentYenBox(data);
-  const loanTransferDate = dateParts(data.loanTransferDate);
-  const loanCompany = hasLoan(data) ? data.loanCompany : "";
-  const loanBalanceAmount = hasLoan(data) ? loanBalanceAmountNumber(data) : "";
-  const bankName = hasBankTransfer(data) ? data.bankName : "";
-  const branchName = hasBankTransfer(data) ? data.branchName : "";
-  const accountType = hasBankTransfer(data) ? data.accountType : "";
-  const accountNumber = hasBankTransfer(data) ? data.accountNumber : "";
-  const accountHolderKana = hasBankTransfer(data) ? data.accountHolderKana : "";
-  const accountHolder = hasBankTransfer(data) ? data.accountHolder : "";
-  const showElectronicSignature = data.completionMethod !== "paper" && signatureData;
-  const signatureBlock = showElectronicSignature
-    ? `<span class="electronic-signature-stamp"><span>電子サイン</span><img class="signature-image" src="${signatureData}" alt="売主電子署名" /></span>`
-    : "";
-  const sellerHomePhone = data.sellerHomePhone || data.sellerPhone || "";
-  const sellerMobile = data.sellerMobile || "";
-
-  return `
-    <article class="print-sheet vehicle-contract-sheet">
-      <header class="vehicle-contract-head">
-        <div class="contract-date">契約日： ${contractDate.year || "　"} 年 ${contractDate.month || "　"} 月 ${contractDate.day || "　"} 日</div>
-        <h2>車両売買契約書</h2>
-        <div class="contract-number">
-          <span>（お客様控え）</span>
-          契約書番号 No. ${escapeHtml(displayContractNumber(contract))}
-        </div>
-      </header>
-
-      <p class="vehicle-contract-guide">お客様へ、裏面の契約条項をご確認いただきご承認いただいたうえで太枠線内にご記入ください。</p>
-
-      <section class="vehicle-form-section">
-        <h3>1.契約車両の表示及び状況</h3>
-        <table class="vehicle-form-table vehicle-info-table">
-          <colgroup>
-            <col class="vehicle-label-col">
-            <col>
-            <col class="vehicle-label-col">
-            <col>
-          </colgroup>
-          <tr>
-            <th>車　名</th>
-            <td>${formValue(data.carName)}</td>
-            <th>車台番号</th>
-            <td>${formValue(data.chassisNumber)}</td>
-          </tr>
-          <tr>
-            <th>グレード</th>
-            <td>${formValue(data.carGrade)}</td>
-            <th>登録番号</th>
-            <td>${formValue(data.plateNumber)}</td>
-          </tr>
-          <tr>
-            <th>年　式</th>
-            <td>${formValue(data.carYear)}</td>
-            <th>色</th>
-            <td>${formValue(data.carColor)}</td>
-          </tr>
-          <tr class="vehicle-condition-row">
-            <th>走行距離</th>
-            <td class="mileage-cell">
-              <span>${formValue(data.mileage)}</span>
-              <b>km</b>
-            </td>
-            <td colspan="2" class="condition-matrix">
-              <table>
-                <tr>
-                  <th>エンジンの不具合</th>
-                  <th>オートマミッションの不具合</th>
-                  <th>パワーステアリングの不具合</th>
-                </tr>
-                <tr>
-                  <td>${choiceMark(yesNoValue(data.engineDefect || data.defect), "無")}無　${choiceMark(yesNoValue(data.engineDefect || data.defect), "有")}有</td>
-                  <td>${choiceMark(yesNoValue(data.transmissionDefect), "無")}無　${choiceMark(yesNoValue(data.transmissionDefect), "有")}有</td>
-                  <td>${choiceMark(yesNoValue(data.powerSteeringDefect), "無")}無　${choiceMark(yesNoValue(data.powerSteeringDefect), "有")}有</td>
-                </tr>
-                <tr>
-                  <th>サスペンションの不具合</th>
-                  <th>走行上の不都合</th>
-                  <th>駐車違反放置違反金未納</th>
-                </tr>
-                <tr>
-                  <td>${choiceMark(yesNoValue(data.suspensionDefect), "無")}無　${choiceMark(yesNoValue(data.suspensionDefect), "有")}有</td>
-                  <td>${choiceMark(yesNoValue(legacyDrivingDefectValue(data)), "無")}無　${choiceMark(yesNoValue(legacyDrivingDefectValue(data)), "有")}有</td>
-                  <td>${choiceMark(yesNoValue(data.parkingViolationUnpaid), "無")}無　${choiceMark(yesNoValue(data.parkingViolationUnpaid), "有")}有</td>
-                </tr>
-                <tr>
-                  <th>修復歴</th>
-                  <th>メーター戻し・交換・走行距離不明</th>
-                  <th>災害歴</th>
-                </tr>
-                <tr>
-                  <td>${choiceMark(yesNoValue(data.repairHistory), "無")}無　${choiceMark(yesNoValue(data.repairHistory), "有")}有</td>
-                  <td>${choiceMark(yesNoValue(data.meterIssue), "無")}無　${choiceMark(yesNoValue(data.meterIssue), "有")}有</td>
-                  <td>${choiceMark(yesNoValue(data.disasterHistory), "無")}無　${choiceMark(yesNoValue(data.disasterHistory), "有")}有</td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-      </section>
-
-      <section class="vehicle-form-section">
-        <h3>2.売買契約金額 <small>（消費税等込み）</small></h3>
-        <div class="amount-area photo-amount-area">
-          <table class="vehicle-form-table amount-table">
-            <tr class="amount-labels">
-              <th></th><th>百万</th><th>十万</th><th>万</th><th>千</th><th>百</th><th>十</th><th>一</th><th>円</th>
-            </tr>
-            <tr class="amount-digits">
-              <td></td>${amountDigitCells(data)}<td>円</td>
-            </tr>
-          </table>
-          <p>
-            なお、左記価格は自賠責保険未経過保険料相当額、未経過自動車税（種別割）、重量税、リサイクル預託金額を含むものとします。<br>
-            また、自動車税（種別割）は今期分までを完納していることを前提とします。
-          </p>
-        </div>
-
-        <table class="vehicle-form-table tax-table">
-          <tr>
-            <th>自動車税（種別割）</th>
-            <td>
-              （ ${choiceMark(data.automobileTaxStatus || "完納", "完納")}完納 ・
-              ${choiceMark(data.automobileTaxStatus, "未納")}未納 ・
-              ${choiceMark(data.automobileTaxStatus, "課税保留")}課税保留 ・
-              ${choiceMark(data.automobileTaxStatus, "減免")}減免 ）
-            </td>
-            <th>未納金額</th>
-            <td class="amount-mini-cells">十万　　万　　千　　百　　十</td>
-            <td class="yen-field">${escapeHtml(Number(automobileTaxUnpaidAmountNumber(data)).toLocaleString("ja-JP"))} 円</td>
-          </tr>
-        </table>
-
-        <table class="vehicle-form-table money-table">
-          <tr>
-            <th>残債先</th>
-            <td>${formValue(loanCompany)}</td>
-            <th>振込希望日</th>
-            <td>${loanTransferDate.year || "　"} 年 ${loanTransferDate.month || "　"} 月 ${loanTransferDate.day || "　"} 日</td>
-            <th>残債金額</th>
-            <td class="yen-field">${loanBalanceAmount ? escapeHtml(Number(loanBalanceAmount).toLocaleString("ja-JP")) : ""} 円</td>
-          </tr>
-          <tr>
-            <th>支払<br>代金</th>
-            <td colspan="4" class="amount-mini-cells">百万　十万　万　千　百　十　一</td>
-            <td class="yen-field">${escapeHtml(paymentAmount)} 円</td>
-          </tr>
-        </table>
-      </section>
-
-      <section class="vehicle-form-section">
-        <h3>3.車両引渡期限、移転登録書類等 引渡期限及び支払期限</h3>
-        <table class="vehicle-form-table deadline-table">
-          <tr>
-            <th>車両引渡<br>期限</th>
-            <td>${deadlineLine(data.pickupDate, data.pickupTime) || ""}</td>
-            <th>書類引渡<br>期限</th>
-            <td>${deadlineLine(data.documentDeliveryDate, data.documentDeliveryTime) || ""}</td>
-            <th>支払期限</th>
-            <td>${deadlineLine(data.paymentDate, data.paymentTime) || ""}</td>
-          </tr>
-        </table>
-      </section>
-
-      <section class="vehicle-form-section">
-        <h3>4.特記事項</h3>
-        <div class="special-note">${formValue(data.vehicleNote)}</div>
-      </section>
-
-      <section class="vehicle-form-section">
-        <h3>5.お振込口座 <small>口座名義は原則として申込者（売主）またはご所有者のものに限ります。</small></h3>
-        <table class="vehicle-form-table bank-table simple-bank-table">
-          <tr>
-            <th>銀行名</th>
-            <th>支店名</th>
-            <th>口座種別</th>
-            <th>口座番号</th>
-            <th>口座名義</th>
-          </tr>
-          <tr>
-            <td>${formValue(bankName)}</td>
-            <td>${formValue(branchName)}</td>
-            <td>${formValue(accountType)}</td>
-            <td>${formValue(accountNumber)}</td>
-            <td>${formValue(accountHolderKana || accountHolder)}</td>
-          </tr>
-        </table>
-      </section>
-
-      <section class="vehicle-form-section">
-        <h3>6.車両名義人 <small>申込者（売主）は、車両の名義人がご自身と異なる場合、正当な権限があることを保証します。</small></h3>
-        <table class="vehicle-form-table owner-table">
-          <tr>
-            <th>所有者</th>
-            <td>${formValue(data.ownerType || "売主")}（名義人 ${formValue(data.ownerName, "")}）</td>
-            <th>売主との関係</th>
-            <td>${formValue(data.ownerRelationship, "")}</td>
-          </tr>
-          <tr>
-            <th>使用者</th>
-            <td>${formValue(data.userType || "売主")}（名義人 ${formValue(data.userName, "")}）</td>
-            <th>売主との関係</th>
-            <td>${formValue(data.userRelationship, "")}</td>
-          </tr>
-        </table>
-      </section>
-
-      <p class="application-statement">
-        売主と買主とは、上記内容及び裏面の契約条項を承認し、上記車両について売買契約を締結します。<br>
-        本売買契約をもって、上記車両の売買契約が成立します。詳細は裏面の契約条項をご確認ください。<br>
-        売主は、自賠責保険未経過保険料相当額、未経過自動車税（種別割）、重量税、リサイクル預託金のそれぞれの取扱いについて説明を受け、ご承諾された後、ご署名ください。
-      </p>
-
-      <section class="party-boxes">
-        <div class="party-box buyer-box">
-          <h3>買主</h3>
-          <p class="buyer-address">${escapeHtml(COMPANY.address)}</p>
-          <p class="buyer-company">${escapeHtml(COMPANY.name)}</p>
-          <p class="buyer-rep">代表　${escapeHtml(COMPANY.representative)}</p>
-          <div class="shop-line">店</div>
-          <div>担当者</div>
-          <div>TEL　${escapeHtml(COMPANY.phone)}</div>
-        </div>
-        <div class="party-box seller-box">
-          <h3>売主</h3>
-          <table class="seller-table">
-            <colgroup>
-              <col class="seller-label-col">
-              <col>
-              <col class="seller-stamp-col">
-            </colgroup>
-            <tr class="seller-name-row">
-              <th>フリガナ</th>
-              <td>${formValue(data.sellerKana)}</td>
-              <td class="stamp-cell" rowspan="2">${signatureBlock || "印"}</td>
-            </tr>
-            <tr class="seller-name-row">
-              <th>お名前</th>
-              <td>${formValue(data.sellerName)}</td>
-            </tr>
-            <tr class="seller-contract-row">
-              <th class="seller-contract-label" rowspan="5">ご契約者</th>
-              <td colspan="2" class="seller-address-block">
-                <div>〒　${formValue(data.sellerPostalCode, "　　　－")}</div>
-                <div>ご住所　${formValue(data.sellerAddress)}</div>
-              </td>
-            </tr>
-            <tr>
-              <td colspan="2" class="seller-phone-number-row">
-                <span>自宅電話</span><strong>${formValue(sellerHomePhone)}</strong>
-                <span>携帯電話</span><strong>${formValue(sellerMobile)}</strong>
-              </td>
-            </tr>
-            <tr class="seller-subrow">
-              <td colspan="2"><span>生年月日</span><strong>${sellerBirth.year || "　"} 年 ${sellerBirth.month || "　"} 月 ${sellerBirth.day || "　"} 日</strong></td>
-            </tr>
-            <tr class="seller-subrow">
-              <td colspan="2"><span>ご勤務先名</span><strong>${formValue(data.workplace)}</strong></td>
-            </tr>
-            <tr class="seller-subrow">
-              <td colspan="2"><span>電話</span><strong>（　　　　）　　　　－</strong></td>
-            </tr>
-          </table>
-        </div>
-      </section>
-
-      <section class="identity-row">
-        <div>身分証明書番号※左づめで記入</div>
-        <div class="identity-cells"></div>
-        <div>${documentCheck(documents, "本人確認書類")}本人であることを確認しました。</div>
-        <div>社長</div>
-        <div>拠点長</div>
-      </section>
-      <section class="identity-row identity-docs">
-        <div>本人確認書類　${escapeHtml(data.identityType || "")}</div>
-        <div>運転免許証　パスポート　健康保険証　その他（　　　）</div>
-        <div>担当者署名</div>
-        <div>管理者署名</div>
-      </section>
-
-      <footer class="vehicle-contract-footer">
-        このたびはご利用ありがとうございました。<br>
-        この書面は、お客様がお車を売却された事を証明する書類ですので、大切に保管してください。
-      </footer>
-    </article>
-  `;
+function textBytes(value) {
+  return new TextEncoder().encode(value);
 }
 
-function unifiedTerms(data) {
-  const zeroAmountItems = isZeroAmountContract(data)
-    ? `
-      <li>本契約における買取金額は0円とし、買主または引取事業者は売主に買取代金その他名目を問わず金銭を支払わない。</li>
-      <li>売主は、自動車重量税、自賠責保険料、リサイクル料金、リサイクル券、自動車税種別割その他還付金、返戻金、精算金等を一切請求しない。</li>
-      <li>引渡し後に還付金等が発生する場合、その受領権限および経済的利益は買主または引取事業者に帰属する。</li>
-    `
-    : `
-      <li>売買代金は本契約書に表示された金額とし、買主は現金または振込により支払う。</li>
-      <li>自動車重量税、自賠責保険料、リサイクル料金、自動車税種別割その他還付金等は売買代金に含まれ、売主は別途請求しない。</li>
-    `;
+function base64ToBytes(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
 
-  return `
-    <ol class="terms-list">
-      <li>売主は対象車両を買主または引取事業者に譲渡し、買主または引取事業者はこれを買い受け、または引き取る。</li>
-      ${zeroAmountItems}
-      <li>売主は事故歴、修復歴、不具合、残債、所有権留保その他重要事項を正確に申告する。</li>
-      <li>申告内容に重大な誤りまたは虚偽がある場合、買主または引取事業者は契約解除または売買代金の減額を請求できる。</li>
-      <li>本契約に関する紛争は、買主または引取事業者の所在地を管轄する裁判所を第一審の専属的合意管轄裁判所とする。</li>
-    </ol>
-  `;
+function buildImagePdf(imageBytes, imageWidth, imageHeight) {
+  const pageWidth = 595.28;
+  const pageHeight = 841.89;
+  const content = `q\n${pageWidth} 0 0 ${pageHeight} 0 0 cm\n/Im0 Do\nQ\n`;
+  const chunks = [];
+  const offsets = [];
+  let length = 0;
+
+  const add = (chunk) => {
+    const bytes = typeof chunk === "string" ? textBytes(chunk) : chunk;
+    chunks.push(bytes);
+    length += bytes.length;
+  };
+
+  const addObject = (id, body) => {
+    offsets[id] = length;
+    add(`${id} 0 obj\n${body}\nendobj\n`);
+  };
+
+  add("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
+  addObject(1, "<< /Type /Catalog /Pages 2 0 R >>");
+  addObject(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+  addObject(
+    3,
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`,
+  );
+
+  offsets[4] = length;
+  add(
+    `4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${imageWidth} /Height ${imageHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imageBytes.length} >>\nstream\n`,
+  );
+  add(imageBytes);
+  add("\nendstream\nendobj\n");
+  addObject(5, `<< /Length ${textBytes(content).length} >>\nstream\n${content}endstream`);
+
+  const xrefOffset = length;
+  add("xref\n0 6\n0000000000 65535 f \n");
+  for (let id = 1; id <= 5; id += 1) {
+    add(`${String(offsets[id]).padStart(10, "0")} 00000 n \n`);
+  }
+  add(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
+
+  return new Blob(chunks, { type: "application/pdf" });
+}
+
+function contractPdfFilename(contract) {
+  const data = contract?.data || getFormData();
+  const contractNumber = displayContractNumber(contract);
+  const sellerName = [data.sellerLastName, data.sellerFirstName].filter(Boolean).join("");
+  const baseName = ["車両売買契約書", "お客様控え", contractNumber ? `No${contractNumber}` : "", sellerName]
+    .filter(Boolean)
+    .join("-");
+  return `${baseName.replace(/[\\/:*?"<>|]/g, "_")}.pdf`;
+}
+
+async function downloadCustomerPdf(contract) {
+  const svg = contractTemplateSvg(contract, "customer");
+  const svgBlob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+  const svgUrl = URL.createObjectURL(svgBlob);
+  const image = new Image();
+  image.decoding = "async";
+
+  try {
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = reject;
+      image.src = svgUrl;
+    });
+
+    const width = 1191;
+    const height = 1684;
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Canvas context is unavailable.");
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, width, height);
+    context.drawImage(image, 0, 0, width, height);
+
+    const jpegData = canvas.toDataURL("image/jpeg", 0.94);
+    const imageBytes = base64ToBytes(jpegData.split(",")[1]);
+    const pdfBlob = buildImagePdf(imageBytes, width, height);
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    const link = document.createElement("a");
+    link.href = pdfUrl;
+    link.download = contractPdfFilename(contract);
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(pdfUrl), 1500);
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
 }
 
 function updatePreview() {
@@ -2216,6 +1953,17 @@ function setupEvents() {
   document.querySelector("#print-contract").addEventListener("click", () => {
     saveActiveContract(currentContract()?.status || "下書き");
     printTemplateContract(currentContract());
+  });
+  document.querySelector("#download-customer-pdf").addEventListener("click", async () => {
+    saveActiveContract(currentContract()?.status || "下書き");
+    try {
+      setSaveStatus("お客様控えPDFを作成しています。", "pending");
+      await downloadCustomerPdf(currentContract());
+      setSaveStatus("お客様控えPDFを端末に保存しました。", "success");
+    } catch (error) {
+      console.error(error);
+      setSaveStatus("PDF保存に失敗しました。もう一度お試しください。", "warning");
+    }
   });
   document.querySelector("#generate-consent-url")?.addEventListener("click", () => {
     generateConsentUrl();

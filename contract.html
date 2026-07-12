@@ -9,14 +9,14 @@
       content="オーダーオートの車両売買契約書を作成、印刷、タブレット署名、メール送信できる契約作成システムです。"
     />
     <meta name="robots" content="noindex,nofollow" />
-    <link rel="stylesheet" href="styles.css?v=20260712-input-order" />
+    <link rel="stylesheet" href="styles.css?v=20260712-pdf-save" />
     <script src="supabase-config.js"></script>
     <script src="supabase-api.js?v=20260712-list-actions"></script>
     <script src="admin-auth.js"></script>
     <script>
       window.OrderAutoAdminAuth.requireAuth();
     </script>
-    <script src="contract.js?v=20260712-input-order" defer></script>
+    <script src="contract.js?v=20260712-pdf-save" defer></script>
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -110,6 +110,7 @@
                   href="templates/order_auto_blank_shop_template.pdf"
                   download="order-auto-shop-copy-template.pdf"
                 >店控えベースPDF</a>
+                <button class="button button-outline" type="button" id="download-customer-pdf">PDF保存</button>
                 <button class="button button-primary" type="button" id="print-contract">PDF印刷</button>
               </div>
             </div>
@@ -204,7 +205,7 @@
                   <legend>金額・引取情報</legend>
                   <div class="form-grid">
                     <label>買取金額<input name="purchaseAmount" type="number" min="0" step="1000" /></label>
-                    <label>リサイクル券金額<input name="recycleDepositAmount" type="number" min="0" step="1000" placeholder="例：7000" /></label>
+                    <label>リサイクル券金額<input name="recycleDepositAmount" type="number" min="0" step="1000" /></label>
                     <label>自動車税（種別割）
                       <select name="automobileTaxStatus">
                         <option>完納</option>
@@ -214,7 +215,7 @@
                       </select>
                     </label>
                     <label id="automobile-tax-unpaid-field" hidden>自動車税 未納金額
-                      <input name="automobileTaxUnpaidAmount" type="number" min="0" step="1000" placeholder="例：12345" />
+                      <input name="automobileTaxUnpaidAmount" type="number" min="0" step="1000" />
                     </label>
                     <label>残債
                       <select name="loanStatus">
