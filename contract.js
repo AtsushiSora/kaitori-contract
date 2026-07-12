@@ -1065,29 +1065,66 @@ function printTemplateContract(contract) {
         <meta charset="UTF-8" />
         <title>車両売買契約書</title>
         <style>
-          @page { size: A4 portrait; margin: 0; }
-          html, body { margin: 0; background: #fff; }
-          body { display: grid; place-items: start center; }
+          @page {
+            size: 210mm 297mm;
+            margin: 0;
+          }
+
+          * {
+            box-sizing: border-box;
+          }
+
+          html,
+          body {
+            margin: 0;
+            background: #fff;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+
           .pdf-contract-svg {
+            display: block;
+            width: 210mm !important;
+            max-width: none !important;
+            height: 297mm !important;
+            background: #fff;
+          }
+
+          .print-page {
             display: block;
             width: 210mm;
             height: 297mm;
-          }
-          .print-page {
-            width: 210mm;
-            height: 297mm;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            break-after: page;
             page-break-after: always;
           }
+
           .print-page:last-of-type {
+            break-after: auto;
             page-break-after: auto;
           }
+
           @media screen {
-            body { padding: 16px; background: #e5e5e5; }
-            .pdf-contract-svg { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); background: #fff; }
+            body {
+              display: grid;
+              justify-content: center;
+              padding: 16px;
+              background: #e5e5e5;
+            }
+            .pdf-contract-svg { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); }
             .print-page { margin-bottom: 16px; }
           }
+
           @media print {
-            body { padding: 0; }
+            html,
+            body {
+              width: 210mm;
+              min-height: 297mm;
+              padding: 0;
+              overflow: visible;
+            }
             .pdf-contract-svg { box-shadow: none; }
           }
         </style>
