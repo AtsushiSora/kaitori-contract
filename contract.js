@@ -1188,8 +1188,9 @@ function contractTemplateSvg(contract, copyType = "customer") {
         ${
           data.completionMethod !== "paper" && data.signatureData
             ? `
-              <rect x="1038" y="1288" width="94" height="86" fill="#fff" />
-              <image href="${escapeHtml(data.signatureData)}" x="1042" y="1294" width="86" height="74" preserveAspectRatio="xMidYMid meet" />
+              <rect x="1090" y="1302" width="34" height="34" fill="#fff" />
+              <text x="1016" y="1296" font-size="8" font-weight="700">電子サイン</text>
+              <image href="${escapeHtml(data.signatureData)}" x="1006" y="1300" width="120" height="60" preserveAspectRatio="xMidYMid meet" />
             `
             : ""
         }
@@ -1319,7 +1320,7 @@ function renderDocument(contract) {
   const accountHolder = hasBankTransfer(data) ? data.accountHolder : "";
   const showElectronicSignature = data.completionMethod !== "paper" && signatureData;
   const signatureBlock = showElectronicSignature
-    ? `<img class="signature-image" src="${signatureData}" alt="売主電子署名" />`
+    ? `<span class="electronic-signature-stamp"><span>電子サイン</span><img class="signature-image" src="${signatureData}" alt="売主電子署名" /></span>`
     : "";
   const sellerHomePhone = data.sellerHomePhone || data.sellerPhone || "";
   const sellerMobile = data.sellerMobile || "";
