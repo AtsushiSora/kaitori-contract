@@ -351,6 +351,7 @@ function getFormData() {
   data.contractType = form.elements.contractType?.value || "unified";
   data.completionMethod = form.elements.completionMethod?.value || "paper";
   data.consents = new FormData(form).getAll("consents");
+  syncSellerBirthdate(data);
   normalizeSellerNameFields(data);
   normalizePlateNumberFields(data);
   if (!hasLoan(data)) {
@@ -402,6 +403,7 @@ function populateForm(contract) {
   normalizeSellerNameFields(data);
   normalizePlateNumberFields(data);
   normalizeContractMode(data);
+  splitSellerBirthdate(data);
   Object.entries(data).forEach(([key, value]) => {
     if (key === "documents" || key === "consents") return;
     setFieldValue(form, key, value);
@@ -608,6 +610,57 @@ function dateParts(value) {
   const match = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return { year: "", month: "", day: "", raw: cleaned };
   return { year: match[1], month: String(Number(match[2])), day: String(Number(match[3])), raw: cleaned };
+}
+
+function pad2(value) {
+  return String(value || "").padStart(2, "0");
+}
+
+function joinDateParts(year, month, day) {
+  if (!year || !month || !day) return "";
+  return `${year}-${pad2(month)}-${pad2(day)}`;
+}
+
+function splitSellerBirthdate(data) {
+  const parts = dateParts(data?.sellerBirthdate);
+  if (!parts.year) return;
+  data.sellerBirthYear = parts.year;
+  data.sellerBirthMonth = parts.month;
+  data.sellerBirthDay = parts.day;
+}
+
+function syncSellerBirthdate(data) {
+  data.sellerBirthdate = joinDateParts(
+    data.sellerBirthYear,
+    data.sellerBirthMonth,
+    data.sellerBirthDay,
+  );
+  return data.sellerBirthdate;
+}
+
+function populateBirthdateSelects() {
+  const form = document.querySelector("#contract-form");
+  if (!form?.elements.sellerBirthYear) return;
+
+  const currentYear = new Date().getFullYear();
+  const yearOptions = ['<option value="">年</option>'];
+  for (let year = currentYear; year >= 1920; year -= 1) {
+    yearOptions.push(`<option value="${year}">${year}年</option>`);
+  }
+
+  const monthOptions = ['<option value="">月</option>'];
+  for (let month = 1; month <= 12; month += 1) {
+    monthOptions.push(`<option value="${month}">${month}月</option>`);
+  }
+
+  const dayOptions = ['<option value="">日</option>'];
+  for (let day = 1; day <= 31; day += 1) {
+    dayOptions.push(`<option value="${day}">${day}日</option>`);
+  }
+
+  form.elements.sellerBirthYear.innerHTML = yearOptions.join("");
+  form.elements.sellerBirthMonth.innerHTML = monthOptions.join("");
+  form.elements.sellerBirthDay.innerHTML = dayOptions.join("");
 }
 
 function timeText(value) {
@@ -2154,6 +2207,7 @@ function setupEvents() {
 
 document.addEventListener("DOMContentLoaded", () => {
   loadContracts();
+  populateBirthdateSelects();
   setupEvents();
   setupSignatureCanvas();
 

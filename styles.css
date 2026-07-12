@@ -1322,6 +1322,12 @@ textarea {
   min-width: 0;
 }
 
+.birthdate-selects {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) minmax(92px, 0.8fr) minmax(92px, 0.8fr);
+  gap: 8px;
+}
+
 .date-picker-button {
   min-width: 58px;
   min-height: 42px;
@@ -2777,6 +2783,10 @@ textarea {
 
   .contract-list-actions .mini-button {
     flex: 1;
+  }
+
+  .birthdate-selects {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
   }
 
   .date-input-wrap,
