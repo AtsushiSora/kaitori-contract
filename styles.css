@@ -1075,9 +1075,9 @@ textarea {
 }
 
 .contract-list-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
   width: 100%;
   padding: 12px;
@@ -1085,7 +1085,6 @@ textarea {
   border-radius: 8px;
   color: var(--ink);
   background: #fbfdfb;
-  cursor: pointer;
   text-align: left;
 }
 
@@ -1094,20 +1093,30 @@ textarea {
   box-shadow: inset 4px 0 0 var(--green);
 }
 
-.contract-list-item span {
+.contract-list-main {
+  display: grid;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.contract-list-main span {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
 
-.contract-list-item strong,
-.contract-list-item small {
+.contract-list-main strong,
+.contract-list-main small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.contract-list-item small {
+.contract-list-main small {
   color: var(--muted);
 }
 
@@ -1120,6 +1129,21 @@ textarea {
   font-size: 0.72rem;
   font-style: normal;
   font-weight: 900;
+}
+
+.contract-list-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.mini-button.danger {
+  color: #9f2f2f;
+  border-color: rgba(159, 47, 47, 0.28);
+  background: #fff7f7;
+}
+
+.mini-button.danger:hover {
+  border-color: #b64040;
 }
 
 .empty-state {
@@ -2770,6 +2794,18 @@ textarea {
   .contract-document .pdf-contract-svg {
     width: 100%;
     box-shadow: none;
+  }
+
+  .contract-list-item {
+    grid-template-columns: 1fr;
+  }
+
+  .contract-list-actions {
+    justify-content: stretch;
+  }
+
+  .contract-list-actions .mini-button {
+    flex: 1;
   }
 
   .date-input-wrap,

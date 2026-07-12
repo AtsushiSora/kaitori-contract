@@ -9,14 +9,14 @@
       content="オーダーオートの車両売買契約書を作成、印刷、タブレット署名、メール送信できる契約作成システムです。"
     />
     <meta name="robots" content="noindex,nofollow" />
-    <link rel="stylesheet" href="styles.css?v=20260712-pages" />
+    <link rel="stylesheet" href="styles.css?v=20260712-list-actions" />
     <script src="supabase-config.js"></script>
-    <script src="supabase-api.js"></script>
+    <script src="supabase-api.js?v=20260712-list-actions"></script>
     <script src="admin-auth.js"></script>
     <script>
       window.OrderAutoAdminAuth.requireAuth();
     </script>
-    <script src="contract.js?v=20260712-pages" defer></script>
+    <script src="contract.js?v=20260712-list-actions" defer></script>
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -79,7 +79,7 @@
                 <p class="eyebrow">Contracts</p>
                 <h2>契約一覧</h2>
               </div>
-              <button class="mini-button" type="button" id="new-contract">新規</button>
+              <button class="mini-button" type="button" id="new-contract">追加</button>
             </div>
             <div class="backup-actions" aria-label="バックアップ操作">
               <button class="mini-button" type="button" id="export-contracts">JSON出力</button>

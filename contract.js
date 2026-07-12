@@ -527,6 +527,46 @@ function saveActiveContract(status) {
   return saved;
 }
 
+async function deleteContract(id) {
+  const target = contracts.find((contract) => contract.id === id);
+  if (!target) return;
+
+  const label = target.data?.sellerName || target.data?.carName || `契約番号${contractNumberValue(target) || target.id}`;
+  const confirmed = window.confirm(`${label} を削除します。よろしいですか？`);
+  if (!confirmed) return;
+
+  contracts = contracts.filter((contract) => contract.id !== id);
+  if (activeId === id) {
+    activeId = contracts[0]?.id || "";
+  }
+  persistContracts();
+
+  if (activeId) {
+    populateForm(currentContract());
+  } else {
+    document.querySelector("#contract-form").reset();
+    signatureData = "";
+    identityFiles = [];
+    renderIdentityFiles();
+    updateModePanels();
+    updatePreview();
+  }
+  renderList();
+  setAppPage("list");
+
+  if (cloudEnabled() && window.OrderAutoCloud?.deleteContract) {
+    try {
+      setSaveStatus("Supabaseから削除中です。", "pending");
+      await window.OrderAutoCloud.deleteContract(id);
+      setSaveStatus("契約を削除しました。", "success");
+    } catch (error) {
+      setSaveStatus("この端末から削除しました。Supabase側の削除は確認してください。", "warning");
+    }
+  } else {
+    setSaveStatus("契約を削除しました。", "success");
+  }
+}
+
 function contractTitle(data) {
   return data.completionMethod === "paper" ? "車両売買契約書" : "電子車両売買契約書";
 }
@@ -1538,13 +1578,19 @@ function renderList() {
       const data = contract.data || {};
       const active = contract.id === activeId ? "active" : "";
       return `
-        <button class="contract-list-item ${active}" type="button" data-id="${contract.id}">
-          <span>
-            <strong>${safeValue(data.sellerName, "氏名未入力")}</strong>
-            <small>${safeValue(data.carName, "車名未入力")} / ${escapeHtml(contractTypeLabel(data))}</small>
-          </span>
+        <article class="contract-list-item ${active}" data-id="${contract.id}">
+          <button class="contract-list-main" type="button" data-edit-contract="${contract.id}">
+            <span>
+              <strong>${safeValue(data.sellerName, "氏名未入力")}</strong>
+              <small>${safeValue(data.carName, "車名未入力")} / ${escapeHtml(contractTypeLabel(data))}</small>
+            </span>
+          </button>
           <em>${escapeHtml(contract.status)}</em>
-        </button>
+          <div class="contract-list-actions">
+            <button class="mini-button" type="button" data-edit-contract="${contract.id}">編集</button>
+            <button class="mini-button danger" type="button" data-delete-contract="${contract.id}">削除</button>
+          </div>
+        </article>
       `;
     })
     .join("");
@@ -2078,11 +2124,18 @@ function setupEvents() {
     setSaveStatus("本人確認書類の写真を削除しました。", "success");
   });
 
-  document.querySelector("#contract-list").addEventListener("click", (event) => {
-    const item = event.target.closest("[data-id]");
-    if (!item) return;
+  document.querySelector("#contract-list").addEventListener("click", async (event) => {
+    const deleteButton = event.target.closest("[data-delete-contract]");
+    if (deleteButton) {
+      saveActiveContract();
+      await deleteContract(deleteButton.dataset.deleteContract);
+      return;
+    }
+
+    const editButton = event.target.closest("[data-edit-contract]");
+    if (!editButton) return;
     saveActiveContract();
-    activeId = item.dataset.id;
+    activeId = editButton.dataset.editContract;
     populateForm(currentContract());
     renderList();
     setAppPage("create");

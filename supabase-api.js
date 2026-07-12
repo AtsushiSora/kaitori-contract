@@ -161,6 +161,13 @@ async function upsertCloudContract(contract, identityFiles = []) {
   return rows?.[0] ? dbContractToLocal(rows[0]) : null;
 }
 
+async function deleteCloudContract(id) {
+  await supabaseRequest(`/rest/v1/contracts?id=eq.${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: { Prefer: "return=minimal" },
+  });
+}
+
 function dataUrlToBlob(dataUrl) {
   const [meta, base64] = dataUrl.split(",");
   const contentType = meta.match(/data:(.*?);/)?.[1] || "application/octet-stream";
@@ -239,6 +246,7 @@ window.OrderAutoCloud = {
   listContracts: listCloudContracts,
   getContract: getCloudContract,
   upsertContract: upsertCloudContract,
+  deleteContract: deleteCloudContract,
   uploadIdentityFiles,
   saveConsentResult,
 };
