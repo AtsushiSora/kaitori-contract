@@ -22,8 +22,6 @@ function setMode() {
     document.querySelector("#admin-confirm-wrap").hidden = true;
     document.querySelector("#admin-passcode").autocomplete = "current-password";
     document.querySelector("#admin-submit").textContent = "ログイン";
-    document.querySelector("#admin-reset").hidden = true;
-    document.querySelector("#test-login").hidden = true;
 
     if (window.OrderAutoAdminAuth.isAuthenticated()) {
       setAdminMessage("Supabaseにログイン済みです。契約作成へ進めます。", "success");
@@ -101,17 +99,6 @@ async function handleAdminSubmit(event) {
   }
 }
 
-function resetAdminSettings() {
-  const ok = window.confirm(
-    "管理者設定をリセットします。この端末のログイン設定だけが削除されます。契約データは削除されません。",
-  );
-  if (!ok) return;
-  localStorage.removeItem("orderAutoAdminCredential");
-  sessionStorage.removeItem("orderAutoAdminSession");
-  setAdminMessage("管理者設定をリセットしました。新しいパスコードを設定してください。", "success");
-  setMode();
-}
-
 function handleTestLogin() {
   const ok = window.confirm(
     "テスト用ログインで契約作成画面へ進みます。本番公開前にはこのボタンを削除してください。",
@@ -125,6 +112,5 @@ function handleTestLogin() {
 document.addEventListener("DOMContentLoaded", () => {
   setMode();
   document.querySelector("#admin-form").addEventListener("submit", handleAdminSubmit);
-  document.querySelector("#admin-reset").addEventListener("click", resetAdminSettings);
   document.querySelector("#test-login")?.addEventListener("click", handleTestLogin);
 });

@@ -115,6 +115,8 @@ function adminStoreSession(hours, testMode) {
 }
 
 function adminIsAuthenticated() {
+  if (adminIsTestSession()) return true;
+
   if (window.OrderAutoCloud?.isConfigured()) {
     return window.OrderAutoCloud.isAuthenticated();
   }
