@@ -43,27 +43,6 @@
           <div>
             <p class="eyebrow">Contract System</p>
             <h1>契約情報を入力して、紙・タブレット・メールで完結。</h1>
-            <p>
-              車両売買・引取契約を作成します。買取金額が0円の場合は、無料引取および還付なしの確認事項を同じ契約書に反映します。
-            </p>
-            <div class="hero-actions">
-              <a class="button button-primary" href="#contract-form">入力を開始</a>
-              <a class="button button-outline hero-button-outline" href="#contract-preview">PDFプレビューを見る</a>
-            </div>
-          </div>
-          <div class="contract-flow-summary" aria-label="完結方法">
-            <div>
-              <strong>紙で印刷</strong>
-              <span>PDF印刷・署名押印</span>
-            </div>
-            <div>
-              <strong>タブレット署名</strong>
-              <span>画面署名・印刷/メール</span>
-            </div>
-            <div>
-              <strong>メール完結</strong>
-              <span>確認URL用の文面作成</span>
-            </div>
           </div>
         </div>
       </section>
@@ -117,23 +96,7 @@
 
             <div class="contract-grid">
               <form id="contract-form" class="contract-form-panel">
-                <fieldset class="input-index">
-                  <legend>入力項目</legend>
-                  <div class="input-index-grid">
-                    <a href="#seller-fields">売主情報</a>
-                    <a href="#vehicle-fields">車両情報</a>
-                    <a href="#amount-fields">金額・引取</a>
-                    <a href="#title-fields">車両名義人</a>
-                  </div>
-                </fieldset>
-
-                <fieldset id="completion-fields">
-                  <legend>契約内容</legend>
-                  <input type="hidden" name="contractType" value="unified" />
-                  <div class="form-note">
-                    車両売買・引取契約として作成します。買取金額が0円の場合は、無料引取および還付なしの確認事項を同じ契約書内に表示します。
-                  </div>
-                </fieldset>
+                <input type="hidden" name="contractType" value="unified" />
 
                 <fieldset id="seller-fields">
                   <legend>売主情報</legend>
