@@ -46,14 +46,6 @@ const POSTAL_CODE_API_URL = "https://zipcloud.ibsnet.co.jp/api/search";
 let postalLookupTimer = 0;
 let lastPostalLookup = "";
 
-function formatDate(date = new Date()) {
-  return new Intl.DateTimeFormat("ja-JP", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-}
-
 function formatDateTime(date = new Date()) {
   return new Intl.DateTimeFormat("ja-JP", {
     year: "numeric",
@@ -367,10 +359,6 @@ async function compressIdentityImage(file) {
     addedAt: formatDateTime(),
     dataUrl,
   };
-}
-
-function identityFileSummary(files = identityFiles) {
-  return files.map(({ dataUrl, ...file }) => file);
 }
 
 function renderIdentityFiles() {
@@ -1092,6 +1080,189 @@ function contractTemplateData(contract) {
   };
 }
 
+
+const CONTRACT_TERMS_DATE = "2026.8.1";
+const CONTRACT_TERMS_PARAGRAPHS = [
+  `第1条（契約の目的） 本契約は、本契約書表面記載の売主（以下「売主」という。）が、表面記載の買主（以下「買主」という。）に対して、表面記載の車両（以下「契約車両」という。）を表面記載の売買契約金額で売り渡す際の売主及び買主間の権利義務を定めることを目的とする。`,
+  `第2条（契約の成立時期） 本契約は、売主が契約車両を買主に売り渡すことに同意し、売主及び買主が本契約書表面の署名欄に署名又は記名押印することにより成立する。また、買主は売主に対し本契約書を交付し、売主は保管する。`,
+  `第3条（契約車両の引渡し）`,
+  `1. 売主は、買主又は買主の指定する第三者に対して、売主及び買主が合意した車両引渡期限までに売主及び買主が合意した場所（但し、買主の営業所又は売主の住所若しくは居所に限る。）にて契約車両を引き渡し、買主は、これを引き受け、車両受領証を売主に対し発行する。但し、買主は、移転登録書類等（次条第1項において定義される。）の引渡し及び契約車両に関して債務（ローン残債、自動車税（種別割）未納金、放置違反金等）があるときの当該債務の完済がなされる時まで、契約車両の引渡しを受けないことができる。`,
+  `2. 契約車両の運搬費用等は引渡しの時をもって区分し、契約車両の引渡しまでに要する費用は、売主の負担とし、引渡し後に要する費用は買主の負担とする。`,
+  `第4条（移転登録書類等の引渡し等）`,
+  `1. 売主は、次の各号に掲げる契約車両の名義変更等に必要な書類のうち、買主が指定する書類（以下「移転登録書類等」という。）を自己の費用と責任において完備し、本契約書表面記載の「書類引渡期限」までに買主に引き渡すものとする。`,
+  `(1) 契約車両所有者の印鑑証明書、住民票（所有者が法人のときには当該法人の商業・法人登記簿謄本）、戸籍の附票、委任状、譲渡証明書、有効期間内の自動車税（種別割）納税証明書、その他契約車両の名義変更手続に必要な書類`,
+  `(2) 自動車検査証`,
+  `(3) 自動車損害賠償責任保険の証書`,
+  `(4) 契約車両について使用済自動車の再資源化等に関する法律に基づき同法所定の料金が預託されているときにはリサイクル券`,
+  `(5) 自動車税（種別割）の還付に関する委任状、譲渡通知書、譲渡確認書`,
+  `(6) 自動車損害賠償責任保険料等の還付等に関する委任状`,
+  `(7) 前各号の他、買主が売主に対し、作成又は交付を依頼した契約車両の所有権移転手続き等に必要な書類`,
+  `2. 移転登録書類等のうち、印鑑証明書、住民票、商業・法人登記簿謄本、戸籍の附票等、買主が特定した有効期限がある書類については、売主から買主への第3条に基づく契約車両の引渡し及び本条に基づく移転登録書類等の引渡しがいずれも全て完了したときから2ヶ月以上の有効期限があるものとする。`,
+  `3. 契約車両の名義変更については、買主が一切の責任を負うものとし、売主は、買主又は買主の指定する行政書士等の代理人に対し、契約車両の移転登録手続等に要する書類の作成・交付の代理権又は代行権限を予め付与する。`,
+  `4. 前項の規定にかかわらず、第1項に定める移転登録書類等の引渡しの後、移転登録書類等が失効、紛失、毀損等したときには、売主は買主からの移転登録書類等の再引渡し請求に協力し、買主は、売主が当該協力のために現実に支出した合理的な範囲の費用を負担する。`,
+  `第5条（支払い条件等）`,
+  `1. 買主は、本契約書表面記載のとおり売主から買主への第3条に基づく契約車両の引渡し及び第4条に基づく移転登録書類等の引渡しがいずれも完了した後、売主及び買主が合意した期限内に売買契約金額より、次の各号に定める支払いまでに買主に判明した売主が負担すべき債務（以下「未納金等」という。）を差し引いた金額（以下「支払代金」という。）を売主に対して本契約書表面記載の方法により支払うものとする。但し、支払い後に新たに未納金等が判明した場合における、買主の売主に対する損害賠償その他の請求（第8条第3項、第8条第5項に基づく請求を含む。）を妨げるものではない。`,
+  `(1) 契約車両にかかるローン残債総額`,
+  `(2) 売主がカーナビゲーション・オーディオ等のパーツの返却を希望した場合のパーツ取外し工賃`,
+  `(3) その他前号に定めるものの他、支払いまでに買主に判明した売主が負担すべき契約車両にかかる債務`,
+  `2. 買主は、売主の本契約違反により生じた費用、損害額以外について前項の支払代金債務と相殺してはならない。`,
+  `3. 売主は、買主が第1項の支払期限までに支払代金を支払わない場合、本契約を解除することができる。この場合、買主は契約車両について契約車両の引渡し時の原状に復する義務を負う。`,
+  `第6条（契約車両の種類又は品質等に関する申告義務）`,
+  `1. 売主は契約車両につき、本契約締結時の自己に判明している範囲でその使用状況その他の契約車両の種類又は品質に関して本契約の内容に適合しないもの（以下「不適合」という。）がある場合にはその程度等を誠実に買主に対し申告しなければならないものとする。`,
+  `2. 売主及び買主は、本契約書の所要事項を正確かつ確実に記載、申告を行なうものとし、記載漏れ、誤記載、虚偽の記載等のないように留意するものとし、記載漏れ等を発見したときは、直ちに相手方に報告し、訂正しなければならない。`,
+  `第7条（担保権等の処理）`,
+  `1. 契約車両に関して債務があるときには、売主は、直ちに当該債務を完済しなければならないものとする。`,
+  `2. 契約車両につき、譲渡担保権等の担保権の設定又は差押え等（以下「担保権等」という。）の事実が判明したときには、売主は、買主が当該事実を知った日から10日以内に担保権等を消滅させる処理を行なうものとする。`,
+  `3. 前項の処理に要する費用は、売主の負担とする。`,
+  `第8条（契約の解除）`,
+  `1. 次の各号のいずれかに該当する事由が生じた場合には、買主は売主に協議を求めるものとし、両者で十分な協議を行ってもなお合意に至らなかった場合又は協議が不能なときは、買主は売主に催告し（第5号及び第6号の場合、催告は不要）本契約を解除することができる。`,
+  `(1) 売主が、第3条の定めに従い車両引渡期限までに契約車両を引き渡さないとき`,
+  `(2) 売主が、第4条の定めに従い書類引渡期限までに移転登録書類等を引き渡さないとき`,
+  `(3) 売主が、買主に対し、金銭債務を負担している場合（買主が売主に代わり契約車両にかかる未納金等を支払った場合等）で当該債務の弁済をしないとき`,
+  `(4) 前条第2項の担保権等を消滅させる処理がなされないとき`,
+  `(5) 契約車両につき、中古自動車取引業界における一般的かつ標準的な車両検査（修復歴の基準については一般財団法人日本自動車査定協会が定める基準、走行距離に関する不適合においては一般社団法人日本オートオークション協議会への照会を実施）において判明しない不適合があることが判明したとき`,
+  `(6) 本契約締結日から第3条の契約車両の引渡しまでの間に契約車両に買主の責めに帰さない破損等の変化が生じたとき`,
+  `2. 買主は、前項を除き、契約車両に修復歴があることを原因として、本契約を解除することはできない。`,
+  `3. 第1項各号のいずれかに該当する事由が生じた場合に買主に損害が生じたときには、買主は、第1項の解除と同時又は解除をすることなく、かかる損害（実際に発生した損害に限る。逸失利益は含まれない。）の賠償を請求することができるものとする。但し、第1項の解除をすることなく損害の賠償を請求する場合、買主は契約車両をオートオークションで売却し、契約車両の資産価値を確定したうえで、損害額を算定し損害の賠償を請求しなければならない。`,
+  `4. 第1項の解除権及び第3項の損害賠償請求権の行使期間は買主が、第1項各号に掲げる事由に該当することを知った時から3カ月間とする。`,
+  `5. 売主が次の各号のいずれかに該当した場合には、買主は何時でも売主に対し事前に通知又は催告を行なうことなく、直ちに本契約を解除することができ、買主に損害が生じたときは、解除と同時又は解除をすることなく、買主は売主に対し、かかる損害（逸失利益を含む。）の賠償を請求することができるものとする。`,
+  `(1) 監督官庁から事業の取消、停止等の処分を受けたとき`,
+  `(2) 解散又は事業の全部若しくは重要な一部を第三者に譲渡しようとしたとき`,
+  `(3) 事業の廃止又は休止をしたとき`,
+  `(4) 資本減少、合併又は会社分割の決議をしたとき`,
+  `(5) 自己の財産につき、第三者より仮差押、仮処分、強制執行等の債権保全行為を受け契約の履行が困難と認められるとき`,
+  `(6) 破産、特別清算、民事再生、会社更生手続、その他これらに類する諸手続等の申し立てを受け又は自ら申し立てたとき`,
+  `(7) 支払停止若しくは支払不能に陥ったとき又は金融機関から取引停止処分を受けたとき`,
+  `(8) 振り出した手形又は小切手が、不渡りとなったとき`,
+  `(9) 買主への著しい背信行為や社会的信用を損なう行為を実行し又は計画したとき`,
+  `(10) 反社会的勢力（暴力団、暴力団員、その他これらに準ずるものをいう。）に該当することが判明したとき`,
+  `6. 売主は本契約締結日から第3条に定める契約車両の引渡しを行った日の翌日までは、買主に通知することにより何等の負担なく本契約を解除することができるものとする。`,
+  `7. 解除事由のいかんを問わず、売主又は買主により本契約が解除された場合、買主は売主に対し、解除日から7日以内に、買主が既に第5条の支払代金を支払っているときは支払代金の返還及び損害賠償（但し、第6項の解除の場合、損害賠償は発生しない。以下本条において同じ。）の支払いを求めることができるものとする。`,
+  `8. 本契約の解除時において買主が契約車両を受領している場合、買主は、売主からの支払代金の返還及び損害賠償の支払いが完了するまで契約車両を留置できるものとする。なお、売主からの支払代金の返還及び損害賠償の支払いがなされたときは、買主は売主に対し、当該返還日から7日以内に、買主の指定する日時に売主が契約車両を引き渡した場所において契約車両を引き取ることを請求することができるものとする。`,
+  `9. 解除事由のいかんを問わず、売主又は買主により本契約が解除されたにもかかわらず前項の期限内に売主が支払代金の返還及び損害賠償の支払いをしないとき、又は、売主が正当事由なく契約車両を引き取らないときは、買主は、契約車両を任意に処分し、契約車両を任意に処分した代金を支払代金及び損害に充当することができ、残余がある場合は、売主に交付する。`,
+  `第9条（契約車両内残置物の処置等）`,
+  `1. 売主は、第3条の契約車両引渡しの際、原則として、契約車両に残置物なく、引渡すものとする。万一、引渡後の契約車両に残置物がある場合、買主は、売主が残置物について、所有権及び占有権を放棄したものとみなし、残置物を任意に処分することができる。`,
+  `2. 売主は、カーナビゲーション等の情報記録機能を有する機器（以下「情報機器」という。）を装備した状態のまま契約車両を買主に対して引き渡す場合、売主の責任において情報機器の初期化等を行なうものとする。`,
+  `3. 売主が、車両内に残置物を残置したこと及び情報機器の情報消去を怠ったことにより当該残置物及び当該情報機器に記録された情報が第三者に提供され、売主に損害が発生した場合であっても、買主は責任を負わない。`,
+  `4. 前各項の定めは本契約が無効、取消し、又は解除された場合であっても有効とする。`,
+  `第10条（管轄裁判所） 本契約に関し売主及び買主間で紛争が生じた場合、訴訟の必要があるときは訴額に応じ、売主の住所地の地方裁判所又は簡易裁判所を第一審の専属的合意管轄裁判所とし、調停の必要があるときは、売主の住所地の簡易裁判所を専属的合意管轄裁判所とする。`,
+  `第11条（規定外事項） 本契約に定めのない事項又は本契約の解釈に疑義が生じたときは、関係法令を斟酌して、その都度、売主及び買主は誠意をもって協議し、解決するものとする。`,
+  `第12条（個人情報の取扱い）`,
+  `1. 買主は、売主の個人情報を以下の目的以外には利用いたしません。`,
+  `(1) 定期点検、車検等のサービスのご案内等をする為、郵便、電話、電子メール等の方法によりお知らせすること。`,
+  `(2) 自動車、部用品、サービス商品、保険、クレジットカード等の当社で取り扱う商品、あるいは各種イベント・キャンペーン等の開催について、郵便、電話、電子メール等の方法によりご案内すること。`,
+  `(3) 商品企画・開発あるいは顧客満足度向上策検討のため、アンケート調査を実施すること。`,
+  `(4) お客様とのお取引に関するご相談、ご要望に対応すること。`,
+  `(5) 売掛金等の債権の確認やご請求等を郵便、電話、電子メール等の方法によりご案内すること。`,
+  `(6) 以下の個人情報を口頭、電話、ファクシミリ、書面または電子媒体により、信用販売会社、損害保険会社等の当社の提携する会社に提供すること。ただし、ご本人のお申し出により第三者への提供を停止いたします。停止方法につきましては、当社のお客様相談室もしくは最寄の店舗までお問合せください。`,
+  `2. 買主は売主の個人情報を前項（6）で定めた提供先を除き、正当な理由のない限りご本人様の許可なく第三者へ提供いたしません。但し、個人情報保護法において定められた以下の場合を除きます。`,
+  `(1) 法令に基づく場合`,
+  `(2) 人の生命、身体又は財産の保護のために必要がある場合であって、ご本人様の同意を得ることが困難であるとき。`,
+  `(3) 公衆衛生の向上又は児童の健全な育成の推進のために特に必要がある場合であってご本人様の同意を得ることが困難であるとき。`,
+  `(4) 国の機関もしくは地方公共団体又はその委託を受けた者が法令の定める事務を遂行することに対して協力する必要がある場合であって、ご本人様の同意を得ることにより当該事務の遂行に支障を及ぼすおそれがあるとき。`,
+  `3. 買主は売主がご本人様の個人情報の確認、訂正等を希望される場合、買主の定める書面（以下開示請求書と称します）の提出により開示に応じます。開示請求書等の入手方法につきましては、買主のお客様相談室（下記に記載）もしくは最寄りの営業所までお問い合わせください。なお、開示請求のお手続きの際にはご本人様であることを確認できるもの（運転免許証等 氏名、生年月日、住所等の記載があるもの）をご用意ください。`,
+  `4. 個人情報の取扱いに関する問い合わせ窓口 オーダーオート 〒731-5124 広島県広島市佐伯区皆賀1-10-20 TEL 080-2912-8616`,
+  `5. 買主は売主の個人情報の取扱いに関係する日本の法令、その他の規範を遵守いたします。`,
+  `6. 買主は売主の個人情報について適切な安全措置を講ずることによって、漏えい、改ざん、紛失等の危険防止に努めます。`,
+  `7. 買主は個人情報の取扱いについて、定期的に監査を行い、常に継続的改善を行います。`,
+  `以上`,
+  CONTRACT_TERMS_DATE,
+];
+
+function contractTermsTextUnits(value) {
+  return Array.from(String(value || "")).reduce((total, char) => {
+    if (/^[ -~]$/.test(char)) return total + 0.55;
+    if (/^[、。，．・（）「」『』［］【】]$/.test(char)) return total + 0.5;
+    return total + 1;
+  }, 0);
+}
+
+function splitContractTermsLine(value, maxUnits = 58) {
+  const text = String(value || "").trim();
+  if (!text) return [];
+  const lines = [];
+  let line = "";
+  let units = 0;
+
+  Array.from(text).forEach((char) => {
+    const charUnits = contractTermsTextUnits(char);
+    if (line && units + charUnits > maxUnits) {
+      lines.push(line);
+      line = char;
+      units = charUnits;
+      return;
+    }
+    line += char;
+    units += charUnits;
+  });
+
+  if (line) lines.push(line);
+  return lines;
+}
+
+function contractTermsLines() {
+  return CONTRACT_TERMS_PARAGRAPHS.flatMap((paragraph) => {
+    const isHeading = /^第\d+条/.test(paragraph);
+    const wrapped = splitContractTermsLine(paragraph, isHeading ? 55 : 58).map((line) => ({ line, isHeading }));
+    return [...wrapped, { line: "", isHeading: false, isSpacer: true }];
+  });
+}
+
+function splitContractTermsColumns(lines) {
+  const half = Math.floor(lines.length / 2);
+  let splitIndex = half;
+
+  for (let offset = 0; offset < 32; offset += 1) {
+    const candidates = [half + offset, half - offset];
+    const blankIndex = candidates.find((index) => index > 0 && index < lines.length && lines[index]?.isSpacer);
+    if (blankIndex) {
+      splitIndex = blankIndex + 1;
+      break;
+    }
+  }
+
+  return [lines.slice(0, splitIndex), lines.slice(splitIndex)];
+}
+
+function contractTermsSvg() {
+  const columns = splitContractTermsColumns(contractTermsLines());
+  const title = "契 約 条 項";
+  const leftX = 50;
+  const rightX = 608;
+  const topY = 96;
+  const lineHeight = 10.8;
+  const spacerHeight = 4.9;
+
+  const columnMarkup = columns
+    .map((column, columnIndex) => {
+      const x = columnIndex === 0 ? leftX : rightX;
+      let y = topY;
+      return column
+        .map((item) => {
+          if (item.isSpacer) {
+            y += spacerHeight;
+            return "";
+          }
+          const markup = `<text x="${x}" y="${y.toFixed(1)}" font-size="8.1" font-weight="400">${escapeHtml(item.line)}</text>`;
+          y += lineHeight;
+          return markup;
+        })
+        .join("");
+    })
+    .join("");
+
+  return `
+    <svg class="pdf-contract-svg pdf-terms-svg" viewBox="0 0 1191 1684" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="契約条項">
+      <rect x="27" y="27" width="1137" height="1630" fill="#fff" stroke="#000" stroke-width="1.2" />
+      <line x1="595.5" y1="96" x2="595.5" y2="1535" stroke="#000" stroke-width="0.8" />
+      <g fill="#000" font-family="Hiragino Mincho ProN, Yu Mincho, YuMincho, serif">
+        <text x="595.5" y="72" font-family="Hiragino Kaku Gothic ProN, Yu Gothic, Meiryo, sans-serif" font-size="24" font-weight="700" text-anchor="middle">${title}</text>
+        ${columnMarkup}
+      </g>
+    </svg>
+  `;
+}
+
 function contractTemplateSvg(contract, copyType = "customer") {
   const templateFile = copyType === "shop" ? "order_auto_blank_shop.png" : "order_auto_blank_customer.png";
   const imageUrl = new URL(`templates/${templateFile}?v=20260712-template`, window.location.href).href;
@@ -1271,7 +1442,9 @@ function printTemplateContract(contract) {
       </head>
       <body>
         <div class="print-page">${contractTemplateSvg(contract, "customer")}</div>
+        <div class="print-page">${contractTermsSvg()}</div>
         <div class="print-page">${contractTemplateSvg(contract, "shop")}</div>
+        <div class="print-page">${contractTermsSvg()}</div>
         <script>
           window.addEventListener("load", () => {
             setTimeout(() => window.print(), 250);
@@ -1296,10 +1469,10 @@ function base64ToBytes(base64) {
   return bytes;
 }
 
-function buildImagePdf(imageBytes, imageWidth, imageHeight) {
+function buildImagePdf(imagePages) {
+  const pages = Array.isArray(imagePages) ? imagePages : [imagePages];
   const pageWidth = 595.28;
   const pageHeight = 841.89;
-  const content = `q\n${pageWidth} 0 0 ${pageHeight} 0 0 cm\n/Im0 Do\nQ\n`;
   const chunks = [];
   const offsets = [];
   let length = 0;
@@ -1315,30 +1488,79 @@ function buildImagePdf(imageBytes, imageWidth, imageHeight) {
     add(`${id} 0 obj\n${body}\nendobj\n`);
   };
 
+  const addImageObject = (id, imageBytes, imageWidth, imageHeight) => {
+    offsets[id] = length;
+    add(
+      `${id} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${imageWidth} /Height ${imageHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imageBytes.length} >>\nstream\n`,
+    );
+    add(imageBytes);
+    add("\nendstream\nendobj\n");
+  };
+
+  const pageObjectIds = pages.map((_, index) => 3 + index * 3);
+  const objectCount = 3 + pages.length * 3;
+
   add("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
   addObject(1, "<< /Type /Catalog /Pages 2 0 R >>");
-  addObject(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
-  addObject(
-    3,
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`,
-  );
+  addObject(2, `<< /Type /Pages /Kids [${pageObjectIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pages.length} >>`);
 
-  offsets[4] = length;
-  add(
-    `4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${imageWidth} /Height ${imageHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imageBytes.length} >>\nstream\n`,
-  );
-  add(imageBytes);
-  add("\nendstream\nendobj\n");
-  addObject(5, `<< /Length ${textBytes(content).length} >>\nstream\n${content}endstream`);
+  pages.forEach((page, index) => {
+    const pageObjectId = 3 + index * 3;
+    const imageObjectId = pageObjectId + 1;
+    const contentObjectId = pageObjectId + 2;
+    const content = `q\n${pageWidth} 0 0 ${pageHeight} 0 0 cm\n/Im0 Do\nQ\n`;
+
+    addObject(
+      pageObjectId,
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /XObject << /Im0 ${imageObjectId} 0 R >> >> /Contents ${contentObjectId} 0 R >>`,
+    );
+    addImageObject(imageObjectId, page.imageBytes, page.imageWidth, page.imageHeight);
+    addObject(contentObjectId, `<< /Length ${textBytes(content).length} >>\nstream\n${content}endstream`);
+  });
 
   const xrefOffset = length;
-  add("xref\n0 6\n0000000000 65535 f \n");
-  for (let id = 1; id <= 5; id += 1) {
+  add(`xref\n0 ${objectCount}\n0000000000 65535 f \n`);
+  for (let id = 1; id < objectCount; id += 1) {
     add(`${String(offsets[id]).padStart(10, "0")} 00000 n \n`);
   }
-  add(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
+  add(`trailer\n<< /Size ${objectCount} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
 
   return new Blob(chunks, { type: "application/pdf" });
+}
+
+async function svgToPdfImagePage(svg) {
+  const svgBlob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+  const svgUrl = URL.createObjectURL(svgBlob);
+  const image = new Image();
+  image.decoding = "async";
+
+  try {
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = reject;
+      image.src = svgUrl;
+    });
+
+    const imageWidth = 1191;
+    const imageHeight = 1684;
+    const canvas = document.createElement("canvas");
+    canvas.width = imageWidth;
+    canvas.height = imageHeight;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Canvas context is unavailable.");
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, imageWidth, imageHeight);
+    context.drawImage(image, 0, 0, imageWidth, imageHeight);
+
+    const jpegData = canvas.toDataURL("image/jpeg", 0.94);
+    return {
+      imageBytes: base64ToBytes(jpegData.split(",")[1]),
+      imageWidth,
+      imageHeight,
+    };
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
 }
 
 function contractPdfFilename(contract) {
@@ -1352,44 +1574,19 @@ function contractPdfFilename(contract) {
 }
 
 async function downloadCustomerPdf(contract) {
-  const svg = contractTemplateSvg(contract, "customer");
-  const svgBlob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-  const svgUrl = URL.createObjectURL(svgBlob);
-  const image = new Image();
-  image.decoding = "async";
-
-  try {
-    await new Promise((resolve, reject) => {
-      image.onload = resolve;
-      image.onerror = reject;
-      image.src = svgUrl;
-    });
-
-    const width = 1191;
-    const height = 1684;
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("Canvas context is unavailable.");
-    context.fillStyle = "#fff";
-    context.fillRect(0, 0, width, height);
-    context.drawImage(image, 0, 0, width, height);
-
-    const jpegData = canvas.toDataURL("image/jpeg", 0.94);
-    const imageBytes = base64ToBytes(jpegData.split(",")[1]);
-    const pdfBlob = buildImagePdf(imageBytes, width, height);
-    const pdfUrl = URL.createObjectURL(pdfBlob);
-    const link = document.createElement("a");
-    link.href = pdfUrl;
-    link.download = contractPdfFilename(contract);
-    document.body.append(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(pdfUrl), 1500);
-  } finally {
-    URL.revokeObjectURL(svgUrl);
-  }
+  const pages = await Promise.all([
+    svgToPdfImagePage(contractTemplateSvg(contract, "customer")),
+    svgToPdfImagePage(contractTermsSvg()),
+  ]);
+  const pdfBlob = buildImagePdf(pages);
+  const pdfUrl = URL.createObjectURL(pdfBlob);
+  const link = document.createElement("a");
+  link.href = pdfUrl;
+  link.download = contractPdfFilename(contract);
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(pdfUrl), 1500);
 }
 
 function updatePreview() {
