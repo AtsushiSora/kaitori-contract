@@ -475,45 +475,65 @@ function populateForm(contract) {
   updatePreview();
 }
 
-function createBlankContract() {
-  const id = createContractId();
-  const contract = {
-    id,
+function defaultContractData() {
+  return {
+    contractType: "unified",
+    completionMethod: "paper",
+    purchaseAmount: "",
+    recycleDepositAmount: "",
+    automobileTaxStatus: "完納",
+    loanStatus: "無",
+    bankTransferStatus: "無",
+    paymentMethod: "振込",
+    engineDefect: "無",
+    transmissionDefect: "無",
+    powerSteeringDefect: "無",
+    suspensionDefect: "無",
+    drivingDefect: "無",
+    parkingViolationUnpaid: "無",
+    repairHistory: "無",
+    meterIssue: "無",
+    disasterHistory: "無",
+  };
+}
+
+function createContractRecord(data = defaultContractData(), status = "下書き") {
+  return {
+    id: createContractId(),
     contractNumber: nextContractNumber(),
-    status: "下書き",
+    status,
     createdAt: formatDateTime(),
     updatedAt: formatDateTime(),
     completedAt: "",
     signedAt: "",
     signatureData: "",
     identityFiles: [],
-    data: {
-      contractType: "unified",
-      completionMethod: "paper",
-      purchaseAmount: "",
-      recycleDepositAmount: "",
-      automobileTaxStatus: "完納",
-      loanStatus: "無",
-      bankTransferStatus: "無",
-      paymentMethod: "振込",
-      engineDefect: "無",
-      transmissionDefect: "無",
-      powerSteeringDefect: "無",
-      suspensionDefect: "無",
-      drivingDefect: "無",
-      parkingViolationUnpaid: "無",
-      repairHistory: "無",
-      meterIssue: "無",
-      disasterHistory: "無",
-    },
+    data,
   };
+}
+
+function createBlankContract() {
+  const contract = createContractRecord();
 
   contracts.unshift(contract);
-  activeId = id;
+  activeId = contract.id;
   persistContracts();
   populateForm(contract);
   renderList();
   renderRemoteSelectedContract();
+}
+
+function clearContractForm(showStatus = true) {
+  activeId = "";
+  signatureData = "";
+  identityFiles = [];
+  populateForm({ data: defaultContractData(), signatureData: "", identityFiles: [] });
+  renderList();
+  renderRemoteSelectedContract();
+  clearRemoteSendFields();
+  if (showStatus) {
+    setSaveStatus("入力内容をクリアしました。保存済みの契約は削除していません。", "success");
+  }
 }
 
 async function loadCloudContracts() {
@@ -529,9 +549,13 @@ async function loadCloudContracts() {
         ...cloudContract,
       }));
       ensureContractNumbers();
-      activeId = contracts[0]?.id || activeId;
+      activeId = activeAppPage === "create" ? "" : contracts[0]?.id || activeId;
       persistContracts();
-      populateForm(currentContract());
+      if (activeAppPage === "create") {
+        clearContractForm(false);
+      } else {
+        populateForm(currentContract());
+      }
       renderList();
     }
     setSaveStatus("Supabaseと同期しました。", "success");
@@ -566,9 +590,18 @@ async function syncActiveContractToCloud() {
   }
 }
 
-function saveActiveContract(status) {
-  const existing = currentContract();
-  if (!existing) return;
+function saveActiveContract(status, options = {}) {
+  const createIfMissing = Boolean(options.createIfMissing);
+  let existing = currentContract();
+
+  if (!existing) {
+    if (!createIfMissing) return false;
+    existing = createContractRecord(getFormData(), status || "下書き");
+    existing.signatureData = signatureData;
+    existing.identityFiles = identityFiles;
+    contracts.unshift(existing);
+    activeId = existing.id;
+  }
 
   existing.data = getFormData();
   existing.signatureData = signatureData;
@@ -1388,6 +1421,12 @@ function setPreviewCopy(copyType) {
 
 function setAppPage(page, updateHash = true) {
   const nextPage = ["top", "create", "list", "remote"].includes(page) ? page : "top";
+  const previousPage = activeAppPage;
+
+  if (previousPage === "create" && nextPage !== "create") {
+    clearContractForm(false);
+  }
+
   activeAppPage = nextPage;
 
   document.querySelectorAll("[data-app-view]").forEach((view) => {
@@ -1691,6 +1730,10 @@ async function generateConsentUrl() {
   const emailUrl = document.querySelector("#email-url");
   const passcodeField = document.querySelector("#consent-passcode");
   if (!emailUrl || !passcodeField) return;
+  if (!currentContract()) {
+    setSaveStatus("契約一覧から送信する契約を選択してください。", "warning");
+    return;
+  }
   saveActiveContract("送信済み");
   if (cloudEnabled()) {
     await syncActiveContractToCloud();
@@ -1716,6 +1759,7 @@ async function copyConsentUrl() {
   if (!field.value.trim()) {
     await generateConsentUrl();
   }
+  if (!field.value.trim()) return;
 
   try {
     await navigator.clipboard.writeText(field.value);
@@ -1732,6 +1776,7 @@ async function copyConsentPasscode() {
   if (!field.value.trim()) {
     await generateConsentUrl();
   }
+  if (!field.value.trim()) return;
 
   try {
     await navigator.clipboard.writeText(field.value);
@@ -1748,6 +1793,7 @@ async function copyLineMessage() {
   if (!emailUrl.value.trim()) {
     await generateConsentUrl();
   }
+  if (!emailUrl.value.trim()) return;
 
   const message = buildLineMessage();
 
@@ -1853,7 +1899,7 @@ function importContractsFile(file) {
 }
 
 async function submitCloudRecord() {
-  saveActiveContract(currentContract()?.status || "下書き");
+  saveActiveContract(currentContract()?.status || "下書き", { createIfMissing: true });
 
   if (cloudEnabled()) {
     await syncActiveContractToCloud();
@@ -1878,6 +1924,7 @@ async function openEmail() {
   if (!emailUrl.value.trim()) {
     await generateConsentUrl();
   }
+  if (!emailUrl.value.trim()) return;
   saveActiveContract("送信済み");
   const data = getFormData();
   const subject = `契約内容確認のお願い（${contractTitle(data)}）`;
@@ -1980,12 +2027,8 @@ function setupEvents() {
   document.querySelectorAll("[data-app-page]").forEach((button) => {
     button.addEventListener("click", () => {
       const page = button.dataset.appPage;
-      if (page === "create" && !contracts.length) {
-        createBlankContract();
-      }
-      if (page === "remote") {
-        saveActiveContract(currentContract()?.status || "下書き");
-        buildEmailBody();
+      if (page === "create") {
+        clearContractForm(false);
       }
       setAppPage(page);
     });
@@ -1998,6 +2041,9 @@ function setupEvents() {
   document.querySelector("#new-contract").addEventListener("click", () => {
     createBlankContract();
     setAppPage("create");
+  });
+  document.querySelector("#clear-contract-form")?.addEventListener("click", () => {
+    clearContractForm(true);
   });
   document.querySelector("#remote-selected-contract")?.addEventListener("click", (event) => {
     const pageButton = event.target.closest("[data-app-page]");
@@ -2012,7 +2058,9 @@ function setupEvents() {
     importContractsFile(event.target.files?.[0]);
     event.target.value = "";
   });
-  document.querySelector("#save-contract").addEventListener("click", () => saveActiveContract("下書き"));
+  document.querySelector("#save-contract").addEventListener("click", () => {
+    saveActiveContract("下書き", { createIfMissing: true });
+  });
   document.querySelector("#cloud-save-contract").addEventListener("click", submitCloudRecord);
   document.querySelectorAll("[data-preview-copy]").forEach((button) => {
     button.addEventListener("click", () => setPreviewCopy(button.dataset.previewCopy));
@@ -2020,15 +2068,15 @@ function setupEvents() {
   document.querySelector("#complete-contract").addEventListener("click", () => {
     const contract = currentContract();
     if (contract) contract.completedAt = formatDateTime();
-    saveActiveContract("完了");
+    saveActiveContract("完了", { createIfMissing: true });
     submitCloudRecord();
   });
   document.querySelector("#print-contract").addEventListener("click", () => {
-    saveActiveContract(currentContract()?.status || "下書き");
+    saveActiveContract(currentContract()?.status || "下書き", { createIfMissing: true });
     printTemplateContract(currentContract());
   });
   document.querySelector("#download-customer-pdf").addEventListener("click", async () => {
-    saveActiveContract(currentContract()?.status || "下書き");
+    saveActiveContract(currentContract()?.status || "下書き", { createIfMissing: true });
     try {
       setSaveStatus("お客様控えPDFを作成しています。", "pending");
       await downloadCustomerPdf(currentContract());
@@ -2110,14 +2158,19 @@ document.addEventListener("DOMContentLoaded", () => {
   setupEvents();
   setupSignatureCanvas();
 
-  if (!contracts.length) {
-    createBlankContract();
-  } else {
+  if (contracts.length) {
     activeId = contracts[0].id;
     populateForm(currentContract());
-    renderList();
+  } else {
+    activeId = "";
+    populateForm({ data: defaultContractData(), signatureData: "", identityFiles: [] });
   }
+  renderList();
 
-  setAppPage(appPageFromHash(), false);
+  const initialPage = appPageFromHash();
+  if (initialPage === "create") {
+    clearContractForm(false);
+  }
+  setAppPage(initialPage, false);
   loadCloudContracts();
 });

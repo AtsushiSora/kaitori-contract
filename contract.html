@@ -9,14 +9,14 @@
       content="オーダーオートの車両売買契約書を作成、印刷、タブレット署名、メール送信できる契約作成システムです。"
     />
     <meta name="robots" content="noindex,nofollow" />
-    <link rel="stylesheet" href="styles.css?v=20260714-top-button" />
+    <link rel="stylesheet" href="styles.css?v=20260714-clear-form" />
     <script src="supabase-config.js"></script>
     <script src="supabase-api.js?v=20260712-list-actions"></script>
     <script src="admin-auth.js"></script>
     <script>
       window.OrderAutoAdminAuth.requireAuth();
     </script>
-    <script src="contract.js?v=20260714-top-button" defer></script>
+    <script src="contract.js?v=20260714-clear-form" defer></script>
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -111,6 +111,7 @@
               </div>
               <div class="toolbar-actions">
                 <button class="button button-outline" type="button" data-app-page="top">TOPに戻る</button>
+                <button class="button button-outline" type="button" id="clear-contract-form">入力クリア</button>
                 <button class="button button-outline" type="button" id="save-contract">下書き保存</button>
                 <button class="button button-outline" type="button" id="cloud-save-contract">クラウド保存</button>
                 <a
