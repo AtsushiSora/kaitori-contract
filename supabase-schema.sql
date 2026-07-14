@@ -25,6 +25,10 @@ create table if not exists public.consent_events (
 alter table public.contracts enable row level security;
 alter table public.consent_events enable row level security;
 
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on table public.contracts to authenticated;
+grant select on table public.consent_events to authenticated;
+
 drop policy if exists "authenticated users can manage contracts" on public.contracts;
 create policy "authenticated users can manage contracts"
 on public.contracts
