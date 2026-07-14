@@ -951,6 +951,13 @@ textarea {
   gap: 12px;
 }
 
+.contract-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .contract-sidebar h2,
 .workspace-toolbar h2 {
   margin: 0;
