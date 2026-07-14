@@ -1254,11 +1254,13 @@ function contractTermsSvg() {
   return `
     <svg class="pdf-contract-svg pdf-terms-svg" viewBox="0 0 1191 1684" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="契約条項">
       <rect x="0" y="0" width="1191" height="1684" fill="#fff" />
-      <rect x="86" y="42" width="1019" height="1566" fill="none" stroke="#b8b8b8" stroke-width="0.45" opacity="0.45" />
-      <line x1="595.5" y1="88" x2="595.5" y2="1565" stroke="#8c8c8c" stroke-width="0.55" opacity="0.65" />
-      <g fill="#000" font-family="Hiragino Mincho ProN, Yu Mincho, YuMincho, serif">
-        <text x="595.5" y="72" font-family="Hiragino Kaku Gothic ProN, Yu Gothic, Meiryo, sans-serif" font-size="22" font-weight="600" text-anchor="middle">${title}</text>
-        ${columnMarkup}
+      <g transform="translate(-30 -16) scale(1.05)">
+        <rect x="86" y="42" width="1019" height="1566" fill="none" stroke="#b8b8b8" stroke-width="0.45" opacity="0.45" />
+        <line x1="595.5" y1="88" x2="595.5" y2="1565" stroke="#8c8c8c" stroke-width="0.55" opacity="0.65" />
+        <g fill="#000" font-family="Hiragino Mincho ProN, Yu Mincho, YuMincho, serif">
+          <text x="595.5" y="72" font-family="Hiragino Kaku Gothic ProN, Yu Gothic, Meiryo, sans-serif" font-size="22" font-weight="600" text-anchor="middle">${title}</text>
+          ${columnMarkup}
+        </g>
       </g>
     </svg>
   `;
