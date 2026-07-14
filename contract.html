@@ -9,14 +9,14 @@
       content="オーダーオートの車両売買契約書を作成、印刷、タブレット署名、メール送信できる契約作成システムです。"
     />
     <meta name="robots" content="noindex,nofollow" />
-    <link rel="stylesheet" href="styles.css?v=20260712-pdf-save" />
+    <link rel="stylesheet" href="styles.css?v=20260713-remote-flow" />
     <script src="supabase-config.js"></script>
     <script src="supabase-api.js?v=20260712-list-actions"></script>
     <script src="admin-auth.js"></script>
     <script>
       window.OrderAutoAdminAuth.requireAuth();
     </script>
-    <script src="contract.js?v=20260712-pdf-save" defer></script>
+    <script src="contract.js?v=20260713-remote-flow" defer></script>
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -62,6 +62,10 @@
               <button type="button" class="top-action-card" data-app-page="list">
                 <span>契約一覧</span>
                 <small>保存済み契約の検索・編集</small>
+              </button>
+              <button type="button" class="top-action-card" data-app-page="remote">
+                <span>メール・LINEで契約</span>
+                <small>確認URLを発行してお客様に送信</small>
               </button>
             </div>
           </section>
@@ -393,6 +397,68 @@
             </div>
           </div>
           </section>
+
+          <section class="app-view" data-app-view="remote" hidden>
+            <div class="remote-contract-page">
+              <div class="workspace-toolbar">
+                <div>
+                  <p class="eyebrow">Remote Contract</p>
+                  <h2>メール・LINEで契約</h2>
+                </div>
+                <div class="toolbar-actions">
+                  <button class="button button-outline" type="button" data-app-page="list">契約一覧へ</button>
+                </div>
+              </div>
+
+              <section class="email-panel remote-flow-panel" aria-label="選択中の契約">
+                <div class="remote-step-head">
+                  <strong>選択中の契約</strong>
+                  <span>契約一覧の「メール・LINE契約」から選んだ契約だけを表示します。</span>
+                </div>
+                <div id="remote-selected-contract" class="remote-selected-contract" aria-live="polite"></div>
+              </section>
+
+              <div class="remote-contract-grid">
+                <section class="email-panel remote-send-panel" aria-label="送信準備">
+                  <div class="remote-step-head">
+                    <strong>1. 確認URLを作成</strong>
+                    <span>選択中の契約からURLとパスコードを作成します。</span>
+                  </div>
+
+                  <button class="button button-primary" type="button" id="generate-consent-url">確認URL生成</button>
+
+                  <label>お客様確認URL
+                    <input id="email-url" readonly placeholder="確認URL生成を押すと表示されます" />
+                  </label>
+
+                  <label>開封パスコード
+                    <input id="consent-passcode" readonly placeholder="確認URL生成を押すと表示されます" />
+                  </label>
+
+                  <div class="remote-action-grid">
+                    <button class="button button-outline" type="button" id="copy-consent-url">URLコピー</button>
+                    <button class="button button-outline" type="button" id="copy-consent-passcode">パスワードコピー</button>
+                  </div>
+                </section>
+
+                <section class="email-panel remote-send-panel" aria-label="送信方法">
+                  <div class="remote-step-head">
+                    <strong>2. 送信方法を選択</strong>
+                    <span>URLとパスコードは別々に送ってください。</span>
+                  </div>
+                  <div class="remote-action-grid">
+                    <button class="button button-outline" type="button" id="copy-line-message">LINE文面コピー</button>
+                    <button class="button button-primary" type="button" id="open-email">メール作成</button>
+                  </div>
+                  <div class="remote-step-head">
+                    <strong>メール文面</strong>
+                    <span>必要に応じて本文を確認してから送信してください。</span>
+                  </div>
+                  <textarea id="email-body" rows="16" readonly></textarea>
+                </section>
+              </div>
+            </div>
+          </section>
         </div>
       </section>
     </main>
@@ -406,6 +472,7 @@
         <nav class="footer-links" aria-label="補足ページ">
           <a href="#top">トップ</a>
           <a href="#create">契約書作成</a>
+          <a href="#remote">メール・LINE契約</a>
           <a href="#list">契約一覧</a>
         </nav>
       </div>

@@ -513,6 +513,7 @@ function createBlankContract() {
   persistContracts();
   populateForm(contract);
   renderList();
+  renderRemoteSelectedContract();
 }
 
 async function loadCloudContracts() {
@@ -576,6 +577,7 @@ function saveActiveContract(status) {
   existing.updatedAt = formatDateTime();
   const saved = persistContracts();
   renderList();
+  renderRemoteSelectedContract();
   updatePreview();
   if (saved) {
     setSaveStatus("この端末に保存しました。Supabase設定後はクラウドにも保存できます。");
@@ -621,6 +623,7 @@ async function deleteContract(id) {
   } else {
     setSaveStatus("契約を削除しました。", "success");
   }
+  renderRemoteSelectedContract();
 }
 
 function contractTitle(data) {
@@ -1384,7 +1387,7 @@ function setPreviewCopy(copyType) {
 }
 
 function setAppPage(page, updateHash = true) {
-  const nextPage = ["top", "create", "list"].includes(page) ? page : "top";
+  const nextPage = ["top", "create", "list", "remote"].includes(page) ? page : "top";
   activeAppPage = nextPage;
 
   document.querySelectorAll("[data-app-view]").forEach((view) => {
@@ -1395,8 +1398,19 @@ function setAppPage(page, updateHash = true) {
     button.classList.toggle("active", button.dataset.appPage === activeAppPage);
   });
 
+  if (activeAppPage === "remote") {
+    renderRemoteSelectedContract();
+    buildEmailBody();
+  }
+
   if (updateHash) {
-    const nextHash = activeAppPage === "top" ? "#top" : activeAppPage === "create" ? "#create" : "#list";
+    const pageHashes = {
+      top: "#top",
+      create: "#create",
+      list: "#list",
+      remote: "#remote",
+    };
+    const nextHash = pageHashes[activeAppPage] || "#top";
     if (window.location.hash !== nextHash) {
       history.replaceState(null, "", nextHash);
     }
@@ -1407,6 +1421,7 @@ function appPageFromHash() {
   const hash = window.location.hash.replace("#", "");
   if (hash === "create" || hash === "contract-app") return "create";
   if (hash === "list" || hash === "contracts") return "list";
+  if (hash === "remote" || hash === "mail" || hash === "line") return "remote";
   return "top";
 }
 
@@ -1442,6 +1457,7 @@ function renderList() {
           </button>
           <em>${escapeHtml(contract.status)}</em>
           <div class="contract-list-actions">
+            <button class="mini-button" type="button" data-send-remote-contract="${contract.id}">メール・LINE契約</button>
             <button class="mini-button" type="button" data-edit-contract="${contract.id}">編集</button>
             <button class="mini-button danger" type="button" data-delete-contract="${contract.id}">削除</button>
           </div>
@@ -1449,6 +1465,54 @@ function renderList() {
       `;
     })
     .join("");
+}
+
+function clearRemoteSendFields() {
+  const emailUrl = document.querySelector("#email-url");
+  const passcodeField = document.querySelector("#consent-passcode");
+  if (emailUrl) emailUrl.value = "";
+  if (passcodeField) passcodeField.value = "";
+  buildEmailBody();
+}
+
+function selectRemoteContract(id) {
+  if (activeId && currentContract()) {
+    saveActiveContract(currentContract()?.status || "下書き");
+  }
+  activeId = id;
+  populateForm(currentContract());
+  renderList();
+  renderRemoteSelectedContract();
+  clearRemoteSendFields();
+  setSaveStatus("送信する契約書を選択しました。確認URL生成へ進んでください。", "success");
+}
+
+function renderRemoteSelectedContract() {
+  const target = document.querySelector("#remote-selected-contract");
+  if (!target) return;
+
+  const contract = currentContract();
+  if (!contract) {
+    target.innerHTML = `
+      <div class="remote-empty-state">
+        <p>送信する契約が選択されていません。</p>
+        <button class="button button-outline" type="button" data-app-page="list">契約一覧へ</button>
+      </div>
+    `;
+    return;
+  }
+
+  const data = contract.data || {};
+  target.innerHTML = `
+    <article class="remote-contract-item active">
+      <div>
+        <span>契約番号 ${escapeHtml(contractNumberValue(contract) || "-")}</span>
+        <strong>${safeValue(data.sellerName, "氏名未入力")}</strong>
+        <small>${safeValue(data.carName, "車名未入力")} / ${escapeHtml(contract.status || "下書き")}</small>
+      </div>
+      <button class="mini-button" type="button" data-app-page="list">契約を変更</button>
+    </article>
+  `;
 }
 
 function updateModePanels() {
@@ -1919,6 +1983,10 @@ function setupEvents() {
       if (page === "create" && !contracts.length) {
         createBlankContract();
       }
+      if (page === "remote") {
+        saveActiveContract(currentContract()?.status || "下書き");
+        buildEmailBody();
+      }
       setAppPage(page);
     });
   });
@@ -1930,6 +1998,11 @@ function setupEvents() {
   document.querySelector("#new-contract").addEventListener("click", () => {
     createBlankContract();
     setAppPage("create");
+  });
+  document.querySelector("#remote-selected-contract")?.addEventListener("click", (event) => {
+    const pageButton = event.target.closest("[data-app-page]");
+    if (!pageButton) return;
+    setAppPage(pageButton.dataset.appPage);
   });
   document.querySelector("#export-contracts").addEventListener("click", exportContracts);
   document.querySelector("#import-contracts").addEventListener("click", () => {
@@ -2001,6 +2074,13 @@ function setupEvents() {
     if (deleteButton) {
       saveActiveContract();
       await deleteContract(deleteButton.dataset.deleteContract);
+      return;
+    }
+
+    const remoteButton = event.target.closest("[data-send-remote-contract]");
+    if (remoteButton) {
+      selectRemoteContract(remoteButton.dataset.sendRemoteContract);
+      setAppPage("remote");
       return;
     }
 

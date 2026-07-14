@@ -958,6 +958,92 @@ textarea {
   line-height: 1.25;
 }
 
+.remote-contract-page {
+  display: grid;
+  gap: 18px;
+}
+
+.remote-contract-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.86fr) minmax(320px, 1.14fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.remote-send-panel {
+  align-content: start;
+}
+
+.remote-flow-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.remote-selected-contract {
+  display: grid;
+  gap: 10px;
+}
+
+.remote-empty-state {
+  display: grid;
+  gap: 12px;
+  align-items: start;
+}
+
+.remote-contract-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid rgba(15, 122, 77, 0.22);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.remote-contract-item.active {
+  border-color: var(--green);
+  box-shadow: inset 4px 0 0 var(--green);
+}
+
+.remote-contract-item div {
+  display: grid;
+  gap: 4px;
+}
+
+.remote-contract-item span,
+.remote-contract-item small {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.remote-contract-item strong {
+  color: var(--ink);
+  font-size: 1.05rem;
+}
+
+.remote-step-head {
+  display: grid;
+  gap: 4px;
+}
+
+.remote-step-head strong {
+  color: var(--green-dark);
+  font-size: 1.12rem;
+}
+
+.remote-step-head span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.remote-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .mini-button {
   min-height: 36px;
   padding: 0 12px;
@@ -2118,6 +2204,12 @@ textarea {
   }
 
   .top-action-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .remote-contract-grid,
+  .remote-action-grid,
+  .remote-contract-item {
     grid-template-columns: 1fr;
   }
 
