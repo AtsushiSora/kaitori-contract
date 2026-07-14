@@ -24,6 +24,7 @@ const ZERO_AMOUNT_CONSENT_TEXTS = [
 
 let loadedContract = null;
 let isDrawing = false;
+let hasCustomerSignature = false;
 const DEFAULT_CRYPTO_ITERATIONS = 200000;
 
 function base64UrlToBytes(value) {
@@ -144,6 +145,10 @@ function text(value, fallback = "未入力") {
   return cleaned || fallback;
 }
 
+function encodeMailtoValue(value) {
+  return encodeURIComponent(String(value ?? "")).replace(/%0A/g, "%0D%0A");
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -175,6 +180,9 @@ function renderContract() {
   const data = loadedContract.data;
   const amount = amountLabel(data);
   const contractNumber = displayContractNumber(loadedContract);
+  const signatureCanvas = document.querySelector("#customer-signature");
+  signatureCanvas.getContext("2d").clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+  hasCustomerSignature = false;
   document.querySelector("#customer-name").value = data.sellerName || "";
   document.querySelector("#summary-list").innerHTML = [
     summaryRow("契約番号", contractNumber),
@@ -199,6 +207,7 @@ function renderContract() {
       return `<label><input type="checkbox" name="customerConsent" value="${escapeHtml(item)}" />${escapeHtml(item)}</label>`;
     })
     .join("");
+  clearConsentValidation();
 
   document.querySelector("#consent-summary").hidden = false;
   document.querySelector("#consent-check-section").hidden = false;
@@ -262,6 +271,62 @@ function checkedConsents() {
   );
 }
 
+function setFieldError(element, errorElement, hasError) {
+  if (element) {
+    element.classList.toggle("field-error", hasError);
+    element.setAttribute("aria-invalid", hasError ? "true" : "false");
+  }
+  if (errorElement) {
+    errorElement.hidden = !hasError;
+  }
+}
+
+function clearConsentValidation() {
+  const customerName = document.querySelector("#customer-name");
+  const customerConsents = document.querySelector("#customer-consents");
+  const signatureCanvas = document.querySelector("#customer-signature");
+  setFieldError(customerName, document.querySelector("#customer-name-error"), false);
+  setFieldError(customerConsents, document.querySelector("#customer-consents-error"), false);
+  setFieldError(signatureCanvas, document.querySelector("#customer-signature-error"), false);
+  document.querySelectorAll('[name="customerConsent"]').forEach((checkbox) => {
+    checkbox.closest("label")?.classList.remove("field-error");
+    checkbox.removeAttribute("aria-invalid");
+  });
+}
+
+function validateConsentForm() {
+  const customerName = document.querySelector("#customer-name");
+  const customerConsents = document.querySelector("#customer-consents");
+  const signatureCanvas = document.querySelector("#customer-signature");
+  const nameMissing = !customerName.value.trim();
+  const uncheckedItems = Array.from(document.querySelectorAll('[name="customerConsent"]')).filter(
+    (item) => !item.checked,
+  );
+  const consentsMissing = uncheckedItems.length > 0;
+  const signatureMissing = !hasCustomerSignature;
+
+  setFieldError(customerName, document.querySelector("#customer-name-error"), nameMissing);
+  setFieldError(customerConsents, document.querySelector("#customer-consents-error"), consentsMissing);
+  setFieldError(signatureCanvas, document.querySelector("#customer-signature-error"), signatureMissing);
+  document.querySelectorAll('[name="customerConsent"]').forEach((checkbox) => {
+    const hasError = !checkbox.checked;
+    checkbox.closest("label")?.classList.toggle("field-error", hasError);
+    checkbox.setAttribute("aria-invalid", hasError ? "true" : "false");
+  });
+
+  if (!nameMissing && !consentsMissing && !signatureMissing) {
+    return true;
+  }
+
+  const firstError = nameMissing
+    ? customerName
+    : consentsMissing
+      ? customerConsents
+      : signatureCanvas;
+  firstError?.scrollIntoView({ behavior: "smooth", block: "center" });
+  return false;
+}
+
 function allConsentsChecked() {
   const all = document.querySelectorAll('[name="customerConsent"]');
   return all.length > 0 && Array.from(all).every((item) => item.checked);
@@ -299,6 +364,8 @@ function setupSignature() {
     const next = point(event);
     context.lineTo(next.x, next.y);
     context.stroke();
+    hasCustomerSignature = true;
+    setFieldError(canvas, document.querySelector("#customer-signature-error"), false);
   }
 
   function stop() {
@@ -314,22 +381,19 @@ function setupSignature() {
 
   document.querySelector("#clear-customer-signature").addEventListener("click", () => {
     context.clearRect(0, 0, canvas.width, canvas.height);
+    hasCustomerSignature = false;
+    setFieldError(canvas, document.querySelector("#customer-signature-error"), false);
   });
 }
 
 async function completeConsent() {
   if (!loadedContract?.data) return;
 
-  if (!allConsentsChecked()) {
-    alert("重要事項をすべて確認してください。");
+  if (!validateConsentForm()) {
     return;
   }
 
   const name = document.querySelector("#customer-name").value.trim();
-  if (!name) {
-    alert("氏名を入力してください。");
-    return;
-  }
 
   const data = loadedContract.data;
   const completedAt = formatDateTime();
@@ -374,11 +438,8 @@ async function completeConsent() {
     "このメールは、お客様が契約確認ページで同意操作を行った記録として送信しています。",
   ].join("\n");
 
-  const params = new URLSearchParams({
-    subject: `契約同意完了 ${contractNumber}`,
-    body,
-  });
-  window.location.href = `mailto:${ORDER_AUTO_EMAIL}?${params.toString()}`;
+  const subject = `契約同意完了 ${contractNumber}`;
+  window.location.href = `mailto:${ORDER_AUTO_EMAIL}?subject=${encodeMailtoValue(subject)}&body=${encodeMailtoValue(body)}`;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -390,4 +451,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
   document.querySelector("#complete-consent").addEventListener("click", completeConsent);
+  document.querySelector("#customer-name").addEventListener("input", () => {
+    setFieldError(
+      document.querySelector("#customer-name"),
+      document.querySelector("#customer-name-error"),
+      !document.querySelector("#customer-name").value.trim(),
+    );
+  });
+  document.querySelector("#customer-consents").addEventListener("change", () => {
+    const missing = !allConsentsChecked();
+    setFieldError(
+      document.querySelector("#customer-consents"),
+      document.querySelector("#customer-consents-error"),
+      missing,
+    );
+    document.querySelectorAll('[name="customerConsent"]').forEach((checkbox) => {
+      const hasError = !checkbox.checked;
+      checkbox.closest("label")?.classList.toggle("field-error", hasError);
+      checkbox.setAttribute("aria-invalid", hasError ? "true" : "false");
+    });
+  });
 });

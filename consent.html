@@ -9,10 +9,10 @@
       name="description"
       content="オーダーオートの車両契約内容を確認し、電子署名と同意を行うページです。"
     />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260714-consent-validation" />
     <script src="supabase-config.js"></script>
     <script src="supabase-api.js"></script>
-    <script src="consent.js" defer></script>
+    <script src="consent.js?v=20260714-consent-validation" defer></script>
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -65,6 +65,9 @@
 
           <section class="consent-summary" id="consent-check-section" hidden>
             <h2>重要事項</h2>
+            <p id="customer-consents-error" class="field-error-message" hidden>
+              未チェックの項目があります。すべて確認してください。
+            </p>
             <div id="customer-consents" class="consent-list"></div>
           </section>
 
@@ -73,8 +76,14 @@
             <label class="customer-name-label">
               氏名
               <input id="customer-name" autocomplete="name" />
+              <span id="customer-name-error" class="field-error-message" hidden>
+                氏名を入力してください。
+              </span>
             </label>
             <canvas id="customer-signature" width="760" height="220" aria-label="電子署名欄"></canvas>
+            <p id="customer-signature-error" class="field-error-message" hidden>
+              電子署名を記入してください。
+            </p>
             <div class="toolbar-actions">
               <button class="button button-outline" type="button" id="clear-customer-signature">
                 署名クリア
