@@ -1203,7 +1203,7 @@ function splitContractTermsLine(value, maxUnits = 58) {
 function contractTermsLines() {
   return CONTRACT_TERMS_PARAGRAPHS.flatMap((paragraph) => {
     const isHeading = /^第\d+条/.test(paragraph);
-    const wrapped = splitContractTermsLine(paragraph, isHeading ? 55 : 58).map((line) => ({ line, isHeading }));
+    const wrapped = splitContractTermsLine(paragraph, isHeading ? 46 : 49).map((line) => ({ line, isHeading }));
     return [...wrapped, { line: "", isHeading: false, isSpacer: true }];
   });
 }
@@ -1227,11 +1227,11 @@ function splitContractTermsColumns(lines) {
 function contractTermsSvg() {
   const columns = splitContractTermsColumns(contractTermsLines());
   const title = "契 約 条 項";
-  const leftX = 50;
-  const rightX = 608;
+  const leftX = 118;
+  const rightX = 630;
   const topY = 96;
-  const lineHeight = 10.8;
-  const spacerHeight = 4.9;
+  const lineHeight = 15.6;
+  const spacerHeight = 5.0;
 
   const columnMarkup = columns
     .map((column, columnIndex) => {
@@ -1243,7 +1243,7 @@ function contractTermsSvg() {
             y += spacerHeight;
             return "";
           }
-          const markup = `<text x="${x}" y="${y.toFixed(1)}" font-size="8.1" font-weight="400">${escapeHtml(item.line)}</text>`;
+          const markup = `<text x="${x}" y="${y.toFixed(1)}" font-size="8.2" font-weight="400">${escapeHtml(item.line)}</text>`;
           y += lineHeight;
           return markup;
         })
@@ -1253,10 +1253,11 @@ function contractTermsSvg() {
 
   return `
     <svg class="pdf-contract-svg pdf-terms-svg" viewBox="0 0 1191 1684" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="契約条項">
-      <rect x="27" y="27" width="1137" height="1630" fill="#fff" stroke="#000" stroke-width="1.2" />
-      <line x1="595.5" y1="96" x2="595.5" y2="1535" stroke="#000" stroke-width="0.8" />
+      <rect x="0" y="0" width="1191" height="1684" fill="#fff" />
+      <rect x="86" y="42" width="1019" height="1566" fill="none" stroke="#b8b8b8" stroke-width="0.45" opacity="0.45" />
+      <line x1="595.5" y1="88" x2="595.5" y2="1565" stroke="#8c8c8c" stroke-width="0.55" opacity="0.65" />
       <g fill="#000" font-family="Hiragino Mincho ProN, Yu Mincho, YuMincho, serif">
-        <text x="595.5" y="72" font-family="Hiragino Kaku Gothic ProN, Yu Gothic, Meiryo, sans-serif" font-size="24" font-weight="700" text-anchor="middle">${title}</text>
+        <text x="595.5" y="72" font-family="Hiragino Kaku Gothic ProN, Yu Gothic, Meiryo, sans-serif" font-size="22" font-weight="600" text-anchor="middle">${title}</text>
         ${columnMarkup}
       </g>
     </svg>
