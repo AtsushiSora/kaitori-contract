@@ -96,14 +96,16 @@ function supabaseSignOut() {
 }
 
 function dbContractToLocal(row) {
+  const consentSignature = row.consent_result?.customerSignature || "";
+  const consentCompletedAt = row.consent_result?.completedAt || "";
   return {
     id: row.id,
     status: row.status || "下書き",
     createdAt: row.created_at_text || row.created_at || "",
     updatedAt: row.updated_at_text || row.updated_at || "",
     completedAt: row.completed_at_text || "",
-    signedAt: row.signed_at_text || "",
-    signatureData: row.signature_data || "",
+    signedAt: row.signed_at_text || consentCompletedAt,
+    signatureData: row.signature_data || consentSignature,
     identityFiles: row.identity_files || [],
     cloudSavedAt: row.updated_at || "",
     consentStatus: row.consent_status || "",
@@ -137,18 +139,44 @@ async function listCloudContracts() {
   return (rows || []).map(dbContractToLocal);
 }
 
-async function getCloudContract(id) {
+async function getCloudContract(id, accessToken = "") {
   const endpoint = supabaseConfig().publicContractEndpoint;
   if (!endpoint) {
     throw new Error("Public contract endpoint is not configured");
   }
 
-  const response = await fetch(`${endpoint}?id=${encodeURIComponent(id)}`, {
+  const params = new URLSearchParams({ id, token: accessToken });
+  const response = await fetch(`${endpoint}?${params.toString()}`, {
     method: "GET",
   });
   if (!response.ok) throw new Error(await response.text());
   const row = await response.json();
   return row?.id ? dbContractToLocal(row) : null;
+}
+
+function bytesToHex(bytes) {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function hashAccessToken(token) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  return bytesToHex(new Uint8Array(digest));
+}
+
+async function createConsentAccess(contractId, token, expiresAt) {
+  if (!supabaseIsAuthenticated()) {
+    throw new Error("Administrator authentication is required");
+  }
+  const tokenHash = await hashAccessToken(token);
+  await supabaseRequest(`/rest/v1/contracts?id=eq.${encodeURIComponent(contractId)}`, {
+    method: "PATCH",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({
+      remote_access_hash: tokenHash,
+      remote_access_expires_at: new Date(expiresAt).toISOString(),
+      remote_used_at: null,
+    }),
+  });
 }
 
 async function upsertCloudContract(contract, identityFiles = []) {
@@ -162,6 +190,14 @@ async function upsertCloudContract(contract, identityFiles = []) {
 }
 
 async function deleteCloudContract(id) {
+  const rows = await supabaseRequest(
+    `/rest/v1/contracts?id=eq.${encodeURIComponent(id)}&select=identity_files`,
+    { method: "GET" },
+  );
+  const files = rows?.[0]?.identity_files || [];
+  await Promise.allSettled(
+    files.filter((file) => file.storagePath).map((file) => deleteCloudFile(file.storagePath)),
+  );
   await supabaseRequest(`/rest/v1/contracts?id=eq.${encodeURIComponent(id)}`, {
     method: "DELETE",
     headers: { Prefer: "return=minimal" },
@@ -203,6 +239,32 @@ async function uploadCloudFile(path, dataUrl) {
   return path;
 }
 
+async function getPrivateFileUrl(path, expiresIn = 600) {
+  const bucket = supabaseConfig().storageBucket || "contract-files";
+  const response = await supabaseRequest(
+    `/storage/v1/object/sign/${bucket}/${path.split("/").map(encodeURIComponent).join("/")}`,
+    {
+      method: "POST",
+      body: JSON.stringify({ expiresIn }),
+    },
+  );
+  const signedUrl = response?.signedURL || response?.signedUrl;
+  if (!signedUrl) throw new Error("Signed URL was not returned");
+  return signedUrl.startsWith("http") ? signedUrl : supabaseUrl(`/storage/v1${signedUrl}`);
+}
+
+async function deleteCloudFile(path) {
+  if (!path) return;
+  const bucket = supabaseConfig().storageBucket || "contract-files";
+  await supabaseRequest(
+    `/storage/v1/object/${bucket}`,
+    {
+      method: "DELETE",
+      body: JSON.stringify({ prefixes: [path] }),
+    },
+  );
+}
+
 async function uploadIdentityFiles(contractId, files = []) {
   const uploaded = [];
   for (const file of files) {
@@ -219,7 +281,7 @@ async function uploadIdentityFiles(contractId, files = []) {
   return uploaded;
 }
 
-async function saveConsentResult(contractId, result) {
+async function saveConsentResult(contractId, result, accessToken = "") {
   const endpoint = supabaseConfig().consentSubmitEndpoint;
   if (!endpoint) {
     throw new Error("Consent submit endpoint is not configured");
@@ -230,6 +292,7 @@ async function saveConsentResult(contractId, result) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contract_id: contractId,
+      token: accessToken,
       result,
     }),
   });
@@ -245,8 +308,11 @@ window.OrderAutoCloud = {
   session: supabaseSession,
   listContracts: listCloudContracts,
   getContract: getCloudContract,
+  createConsentAccess,
   upsertContract: upsertCloudContract,
   deleteContract: deleteCloudContract,
   uploadIdentityFiles,
+  getPrivateFileUrl,
+  deleteFile: deleteCloudFile,
   saveConsentResult,
 };

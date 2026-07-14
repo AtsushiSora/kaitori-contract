@@ -9,10 +9,10 @@
       name="description"
       content="オーダーオートの車両契約内容を確認し、電子署名と同意を行うページです。"
     />
-    <link rel="stylesheet" href="styles.css?v=20260714-consent-validation" />
+    <link rel="stylesheet" href="styles.css?v=20260714-secure-consent" />
     <script src="supabase-config.js"></script>
-    <script src="supabase-api.js"></script>
-    <script src="consent.js?v=20260714-consent-validation" defer></script>
+    <script src="supabase-api.js?v=20260714-secure-consent"></script>
+    <script src="consent.js?v=20260714-secure-consent" defer></script>
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -93,7 +93,7 @@
               </button>
             </div>
             <p class="form-note">
-              この静的版では、同意結果をメールでオーダーオートへ送信します。送信前にメール本文を確認してください。
+              同意結果と電子署名は安全に保存されます。完了後に作成されるメール本文も確認してください。
             </p>
           </section>
         </div>

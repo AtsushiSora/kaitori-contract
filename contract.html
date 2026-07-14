@@ -9,14 +9,14 @@
       content="オーダーオートの車両売買契約書を作成、印刷、タブレット署名、メール送信できる契約作成システムです。"
     />
     <meta name="robots" content="noindex,nofollow" />
-    <link rel="stylesheet" href="styles.css?v=20260714-clear-form" />
+    <link rel="stylesheet" href="styles.css?v=20260714-secure-consent" />
     <script src="supabase-config.js"></script>
-    <script src="supabase-api.js?v=20260712-list-actions"></script>
+    <script src="supabase-api.js?v=20260714-secure-consent"></script>
     <script src="admin-auth.js"></script>
     <script>
       window.OrderAutoAdminAuth.requireAuth();
     </script>
-    <script src="contract.js?v=20260714-clear-form" defer></script>
+    <script src="contract.js?v=20260714-secure-consent" defer></script>
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -349,6 +349,14 @@
                       <input type="checkbox" name="identityConfirmed" />
                       <span>本人であることを確認しました</span>
                     </label>
+                    <div class="full identity-upload-field">
+                      <p class="identity-upload-note">本人確認書類の写真は最大4枚です。クラウド保存後は、管理者だけが確認できる非公開領域に保存されます。</p>
+                      <label class="button button-outline identity-upload-button">
+                        写真を選択
+                        <input id="identity-photo-input" type="file" accept="image/*" multiple hidden />
+                      </label>
+                      <div id="identity-photo-list" class="identity-photo-list" aria-live="polite"></div>
+                    </div>
                     <label>担当者署名名<input name="staffSignatureName" /></label>
                     <label>管理者署名名<input name="managerSignatureName" /></label>
                   </div>

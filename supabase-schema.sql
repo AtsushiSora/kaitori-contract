@@ -6,6 +6,9 @@ create table if not exists public.contracts (
   identity_files jsonb not null default '[]'::jsonb,
   consent_status text,
   consent_result jsonb,
+  remote_access_hash text,
+  remote_access_expires_at timestamptz,
+  remote_used_at timestamptz,
   created_at_text text,
   updated_at_text text,
   completed_at_text text,
@@ -13,6 +16,11 @@ create table if not exists public.contracts (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.contracts
+  add column if not exists remote_access_hash text,
+  add column if not exists remote_access_expires_at timestamptz,
+  add column if not exists remote_used_at timestamptz;
 
 create table if not exists public.consent_events (
   id bigint generated always as identity primary key,

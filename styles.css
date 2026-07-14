@@ -1455,6 +1455,16 @@ textarea {
   font-weight: 800;
 }
 
+.identity-upload-field {
+  display: grid;
+  gap: 10px;
+}
+
+.identity-upload-button {
+  width: fit-content;
+  cursor: pointer;
+}
+
 .identity-photo-list {
   display: grid;
   gap: 10px;
@@ -1478,6 +1488,19 @@ textarea {
   border-radius: 6px;
   object-fit: cover;
   background: var(--white);
+}
+
+.identity-photo-placeholder {
+  display: grid;
+  width: 88px;
+  height: 64px;
+  place-items: center;
+  border: 1px solid #d6ded8;
+  border-radius: 6px;
+  color: var(--muted);
+  background: #f2f5f3;
+  font-size: 0.72rem;
+  font-weight: 800;
 }
 
 .identity-photo-item div {

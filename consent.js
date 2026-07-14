@@ -222,7 +222,10 @@ async function hydrateCloudContractIfNeeded(contract) {
     throw new Error("Supabase is not configured");
   }
 
-  const cloudContract = await window.OrderAutoCloud.getContract(contract.id);
+  const cloudContract = await window.OrderAutoCloud.getContract(
+    contract.id,
+    contract.accessToken || "",
+  );
   if (!cloudContract?.data) {
     throw new Error("Contract was not found");
   }
@@ -410,12 +413,16 @@ async function completeConsent() {
     carName: data.carName,
     plateNumber: data.plateNumber,
     amount,
-    userAgent: navigator.userAgent,
+    customerSignature: document.querySelector("#customer-signature").toDataURL("image/png"),
   };
 
   if (loadedContract.cloudMode && window.OrderAutoCloud?.isConfigured()) {
     try {
-      await window.OrderAutoCloud.saveConsentResult(loadedContract.id, result);
+      await window.OrderAutoCloud.saveConsentResult(
+        loadedContract.id,
+        result,
+        loadedContract.accessToken || "",
+      );
     } catch (error) {
       alert("同意結果をクラウド保存できませんでした。通信状況を確認してください。");
       return;

@@ -34,6 +34,7 @@ let activePreviewCopy = "customer";
 let activeAppPage = "top";
 let signatureData = "";
 let identityFiles = [];
+const identityPreviewUrls = new Map();
 let isDrawing = false;
 
 const CRYPTO_ITERATIONS = 200000;
@@ -372,9 +373,13 @@ function renderIdentityFiles() {
 
   list.innerHTML = identityFiles
     .map((file, index) => {
+      const previewUrl = file.dataUrl || identityPreviewUrls.get(file.storagePath) || "";
+      const preview = previewUrl
+        ? `<img src="${escapeHtml(previewUrl)}" alt="${escapeHtml(file.name || `本人確認写真${index + 1}`)}" />`
+        : '<div class="identity-photo-placeholder">保存済み</div>';
       return `
         <div class="identity-photo-item">
-          <img src="${file.dataUrl}" alt="${escapeHtml(file.name)}" />
+          ${preview}
           <div>
             <strong>${escapeHtml(file.name || `本人確認写真${index + 1}`)}</strong>
             <span>${escapeHtml(formatBytes(file.size))} / ${escapeHtml(file.width)}x${escapeHtml(file.height)}</span>
@@ -384,6 +389,29 @@ function renderIdentityFiles() {
       `;
     })
     .join("");
+
+  hydrateIdentityPreviews();
+}
+
+async function hydrateIdentityPreviews() {
+  if (!cloudEnabled() || !window.OrderAutoCloud?.getPrivateFileUrl) return;
+  const pending = identityFiles.filter(
+    (file) => file.storagePath && !file.dataUrl && !identityPreviewUrls.has(file.storagePath),
+  );
+  if (!pending.length) return;
+
+  await Promise.all(
+    pending.map(async (file) => {
+      identityPreviewUrls.set(file.storagePath, "");
+      try {
+        const url = await window.OrderAutoCloud.getPrivateFileUrl(file.storagePath);
+        identityPreviewUrls.set(file.storagePath, url);
+      } catch (error) {
+        identityPreviewUrls.set(file.storagePath, "");
+      }
+    }),
+  );
+  renderIdentityFiles();
 }
 
 function getFormData() {
@@ -565,10 +593,19 @@ async function syncActiveContractToCloud() {
     );
     const saved = await window.OrderAutoCloud.upsertContract(contract, identitySummary);
     if (saved) {
+      identitySummary.forEach((file, index) => {
+        const localDataUrl = contract.identityFiles?.[index]?.dataUrl;
+        if (file.storagePath && localDataUrl) {
+          identityPreviewUrls.set(file.storagePath, localDataUrl);
+        }
+      });
+      contract.identityFiles = identitySummary;
+      identityFiles = identitySummary;
       contract.cloudSavedAt = formatDateTime();
       contract.consentStatus = saved.consentStatus || contract.consentStatus || "";
       persistContracts();
       renderList();
+      renderIdentityFiles();
     }
     setSaveStatus("Supabaseへ保存しました。", "success");
     return true;
@@ -1902,16 +1939,17 @@ async function encryptPayload(payload, passcode) {
   };
 }
 
-function buildConsentPayload(contract = currentContract()) {
+function buildConsentPayload(contract = currentContract(), accessToken = "", expiresAt = 0) {
   const data = getFormData();
-  const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
+  const validUntil = expiresAt || Date.now() + 7 * 24 * 60 * 60 * 1000;
   if (cloudEnabled()) {
     return {
       id: contract?.id || activeId,
       contractNumber: contract?.contractNumber,
       cloudMode: true,
       createdAt: contract?.createdAt || formatDateTime(),
-      expiresAt,
+      expiresAt: validUntil,
+      accessToken,
       company: COMPANY,
     };
   }
@@ -1920,7 +1958,7 @@ function buildConsentPayload(contract = currentContract()) {
     id: contract?.id || activeId,
     contractNumber: contract?.contractNumber,
     createdAt: contract?.createdAt || formatDateTime(),
-    expiresAt,
+    expiresAt: validUntil,
     data,
     company: COMPANY,
   };
@@ -1935,10 +1973,20 @@ async function generateConsentUrl() {
     return;
   }
   saveActiveContract("送信済み");
+  let accessToken = "";
+  const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
   if (cloudEnabled()) {
-    await syncActiveContractToCloud();
+    const synced = await syncActiveContractToCloud();
+    if (!synced) return;
+    accessToken = bytesToBase64Url(crypto.getRandomValues(new Uint8Array(32)));
+    try {
+      await window.OrderAutoCloud.createConsentAccess(currentContract().id, accessToken, expiresAt);
+    } catch (error) {
+      setSaveStatus("お客様確認URLの安全な公開設定に失敗しました。再度お試しください。", "warning");
+      return;
+    }
   }
-  const payload = buildConsentPayload();
+  const payload = buildConsentPayload(currentContract(), accessToken, expiresAt);
   const passcode = generatePasscode();
   const encrypted = await encryptPayload(payload, passcode);
   const encoded = bytesToBase64Url(new TextEncoder().encode(JSON.stringify(encrypted)));
@@ -2307,13 +2355,25 @@ function setupEvents() {
       }
     });
   });
-  document.querySelector("#identity-photo-list")?.addEventListener("click", (event) => {
+  document.querySelector("#identity-photo-list")?.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-remove-identity-photo]");
     if (!button) return;
     const index = Number(button.dataset.removeIdentityPhoto);
+    const removed = identityFiles[index];
     identityFiles = identityFiles.filter((_, itemIndex) => itemIndex !== index);
     renderIdentityFiles();
     saveActiveContract(currentContract()?.status || "下書き");
+    if (removed?.storagePath && cloudEnabled() && window.OrderAutoCloud?.deleteFile) {
+      try {
+        const synced = await syncActiveContractToCloud();
+        if (!synced) return;
+        await window.OrderAutoCloud.deleteFile(removed.storagePath);
+        identityPreviewUrls.delete(removed.storagePath);
+      } catch (error) {
+        setSaveStatus("端末から削除しました。クラウド側の削除は再度確認してください。", "warning");
+        return;
+      }
+    }
     setSaveStatus("本人確認書類の写真を削除しました。", "success");
   });
 
