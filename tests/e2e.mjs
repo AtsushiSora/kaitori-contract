@@ -50,7 +50,10 @@ const baseUrl = `http://127.0.0.1:${address.port}`;
 let browser;
 
 try {
-  browser = await chromium.launch({ channel: "chrome", headless: true });
+  browser = await chromium.launch({
+    channel: process.env.CI ? undefined : "chrome",
+    headless: true,
+  });
   const context = await browser.newContext({ acceptDownloads: true });
   const page = await context.newPage();
 
