@@ -1853,10 +1853,10 @@ function buildEmailBody() {
     "",
     `確認URL：${url}`,
     "",
-    "確認URLは暗号化されています。",
+    "確認URLは安全なランダムトークンで保護されています。",
     "開封パスコードは安全のため、このメールには記載していません。",
     "別途お伝えするパスコードを入力し、内容をご確認のうえ、重要事項に同意して契約を完了してください。",
-    passcode ? "" : "※先に「暗号化URL生成」を押して確認URLとパスコードを作成してください。",
+    passcode ? "" : "※先に「確認URL生成」を押して確認URLとパスコードを作成してください。",
     "",
     "オーダーオート",
     `代表 ${COMPANY.representative}`,
@@ -1968,8 +1968,20 @@ async function generateConsentUrl() {
   const emailUrl = document.querySelector("#email-url");
   const passcodeField = document.querySelector("#consent-passcode");
   if (!emailUrl || !passcodeField) return;
-  if (!currentContract()) {
+  const selectedContract = currentContract();
+  if (!selectedContract) {
     setSaveStatus("契約一覧から送信する契約を選択してください。", "warning");
+    return;
+  }
+  if (selectedContract.status === "完了" || selectedContract.consentStatus === "完了") {
+    setSaveStatus("完了済みの契約は確認URLを再発行できません。", "warning");
+    return;
+  }
+  if (window.OrderAutoCloud?.isConfigured() && !cloudEnabled()) {
+    setSaveStatus(
+      "管理者ログインの有効期限が切れています。再ログインしてから確認URLを生成してください。",
+      "warning",
+    );
     return;
   }
   saveActiveContract("送信済み");

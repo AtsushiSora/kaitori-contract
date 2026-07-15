@@ -131,6 +131,12 @@ try {
   assert.match(await page.locator("#email-body").inputValue(), new RegExp(shortUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   logPass("クラウド契約で短い確認URLと別送パスコードを生成");
 
+  await page.evaluate(() => localStorage.removeItem("orderAutoSupabaseSession"));
+  await page.locator("#generate-consent-url").click();
+  assert.equal(await page.locator("#email-url").inputValue(), shortUrl);
+  assert.match(await page.locator("#cloud-save-status").textContent(), /再ログイン/);
+  logPass("ログイン期限切れ時は旧式の長いURLを発行しない");
+
   await page.locator('[aria-label="メインナビゲーション"] a[href="#list"]').click();
   await page.locator("#new-contract").click();
   assert.equal(await page.locator('[name="carName"]').inputValue(), "");
