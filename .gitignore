@@ -5,3 +5,6 @@ __pycache__/
 output/
 previews/
 supabase/.temp/
+node_modules/
+test-results/
+playwright-report/

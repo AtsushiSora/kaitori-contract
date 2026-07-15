@@ -1,0 +1,15 @@
+{
+  "name": "order-auto-kaitori-contract",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "npm run test:static && npm run test:e2e",
+    "test:static": "node --test tests/static-security.test.mjs",
+    "test:e2e": "node tests/e2e.mjs",
+    "audit:production": "node tests/production-readiness.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.61.1"
+  }
+}
