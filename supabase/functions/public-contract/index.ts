@@ -71,7 +71,9 @@ Deno.serve(async (request) => {
     const response = await fetch(supabaseUrl(`/rest/v1/contracts?${query}`), {
       headers: serviceHeaders(),
     });
-    if (!response.ok) throw new Error(await response.text());
+    if (!response.ok) {
+      throw new Error(`Database request failed with ${response.status}`);
+    }
     const contract = (await response.json())?.[0];
     if (!contract) return jsonResponse({ error: "Contract not found" }, 404, origin);
 

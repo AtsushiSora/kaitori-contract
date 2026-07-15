@@ -37,6 +37,12 @@ grant usage on schema public to authenticated;
 grant select, insert, update, delete on table public.contracts to authenticated;
 grant select on table public.consent_events to authenticated;
 
+-- Edge Functions use the service role after validating the one-time access token.
+grant usage on schema public to service_role;
+grant select, update on table public.contracts to service_role;
+grant insert on table public.consent_events to service_role;
+grant usage, select on sequence public.consent_events_id_seq to service_role;
+
 drop policy if exists "authenticated users can manage contracts" on public.contracts;
 create policy "authenticated users can manage contracts"
 on public.contracts
