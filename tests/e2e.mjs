@@ -95,6 +95,43 @@ try {
   assert.equal(await page.locator("#contract-list").getByText("テスト車両").count() > 0, true);
   logPass("契約一覧への反映と検索");
 
+  await context.route("https://cumvescylyetumupupmc.supabase.co/**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (request.method() === "POST" && url.pathname === "/rest/v1/contracts") {
+      const body = request.postDataJSON();
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([{ ...body, created_at: new Date().toISOString() }]),
+      });
+      return;
+    }
+    if (request.method() === "PATCH" && url.pathname === "/rest/v1/contracts") {
+      await route.fulfill({ status: 204, body: "" });
+      return;
+    }
+    await route.fulfill({ status: 404, contentType: "application/json", body: "{}" });
+  });
+  await page.evaluate(() => {
+    localStorage.setItem("orderAutoSupabaseSession", JSON.stringify({
+      access_token: "e2e-test-token",
+      refresh_token: "e2e-test-refresh",
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
+    }));
+  });
+  const testContractItem = page.locator("article.contract-list-item").filter({ hasText: "テスト車両" });
+  await testContractItem.getByRole("button", { name: "メール・LINE契約" }).click();
+  await page.locator("#generate-consent-url").click();
+  await page.waitForFunction(() => document.querySelector("#email-url")?.value);
+  const shortUrl = await page.locator("#email-url").inputValue();
+  assert.match(shortUrl, /\/consent\.html#r=[A-Za-z0-9_-]{32}$/);
+  assert.ok(shortUrl.length < 150, `確認URLが長すぎます: ${shortUrl.length}文字`);
+  assert.match(await page.locator("#consent-passcode").inputValue(), /^\d{8}$/);
+  assert.match(await page.locator("#email-body").inputValue(), new RegExp(shortUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  logPass("クラウド契約で短い確認URLと別送パスコードを生成");
+
+  await page.locator('[aria-label="メインナビゲーション"] a[href="#list"]').click();
   await page.locator("#new-contract").click();
   assert.equal(await page.locator('[name="carName"]').inputValue(), "");
   logPass("新規契約で入力値をクリア");

@@ -145,7 +145,8 @@ async function getCloudContract(id, accessToken = "") {
     throw new Error("Public contract endpoint is not configured");
   }
 
-  const params = new URLSearchParams({ id, token: accessToken });
+  const params = new URLSearchParams({ token: accessToken });
+  if (id) params.set("id", id);
   const response = await fetch(`${endpoint}?${params.toString()}`, {
     method: "GET",
   });

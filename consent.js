@@ -42,6 +42,16 @@ function decodeEnvelope() {
   return JSON.parse(new TextDecoder().decode(bytes));
 }
 
+function decodeShortAccessToken() {
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const token = String(params.get("r") || "").trim();
+  return /^[A-Za-z0-9_-]{32}$/.test(token) ? token : "";
+}
+
+function normalizePasscode(value) {
+  return String(value || "").trim().replaceAll("-", "");
+}
+
 async function deriveDecryptionKey(passcode, salt, iterations) {
   const material = await crypto.subtle.importKey(
     "raw",
@@ -247,13 +257,34 @@ async function unlockConsent() {
   }
 
   try {
-    const envelope = decodeEnvelope();
-    if (!envelope?.ciphertext || !envelope?.salt || !envelope?.iv) {
-      throw new Error("Missing encrypted payload");
-    }
+    const shortAccessToken = decodeShortAccessToken();
+    if (shortAccessToken) {
+      if (!window.OrderAutoCloud?.isConfigured()) {
+        throw new Error("Supabase is not configured");
+      }
+      const normalizedPasscode = normalizePasscode(passcode);
+      if (!/^\d{8}$/.test(normalizedPasscode)) {
+        throw new Error("Invalid passcode");
+      }
+      const accessCredential = `${shortAccessToken}.${normalizedPasscode}`;
+      const cloudContract = await window.OrderAutoCloud.getContract("", accessCredential);
+      if (!cloudContract?.data) {
+        throw new Error("Contract was not found");
+      }
+      loadedContract = {
+        ...cloudContract,
+        cloudMode: true,
+        accessToken: accessCredential,
+      };
+    } else {
+      const envelope = decodeEnvelope();
+      if (!envelope?.ciphertext || !envelope?.salt || !envelope?.iv) {
+        throw new Error("Missing encrypted payload");
+      }
 
-    loadedContract = await decryptEnvelopeWithPasscodeVariants(envelope, passcode);
-    loadedContract = await hydrateCloudContractIfNeeded(loadedContract);
+      loadedContract = await decryptEnvelopeWithPasscodeVariants(envelope, passcode);
+      loadedContract = await hydrateCloudContractIfNeeded(loadedContract);
+    }
 
     if (loadedContract.expiresAt && Date.now() > loadedContract.expiresAt) {
       throw new Error("Expired contract URL");

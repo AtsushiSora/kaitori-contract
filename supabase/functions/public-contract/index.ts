@@ -58,16 +58,21 @@ Deno.serve(async (request) => {
   const url = new URL(request.url);
   const id = (url.searchParams.get("id") || "").trim();
   const token = (url.searchParams.get("token") || "").trim();
-  if (!id || !token || id.length > 100 || token.length > 200) {
+  if (!token || id.length > 100 || token.length > 200) {
     return jsonResponse({ error: "Invalid request" }, 400, origin);
   }
 
   try {
+    const tokenHash = await sha256Hex(token);
     const query = new URLSearchParams({
-      id: `eq.${id}`,
       select: CONTRACT_SELECT,
       limit: "1",
     });
+    if (id) {
+      query.set("id", `eq.${id}`);
+    } else {
+      query.set("remote_access_hash", `eq.${tokenHash}`);
+    }
     const response = await fetch(supabaseUrl(`/rest/v1/contracts?${query}`), {
       headers: serviceHeaders(),
     });
@@ -77,7 +82,6 @@ Deno.serve(async (request) => {
     const contract = (await response.json())?.[0];
     if (!contract) return jsonResponse({ error: "Contract not found" }, 404, origin);
 
-    const tokenHash = await sha256Hex(token);
     const expiresAt = Date.parse(contract.remote_access_expires_at || "");
     const validToken = constantTimeEqual(tokenHash, contract.remote_access_hash || "");
     if (!validToken || !Number.isFinite(expiresAt) || Date.now() > expiresAt) {

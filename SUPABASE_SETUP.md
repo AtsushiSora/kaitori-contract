@@ -28,7 +28,9 @@ Supabase SQL Editorで `supabase-schema.sql` を実行します。
 - `publicContractEndpoint`: 暗号化URLを開いたお客様に契約内容を返す
 - `consentSubmitEndpoint`: お客様の同意結果を保存し、契約ステータスを同意済みにする
 
-Edge Function側では契約ID、7日間の有効期限、確認URL専用のランダムトークンを検証してからDBを操作します。
+Edge Function側では7日間の有効期限と確認URL専用のランダムトークンを検証してからDBを操作します。
+確認URLには32文字のランダムトークンだけを載せ、別送する8桁の開封パスコードと組み合わせて照合します。
+URLとパスコードの両方がそろわない限り、契約内容は取得できません。
 同意完了後は同じURLから再送信できません。
 
 ### Edge Functionsの配置

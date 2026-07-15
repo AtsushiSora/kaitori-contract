@@ -1973,30 +1973,40 @@ async function generateConsentUrl() {
     return;
   }
   saveActiveContract("送信済み");
-  let accessToken = "";
   const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
+  const passcode = generatePasscode();
+  const url = new URL("consent.html", window.location.href);
+
   if (cloudEnabled()) {
     const synced = await syncActiveContractToCloud();
     if (!synced) return;
-    accessToken = bytesToBase64Url(crypto.getRandomValues(new Uint8Array(32)));
+    const accessToken = bytesToBase64Url(crypto.getRandomValues(new Uint8Array(24)));
+    const accessCredential = `${accessToken}.${passcode}`;
     try {
-      await window.OrderAutoCloud.createConsentAccess(currentContract().id, accessToken, expiresAt);
+      await window.OrderAutoCloud.createConsentAccess(
+        currentContract().id,
+        accessCredential,
+        expiresAt,
+      );
     } catch (error) {
       setSaveStatus("お客様確認URLの安全な公開設定に失敗しました。再度お試しください。", "warning");
       return;
     }
+    url.hash = `r=${accessToken}`;
+  } else {
+    const payload = buildConsentPayload(currentContract(), "", expiresAt);
+    const encrypted = await encryptPayload(payload, passcode);
+    const encoded = bytesToBase64Url(new TextEncoder().encode(JSON.stringify(encrypted)));
+    url.hash = `payload=${encoded}`;
   }
-  const payload = buildConsentPayload(currentContract(), accessToken, expiresAt);
-  const passcode = generatePasscode();
-  const encrypted = await encryptPayload(payload, passcode);
-  const encoded = bytesToBase64Url(new TextEncoder().encode(JSON.stringify(encrypted)));
-  const url = new URL("consent.html", window.location.href);
-  url.hash = `payload=${encoded}`;
+
   emailUrl.value = url.toString();
   passcodeField.value = passcode;
   buildEmailBody();
   setSaveStatus(
-    "暗号化した確認URLと開封パスコードを生成しました。パスコードは別送してください。",
+    cloudEnabled()
+      ? "短い確認URLと開封パスコードを生成しました。パスコードは別送してください。"
+      : "暗号化した確認URLと開封パスコードを生成しました。パスコードは別送してください。",
     "success",
   );
 }
