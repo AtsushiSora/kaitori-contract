@@ -58,11 +58,48 @@ try {
   const page = await context.newPage();
 
   page.on("dialog", (dialog) => dialog.accept());
+  await context.route("https://cumvescylyetumupupmc.supabase.co/**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (request.method() === "POST" && url.pathname === "/auth/v1/token") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          access_token: "e2e-test-token",
+          refresh_token: "e2e-test-refresh",
+          expires_in: 3600,
+          user: { id: "e2e-admin", email: "admin@example.test" },
+        }),
+      });
+      return;
+    }
+    if (request.method() === "GET" && url.pathname === "/rest/v1/contracts") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+      return;
+    }
+    if (request.method() === "POST" && url.pathname === "/rest/v1/contracts") {
+      const body = request.postDataJSON();
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([{ ...body, created_at: new Date().toISOString() }]),
+      });
+      return;
+    }
+    if (request.method() === "PATCH" && url.pathname === "/rest/v1/contracts") {
+      await route.fulfill({ status: 204, body: "" });
+      return;
+    }
+    await route.fulfill({ status: 404, contentType: "application/json", body: "{}" });
+  });
   await page.goto(`${baseUrl}/admin.html`);
-  await page.locator("#test-login").click();
+  await page.locator("#admin-email").fill("admin@example.test");
+  await page.locator("#admin-passcode").fill("e2e-password");
+  await page.locator("#admin-submit").click();
   await page.waitForURL(/contract\.html/);
   assert.equal(await page.locator('[data-app-view="top"]').isVisible(), true);
-  logPass("テスト用ログインから契約トップへ移動");
+  logPass("管理者ログインから契約トップへ移動");
 
   await page.locator('[data-app-page="create"]').first().click();
   assert.match(page.url(), /#create$/);
@@ -95,24 +132,6 @@ try {
   assert.equal(await page.locator("#contract-list").getByText("テスト車両").count() > 0, true);
   logPass("契約一覧への反映と検索");
 
-  await context.route("https://cumvescylyetumupupmc.supabase.co/**", async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    if (request.method() === "POST" && url.pathname === "/rest/v1/contracts") {
-      const body = request.postDataJSON();
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify([{ ...body, created_at: new Date().toISOString() }]),
-      });
-      return;
-    }
-    if (request.method() === "PATCH" && url.pathname === "/rest/v1/contracts") {
-      await route.fulfill({ status: 204, body: "" });
-      return;
-    }
-    await route.fulfill({ status: 404, contentType: "application/json", body: "{}" });
-  });
   await page.evaluate(() => {
     localStorage.setItem("orderAutoSupabaseSession", JSON.stringify({
       access_token: "e2e-test-token",

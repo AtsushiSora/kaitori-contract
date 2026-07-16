@@ -53,9 +53,10 @@ supabase functions deploy submit-consent --no-verify-jwt
 
 ## 4. 本番前に必ずやること
 
-- テスト用ログインを削除する
+- `npm run audit:production`が合格することを確認する
 - `supabase-config.js` に本番値を設定する
 - 管理者ユーザーをSupabase Authに作成する
 - Edge Functionをデプロイする
 - 本人確認書類の保存・削除ルールを決める
 - GitHub Pages以外の本番ドメインを使う場合は`ALLOWED_ORIGINS`を設定する
+- `PRODUCTION_OPERATIONS.md`に沿ってバックアップ復元テストを行う

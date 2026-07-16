@@ -7,9 +7,9 @@
     <title>使い方説明書｜オーダーオート契約作成システム</title>
     <meta
       name="description"
-      content="オーダーオート契約作成システムのテスト用使い方説明書です。"
+      content="オーダーオート契約作成システムの使い方説明書です。"
     />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260717-production" />
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -32,15 +32,14 @@
     <main class="page-main manual-main">
       <section class="manual-layout">
         <div class="manual-card">
-          <p class="eyebrow">Test Guide</p>
-          <h1>テスト用 使い方説明書</h1>
+          <p class="eyebrow">Operation Guide</p>
+          <h1>使い方説明書</h1>
           <p>
-            まずはテスト用の架空データで、紙印刷、タブレット署名、メール電子同意の3パターンを確認してください。
-            実在するお客様情報は、動作確認が終わるまで入力しないでください。
+            紙印刷、タブレット署名、メール・LINE電子同意の3パターンで契約を作成できます。
+            本人確認書類を含む契約情報は、必要な担当者だけが取り扱ってください。
           </p>
 
           <div class="manual-actions">
-            <a class="button button-primary" href="index.html">テスト入口を開く</a>
             <a class="button button-primary" href="admin.html">管理ログインを開く</a>
             <a class="button button-outline" href="contract.html">契約作成を開く</a>
           </div>
@@ -48,28 +47,14 @@
 
         <div class="manual-grid">
           <article class="manual-section">
-            <h2>0. テスト用ログイン</h2>
-            <ol>
-              <li><a href="index.html">テスト入口</a>を開きます。</li>
-              <li>「テスト用ログインで開始」を押します。</li>
-              <li>確認画面でOKを押すと、登録なしで契約作成画面へ進めます。</li>
-              <li>テスト用ログインは2時間だけ有効です。</li>
-            </ol>
-            <p class="manual-note">
-              本番公開前に、テスト用ログインボタンとテストログイン処理を削除してください。
-            </p>
-          </article>
-
-          <article class="manual-section">
             <h2>1. 初回ログイン</h2>
             <ol>
               <li><a href="admin.html">管理ログイン</a>を開きます。</li>
-              <li>初回は管理者パスコードを設定します。</li>
-              <li>確認欄にも同じパスコードを入力して保存します。</li>
+              <li>Supabaseに登録した管理者メールアドレスとパスワードを入力します。</li>
               <li>ログイン後、自動で契約作成画面へ移動します。</li>
             </ol>
             <p class="manual-note">
-              テスト用でも8文字以上のパスコードを使ってください。共有端末では作業後にログアウトしてください。
+              共有端末ではパスワードを保存せず、作業後に必ずログアウトしてください。
             </p>
           </article>
 
@@ -77,14 +62,14 @@
             <h2>2. 契約書を作る</h2>
             <ol>
               <li>左側の「新規」を押します。</li>
-              <li>完結方法を「紙で印刷」「タブレット署名」「メール電子同意」から選びます。</li>
+              <li>完結方法を「紙で印刷」または「電子サイン」から選びます。</li>
               <li>売主情報、車両情報、金額・引取情報を入力します。</li>
               <li>買取金額を入力します。0円の場合は無料引取・還付なしの確認事項が同じ契約書内に表示されます。</li>
               <li>生年月日、車検満了日、支払予定日、引取予定日は「選択」ボタンからカレンダーを開けます。</li>
               <li>登録番号は「地域名」「分類番号」「かな」「番号」の4つに分けて入力します。</li>
               <li>本人確認書類の写真が必要な場合は、売主情報の「本人確認書類の写真」から表面・裏面などを添付します。</li>
               <li>右側の契約書プレビューに反映される内容を確認します。</li>
-              <li>「下書き保存」を押すと、この端末のブラウザ内に保存されます。</li>
+              <li>「クラウド保存」を押すと、Supabaseの非公開データとして保存されます。</li>
             </ol>
           </article>
 
@@ -111,11 +96,11 @@
           </article>
 
           <article class="manual-section">
-            <h2>5. メール電子同意</h2>
+            <h2>5. メール・LINE電子同意</h2>
             <ol>
-              <li>完結方法で「メール電子同意」を選びます。</li>
-              <li>売主のメールアドレスを入力します。</li>
-              <li>「暗号化URL生成」を押します。</li>
+              <li>契約書を入力し、「クラウド保存」を押します。</li>
+              <li>契約一覧を開き、対象契約の「メール・LINE契約」を押します。</li>
+              <li>選択した契約内容を確認し、「確認URL生成」を押します。</li>
               <li>「URLコピー」で確認URLをコピーし、お客様へメール送信します。</li>
               <li>LINEで送る場合は「LINE文面コピー」を押して、お客様のLINEへ貼り付けます。</li>
               <li>「パスコードコピー」で開封パスコードをコピーし、SMSや電話など別の方法で伝えます。</li>
@@ -135,7 +120,7 @@
               <li>別端末へ移す場合は「JSON取込」でバックアップファイルを読み込みます。</li>
             </ol>
             <p class="manual-note">
-              本人確認書類の写真もJSONバックアップに含まれます。ブラウザの保存データを消すと契約一覧も消えます。テスト後も必要なデータはJSON出力してください。
+              JSONファイルは補助バックアップです。本人確認書類のクラウドファイルは別管理のため、Supabase側のバックアップと保管状況も定期的に確認してください。
             </p>
           </article>
 
@@ -148,12 +133,12 @@
               <li>間違えた写真は、添付一覧の「削除」で外せます。</li>
             </ol>
             <p class="manual-note">
-              写真はこの端末のブラウザ内に保存されます。本人確認書類は機密性が高いため、共有端末ではテスト後に不要データを削除してください。
+              クラウド保存した写真はSupabaseの非公開Storageに保存されます。契約一覧から契約を削除すると、関連する写真も削除されます。
             </p>
           </article>
 
           <article class="manual-section manual-section-wide">
-            <h2>テスト用入力例</h2>
+            <h2>入力例</h2>
             <dl class="manual-dl">
               <div><dt>名字</dt><dd>山田</dd></div>
               <div><dt>名前</dt><dd>太郎</dd></div>
@@ -186,10 +171,8 @@
           <article class="manual-section manual-section-wide">
             <h2>セキュリティ上の注意</h2>
             <ul>
-              <li>このシステムの管理ログインはブラウザ側の保護です。</li>
-              <li>テスト用ログインは本番前に必ず削除してください。</li>
-              <li>実運用で強い保護が必要な場合は、サーバー側ログインとデータベース保存が必要です。</li>
-              <li>本番データを扱う前に、管理者パスコードを必ず強いものに変更してください。</li>
+              <li>管理ログインはSupabase Authで保護されています。</li>
+              <li>管理者パスワードは12文字以上を目安に、他サービスと異なるものを使用してください。</li>
               <li>本人確認書類の写真は、必要最小限の端末だけで保存してください。</li>
               <li>お客様確認URLと開封パスコードは必ず別々に送ってください。</li>
               <li>共有端末やタブレットでは、作業後に必ずログアウトしてください。</li>
@@ -203,7 +186,7 @@
       <div class="container footer-inner">
         <div>
           <p><strong>オーダーオート　契約作成システム</strong></p>
-          <p>テスト中は架空データを使い、動作確認後に本番データを入力してください。</p>
+          <p>契約情報と本人確認書類は、社内で定めた保存期間と削除手順に従って管理してください。</p>
         </div>
         <nav class="footer-links" aria-label="補足ページ">
           <a href="admin.html">管理ログイン</a>

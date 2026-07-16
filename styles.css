@@ -1785,26 +1785,6 @@ textarea {
   width: 100%;
 }
 
-.test-login-button {
-  border-color: #b45416;
-  background: #b45416;
-}
-
-.test-login-button:hover {
-  background: #8f3f0f;
-}
-
-.test-login-note {
-  margin: 0;
-  padding: 10px 12px;
-  border: 1px solid rgba(196, 112, 28, 0.32);
-  border-radius: 8px;
-  color: #8a4d11;
-  background: #fff4e9;
-  font-size: 0.9rem;
-  font-weight: 800;
-}
-
 .manual-main {
   background: #eef3ef;
 }

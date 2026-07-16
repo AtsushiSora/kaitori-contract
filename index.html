@@ -4,9 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex,nofollow" />
-    <title>テスト入口｜オーダーオート契約作成システム</title>
-    <link rel="stylesheet" href="styles.css" />
-    <script src="admin-auth.js"></script>
+    <title>オーダーオート契約作成システム</title>
+    <link rel="stylesheet" href="styles.css?v=20260717-production" />
   </head>
   <body>
     <main class="page-main admin-main">
@@ -14,29 +13,13 @@
         <div class="admin-card">
           <div>
             <p class="eyebrow">Order Auto</p>
-            <h1>契約作成システム テスト入口</h1>
-            <p>テスト中は、登録なしのテスト用ログインで契約作成画面を確認できます。</p>
+            <h1>契約作成システム</h1>
+            <p>契約書の作成・管理を始めるには、管理者としてログインしてください。</p>
           </div>
-          <button class="button button-primary test-login-button" type="button" id="top-test-login">
-            テスト用ログインで開始
-          </button>
-          <a class="button button-primary" href="admin.html">管理人ログイン</a>
+          <a class="button button-primary" href="admin.html">管理者ログイン</a>
           <a class="button button-outline" href="manual.html">使い方を見る</a>
-          <p class="test-login-note">
-            テスト用ログインは2時間だけ有効です。本番公開前にこのボタンと処理を削除してください。
-          </p>
         </div>
       </section>
     </main>
-    <script>
-      document.querySelector("#top-test-login").addEventListener("click", () => {
-        const ok = window.confirm(
-          "テスト用ログインで契約作成画面へ進みます。本番公開前にはこのボタンを削除してください。",
-        );
-        if (!ok) return;
-        window.OrderAutoAdminAuth.testLogin();
-        window.location.href = "contract.html";
-      });
-    </script>
   </body>
 </html>
