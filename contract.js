@@ -898,20 +898,6 @@ function pdfLine(x1, y1, x2, y2, width = 1.1) {
   return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#000" stroke-width="${width}" />`;
 }
 
-function pdfIdentityNumberCells(x, y, value) {
-  const cellWidth = 24;
-  const cellCount = 12;
-  const digits = onlyDigits(value).slice(0, cellCount);
-  const boxes = Array.from({ length: cellCount })
-    .map((_, index) => pdfBox(x + index * cellWidth, y, cellWidth, 30, 0.9))
-    .join("");
-  const chars = digits
-    .split("")
-    .map((char, index) => pdfField(x + index * cellWidth + cellWidth / 2, y + 22, char, 7.2, "middle"))
-    .join("");
-  return `${boxes}${chars}`;
-}
-
 function pdfCheckbox(x, y, checked = false) {
   return `
     ${pdfBox(x, y, 13, 13, 1)}
