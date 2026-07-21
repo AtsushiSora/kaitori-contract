@@ -2299,6 +2299,12 @@ function setupEvents() {
       const page = button.dataset.appPage;
       if (page === "create") {
         clearContractForm(false);
+        const completionMethod = button.dataset.completionMethod;
+        if (completionMethod && form.elements.completionMethod) {
+          form.elements.completionMethod.value = completionMethod;
+          updateModePanels();
+          updatePreview();
+        }
       }
       setAppPage(page);
     });

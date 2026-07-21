@@ -101,10 +101,18 @@ try {
   assert.equal(await page.locator('[data-app-view="top"]').isVisible(), true);
   logPass("管理者ログインから契約トップへ移動");
 
-  await page.locator('[data-app-page="create"]').first().click();
+  await page.locator('[data-completion-method="paper"]').click();
   assert.match(page.url(), /#create$/);
   assert.equal(await page.locator('[data-app-view="create"]').isVisible(), true);
-  logPass("トップから契約書作成ページへ移動");
+  assert.equal(await page.locator('[name="completionMethod"]').inputValue(), "paper");
+  assert.equal(await page.locator("#signature-panel").isHidden(), true);
+  logPass("トップの紙で印刷から印刷用の契約作成へ移動");
+
+  await page.locator('[aria-label="メインナビゲーション"] a[href="#top"]').click();
+  await page.locator('[data-completion-method="tablet"]').click();
+  assert.equal(await page.locator('[name="completionMethod"]').inputValue(), "tablet");
+  assert.equal(await page.locator("#signature-panel").isVisible(), true);
+  logPass("トップの対面電子署名から電子サイン用の契約作成へ移動");
 
   const legends = await page.locator("#contract-form fieldset > legend").allTextContents();
   assert.deepEqual(legends, ["車両情報", "金額・引取情報", "車両名義人", "売主情報", "契約方法"]);

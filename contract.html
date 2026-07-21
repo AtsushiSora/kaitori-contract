@@ -16,7 +16,7 @@
     <script>
       window.OrderAutoAdminAuth.requireAuth();
     </script>
-    <script src="contract.js?v=20260715-short-links-v2" defer></script>
+    <script src="contract.js?v=20260721-top-contract-modes" defer></script>
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -55,6 +55,24 @@
               <h2>契約書メニュー</h2>
             </div>
             <div class="top-action-grid">
+              <button
+                type="button"
+                class="top-action-card"
+                data-app-page="create"
+                data-completion-method="paper"
+              >
+                <span>紙で印刷</span>
+                <small>入力した契約書をA4で印刷して署名・押印</small>
+              </button>
+              <button
+                type="button"
+                class="top-action-card"
+                data-app-page="create"
+                data-completion-method="tablet"
+              >
+                <span>対面電子署名</span>
+                <small>タブレット上でお客様の電子サインを取得</small>
+              </button>
               <button type="button" class="top-action-card" data-app-page="create">
                 <span>契約書作成</span>
                 <small>車両・売主情報を入力してPDFを作成</small>
