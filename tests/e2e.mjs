@@ -101,6 +101,17 @@ try {
   assert.equal(await page.locator('[data-app-view="top"]').isVisible(), true);
   logPass("管理者ログインから契約トップへ移動");
 
+  const createCardBox = await page.locator(".top-action-card-wide").boundingBox();
+  const listCardBox = await page.getByRole("button", { name: /契約一覧/ }).boundingBox();
+  const paperCardBox = await page.locator('[data-completion-method="paper"]').boundingBox();
+  const remoteCardBox = await page.getByRole("button", { name: /メール・LINEで契約/ }).boundingBox();
+  const tabletCardBox = await page.locator('[data-completion-method="tablet"]').boundingBox();
+  assert.ok(createCardBox && listCardBox && paperCardBox && remoteCardBox && tabletCardBox);
+  assert.ok(createCardBox.width > listCardBox.width * 1.8);
+  assert.ok(Math.abs(listCardBox.y - paperCardBox.y) < 2 && listCardBox.x < paperCardBox.x);
+  assert.ok(Math.abs(remoteCardBox.y - tabletCardBox.y) < 2 && remoteCardBox.x < tabletCardBox.x);
+  logPass("トップメニューを横長1段と2列2段で表示");
+
   await page.locator('[data-completion-method="paper"]').click();
   assert.match(page.url(), /#create$/);
   assert.equal(await page.locator('[data-app-view="create"]').isVisible(), true);
