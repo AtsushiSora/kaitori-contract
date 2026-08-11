@@ -186,6 +186,16 @@ try {
   assert.equal((await pdfResponse.body()).subarray(0, 5).toString(), "%PDF-");
   logPass("A4契約書PDFテンプレートを配信");
 
+  await page.goto(`${baseUrl}/consent.html`);
+  await page.evaluate(() => {
+    document.querySelector("#consent-check-section").hidden = false;
+    document.querySelector("#customer-consents").innerHTML =
+      '<label><input type="checkbox" name="customerConsent" />重要事項を確認しました</label>';
+  });
+  const consentCheckboxBox = await page.locator('[name="customerConsent"]').boundingBox();
+  assert.ok(consentCheckboxBox?.width >= 26 && consentCheckboxBox?.height >= 26);
+  logPass("同意チェックボックスを押しやすい大きさで表示");
+
   await context.close();
 } finally {
   if (browser) await browser.close();

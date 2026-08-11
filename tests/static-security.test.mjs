@@ -36,6 +36,11 @@ test("メール本文の空白をプラス記号へ変換しない", async () =>
   assert.doesNotMatch(source, /new URLSearchParams\(\{\s*subject,\s*body: emailBody\.value/);
 });
 
+test("お客様同意画面のチェックボックスはタップしやすい大きさ", async () => {
+  const source = await text("styles.css");
+  assert.match(source, /\.consent-list input\s*\{[\s\S]*?width:\s*26px;[\s\S]*?height:\s*26px;/);
+});
+
 test("契約データと本人確認ファイルは認証済み管理者だけが扱える", async () => {
   const schema = await text("supabase-schema.sql");
   assert.match(schema, /alter table public\.contracts enable row level security/i);
