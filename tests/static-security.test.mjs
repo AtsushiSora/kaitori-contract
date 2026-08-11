@@ -30,6 +30,12 @@ test("管理者ログインのパスワード入力は1つだけ", async () => {
   assert.doesNotMatch(source, /パス(?:ワード|コード)確認/);
 });
 
+test("メール本文の空白をプラス記号へ変換しない", async () => {
+  const source = await text("contract.js");
+  assert.match(source, /subject=\$\{encodeMailtoValue\(subject\)\}&body=\$\{encodeMailtoValue\(emailBody\.value\)\}/);
+  assert.doesNotMatch(source, /new URLSearchParams\(\{\s*subject,\s*body: emailBody\.value/);
+});
+
 test("契約データと本人確認ファイルは認証済み管理者だけが扱える", async () => {
   const schema = await text("supabase-schema.sql");
   assert.match(schema, /alter table public\.contracts enable row level security/i);

@@ -2173,6 +2173,10 @@ function safePlain(value, fallback = "未入力") {
   return cleaned || fallback;
 }
 
+function encodeMailtoValue(value) {
+  return encodeURIComponent(String(value ?? "")).replace(/%0A/g, "%0D%0A");
+}
+
 async function openEmail() {
   const emailUrl = document.querySelector("#email-url");
   const emailBody = document.querySelector("#email-body");
@@ -2184,11 +2188,8 @@ async function openEmail() {
   saveActiveContract("送信済み");
   const data = getFormData();
   const subject = `契約内容確認のお願い（${contractTitle(data)}）`;
-  const params = new URLSearchParams({
-    subject,
-    body: emailBody.value,
-  });
-  window.location.href = `mailto:${encodeURIComponent(data.sellerEmail || "")}?${params.toString()}`;
+  const query = `subject=${encodeMailtoValue(subject)}&body=${encodeMailtoValue(emailBody.value)}`;
+  window.location.href = `mailto:${encodeURIComponent(data.sellerEmail || "")}?${query}`;
 }
 
 function setupSignatureCanvas() {
