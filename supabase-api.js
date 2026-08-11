@@ -100,6 +100,7 @@ function dbContractToLocal(row) {
   const consentCompletedAt = row.consent_result?.completedAt || "";
   return {
     id: row.id,
+    contractNumber: Number(row.contract_number || row.data?.contractNumber || 0),
     status: row.status || "下書き",
     createdAt: row.created_at_text || row.created_at || "",
     updatedAt: row.updated_at_text || row.updated_at || "",
@@ -187,6 +188,14 @@ async function upsertCloudContract(contract, identityFiles = []) {
     headers: { Prefer: "resolution=merge-duplicates,return=representation" },
     body: JSON.stringify(payload),
   });
+  const assignedNumber = await supabaseRequest("/rest/v1/rpc/assign_contract_number", {
+    method: "POST",
+    body: JSON.stringify({
+      p_contract_id: contract.id,
+      p_preferred_number: contract.contractNumber ? String(contract.contractNumber) : null,
+    }),
+  });
+  if (rows?.[0]) rows[0].contract_number = assignedNumber;
   return rows?.[0] ? dbContractToLocal(rows[0]) : null;
 }
 

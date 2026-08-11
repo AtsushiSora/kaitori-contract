@@ -91,6 +91,14 @@ try {
       await route.fulfill({ status: 204, body: "" });
       return;
     }
+    if (request.method() === "POST" && url.pathname === "/rest/v1/rpc/assign_contract_number") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify("26081101"),
+      });
+      return;
+    }
     await route.fulfill({ status: 404, contentType: "application/json", body: "{}" });
   });
   await page.goto(`${baseUrl}/admin.html`);
@@ -137,6 +145,7 @@ try {
   await page.locator('[name="sellerPostalCode"]').fill("7300000");
   await page.locator('[name="completionMethod"]').selectOption("paper");
   await page.locator("#save-contract").click();
+  assert.match(await page.locator("#contract-preview").textContent(), /\d{8}/);
 
   const stored = await page.evaluate(() => {
     const key = Object.keys(localStorage).find((item) => item.toLowerCase().includes("contract"));
@@ -168,6 +177,7 @@ try {
   assert.ok(shortUrl.length < 150, `確認URLが長すぎます: ${shortUrl.length}文字`);
   assert.match(await page.locator("#consent-passcode").inputValue(), /^\d{8}$/);
   assert.match(await page.locator("#email-body").inputValue(), new RegExp(shortUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(await page.locator("#email-body").inputValue(), /契約番号：26081101/);
   logPass("クラウド契約で短い確認URLと別送パスコードを生成");
 
   await page.evaluate(() => localStorage.removeItem("orderAutoSupabaseSession"));

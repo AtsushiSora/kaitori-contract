@@ -10,6 +10,7 @@ import {
 
 const CONTRACT_SELECT = [
   "id",
+  "contract_number",
   "status",
   "data",
   "created_at_text",

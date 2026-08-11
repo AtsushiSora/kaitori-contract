@@ -55,6 +55,21 @@ test("メール・LINE契約は案内から完了通知まで同じ手順で表�
   assert.match(consentSource, /【契約完了】車両売買契約の電子署名が完了しました/);
 });
 
+test("契約番号は日本時間の日付6桁と日別連番2桁で重複なく採番する", async () => {
+  const contractSource = await text("contract.js");
+  const apiSource = await text("supabase-api.js");
+  const schema = await text("supabase-schema.sql");
+  assert.match(contractSource, /timeZone:\s*"Asia\/Tokyo"/);
+  assert.match(contractSource, /String\(nextSequence\)\.padStart\(2, "0"\)/);
+  assert.match(contractSource, /nextSequence > 99/);
+  assert.match(apiSource, /rest\/v1\/rpc\/assign_contract_number/);
+  assert.match(schema, /add column if not exists contract_number text/i);
+  assert.match(schema, /create unique index if not exists contracts_contract_number_key/i);
+  assert.match(schema, /pg_advisory_xact_lock/);
+  assert.match(schema, /to_char\(sequence_date_jst, 'YYMMDD'\).*lpad\(sequence_value::text, 2, '0'\)/s);
+  assert.match(schema, /grant execute on function public\.assign_contract_number\(text, text\) to authenticated/i);
+});
+
 test("契約データと本人確認ファイルは認証済み管理者だけが扱える", async () => {
   const schema = await text("supabase-schema.sql");
   assert.match(schema, /alter table public\.contracts enable row level security/i);

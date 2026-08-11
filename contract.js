@@ -236,29 +236,38 @@ function contractNumberValue(contract) {
   return Number.isInteger(value) && value > 0 ? value : 0;
 }
 
+function contractNumberDatePrefix(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "2-digit",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}${value.month}${value.day}`;
+}
+
 function nextContractNumber() {
-  const maxNumber = contracts.reduce((max, contract) => {
-    return Math.max(max, contractNumberValue(contract));
-  }, 0);
-  return maxNumber + 1;
+  const prefix = contractNumberDatePrefix();
+  const usedSequences = contracts
+    .map((contract) => String(contractNumberValue(contract)))
+    .filter((number) => number.length === 8 && number.startsWith(prefix))
+    .map((number) => Number(number.slice(-2)))
+    .filter((number) => Number.isInteger(number) && number >= 1 && number <= 99);
+  const nextSequence = (usedSequences.length ? Math.max(...usedSequences) : 0) + 1;
+  if (nextSequence > 99) {
+    throw new Error("本日の契約番号は99件に達しました。管理者へ確認してください。");
+  }
+  return Number(`${prefix}${String(nextSequence).padStart(2, "0")}`);
 }
 
 function ensureContractNumbers() {
-  const used = new Set(
-    contracts
-      .map(contractNumberValue)
-      .filter((value) => value > 0),
-  );
-  let nextNumber = 1;
-
   contracts
     .slice()
     .reverse()
     .forEach((contract) => {
       if (!contract || contractNumberValue(contract)) return;
-      while (used.has(nextNumber)) nextNumber += 1;
-      contract.contractNumber = nextNumber;
-      used.add(nextNumber);
+      contract.contractNumber = nextContractNumber();
     });
 }
 
@@ -529,7 +538,13 @@ function createContractRecord(data = defaultContractData(), status = "下書き"
 }
 
 function createBlankContract() {
-  const contract = createContractRecord();
+  let contract;
+  try {
+    contract = createContractRecord();
+  } catch (error) {
+    setSaveStatus(error.message, "warning");
+    return;
+  }
 
   contracts.unshift(contract);
   activeId = contract.id;
@@ -601,6 +616,7 @@ async function syncActiveContractToCloud() {
       });
       contract.identityFiles = identitySummary;
       identityFiles = identitySummary;
+      contract.contractNumber = saved.contractNumber || contract.contractNumber;
       contract.cloudSavedAt = formatDateTime();
       contract.consentStatus = saved.consentStatus || contract.consentStatus || "";
       persistContracts();
@@ -621,7 +637,12 @@ function saveActiveContract(status, options = {}) {
 
   if (!existing) {
     if (!createIfMissing) return false;
-    existing = createContractRecord(getFormData(), status || "下書き");
+    try {
+      existing = createContractRecord(getFormData(), status || "下書き");
+    } catch (error) {
+      setSaveStatus(error.message, "warning");
+      return false;
+    }
     existing.signatureData = signatureData;
     existing.identityFiles = identityFiles;
     contracts.unshift(existing);
@@ -833,7 +854,7 @@ function legacyDrivingDefectValue(data) {
 
 function displayContractNumber(contract) {
   const number = contractNumberValue(contract);
-  return number ? String(number) : "1";
+  return number ? String(number) : "-";
 }
 
 function onlyDigits(value) {
@@ -1693,7 +1714,7 @@ function renderList() {
 
   const filtered = contracts.filter((contract) => {
     const data = contract.data || {};
-    const text = [contract.id, data.sellerName, data.sellerPhone, data.sellerHomePhone, data.sellerMobile, data.carName, data.plateNumber]
+    const text = [contract.id, contractNumberValue(contract), data.sellerName, data.sellerPhone, data.sellerHomePhone, data.sellerMobile, data.carName, data.plateNumber]
       .join(" ")
       .toLowerCase();
     const statusOk = activeFilter === "all" || contract.status === activeFilter;
@@ -1714,7 +1735,7 @@ function renderList() {
           <button class="contract-list-main" type="button" data-edit-contract="${contract.id}">
             <span>
               <strong>${safeValue(data.sellerName, "氏名未入力")}</strong>
-              <small>${safeValue(data.carName, "車名未入力")} / ${escapeHtml(contractTypeLabel(data))}</small>
+              <small>契約番号 ${escapeHtml(displayContractNumber(contract))} / ${safeValue(data.carName, "車名未入力")} / ${escapeHtml(contractTypeLabel(data))}</small>
             </span>
           </button>
           <em>${escapeHtml(contract.status)}</em>
