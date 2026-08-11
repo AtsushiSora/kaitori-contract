@@ -23,6 +23,13 @@ test("ブラウザ公開ファイルにサーバー秘密鍵を含めない", as
   }
 });
 
+test("管理者ログインのパスワード入力は1つだけ", async () => {
+  const source = await text("admin.html");
+  const passwordInputs = source.match(/<input\b[^>]*type="password"[^>]*>/gi) || [];
+  assert.equal(passwordInputs.length, 1);
+  assert.doesNotMatch(source, /パス(?:ワード|コード)確認/);
+});
+
 test("契約データと本人確認ファイルは認証済み管理者だけが扱える", async () => {
   const schema = await text("supabase-schema.sql");
   assert.match(schema, /alter table public\.contracts enable row level security/i);

@@ -13,7 +13,7 @@
     <script src="supabase-config.js"></script>
     <script src="supabase-api.js?v=20260714-secure-consent"></script>
     <script src="admin-auth.js?v=20260717-production" defer></script>
-    <script src="admin.js?v=20260717-production" defer></script>
+    <script src="admin.js?v=20260804-single-password" defer></script>
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -53,22 +53,13 @@
               />
             </label>
             <label>
-              管理者パスコード
+              パスワード
               <input
                 id="admin-passcode"
                 type="password"
                 autocomplete="current-password"
                 minlength="8"
                 required
-              />
-            </label>
-            <label id="admin-confirm-wrap" hidden>
-              パスコード確認
-              <input
-                id="admin-passcode-confirm"
-                type="password"
-                autocomplete="new-password"
-                minlength="8"
               />
             </label>
             <button class="button button-primary" type="submit" id="admin-submit">

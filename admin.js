@@ -19,7 +19,6 @@ function setMode() {
       "Supabaseの管理者メールアドレスとパスワードでログインしてください。";
     document.querySelector("#admin-email-wrap").hidden = false;
     document.querySelector("#admin-email").required = true;
-    document.querySelector("#admin-confirm-wrap").hidden = true;
     document.querySelector("#admin-passcode").autocomplete = "current-password";
     document.querySelector("#admin-submit").textContent = "ログイン";
 
@@ -37,7 +36,6 @@ function setMode() {
   document.querySelector("#admin-copy").textContent = isSetup
     ? "最初に管理者パスコードを設定してください。8文字以上を推奨します。"
     : "契約一覧・契約書作成に進むには、管理者パスコードを入力してください。";
-  document.querySelector("#admin-confirm-wrap").hidden = !isSetup;
   document.querySelector("#admin-passcode").autocomplete = isSetup
     ? "new-password"
     : "current-password";
@@ -53,7 +51,6 @@ function setMode() {
 async function handleAdminSubmit(event) {
   event.preventDefault();
   const passcode = document.querySelector("#admin-passcode").value;
-  const confirm = document.querySelector("#admin-passcode-confirm").value;
   const isCloud = window.OrderAutoCloud?.isConfigured();
   const isSetup = !window.OrderAutoAdminAuth.hasCredential();
 
@@ -76,10 +73,6 @@ async function handleAdminSubmit(event) {
     }
 
     if (isSetup) {
-      if (passcode !== confirm) {
-        setAdminMessage("確認用パスコードが一致しません。", "warning");
-        return;
-      }
       await window.OrderAutoAdminAuth.setup(passcode);
       setAdminMessage("管理者パスコードを設定しました。", "success");
       window.location.href = adminNextUrl();
