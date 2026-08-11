@@ -9,14 +9,14 @@
       content="オーダーオートの車両売買契約書を作成、印刷、タブレット署名、メール送信できる契約作成システムです。"
     />
     <meta name="robots" content="noindex,nofollow" />
-    <link rel="stylesheet" href="styles.css?v=20260722-cleanup" />
+    <link rel="stylesheet" href="styles.css?v=20260811-remote-flow" />
     <script src="supabase-config.js"></script>
     <script src="supabase-api.js?v=20260715-short-links-v2"></script>
     <script src="admin-auth.js?v=20260717-production"></script>
     <script>
       window.OrderAutoAdminAuth.requireAuth();
     </script>
-    <script src="contract.js?v=20260811-mailto-space-fix" defer></script>
+    <script src="contract.js?v=20260811-remote-flow" defer></script>
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -433,6 +433,15 @@
                 </div>
               </div>
 
+              <ol class="remote-progress" aria-label="メール・LINE契約の進行手順">
+                <li>契約を選択</li>
+                <li>URLを作成</li>
+                <li>URLを送信</li>
+                <li>パスコードを別送</li>
+                <li>署名を確認</li>
+                <li>契約完了</li>
+              </ol>
+
               <section class="email-panel remote-flow-panel" aria-label="選択中の契約">
                 <div class="remote-step-head">
                   <strong>選択中の契約</strong>
@@ -460,7 +469,7 @@
 
                   <div class="remote-action-grid">
                     <button class="button button-outline" type="button" id="copy-consent-url">URLコピー</button>
-                    <button class="button button-outline" type="button" id="copy-consent-passcode">パスワードコピー</button>
+                    <button class="button button-outline" type="button" id="copy-consent-passcode">パスコード文面コピー</button>
                   </div>
                 </section>
 

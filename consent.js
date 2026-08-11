@@ -25,6 +25,8 @@ const ZERO_AMOUNT_CONSENT_TEXTS = [
 let loadedContract = null;
 let isDrawing = false;
 let hasCustomerSignature = false;
+let completedConsentResult = null;
+let completionEmail = null;
 const DEFAULT_CRYPTO_ITERATIONS = 200000;
 
 function base64UrlToBytes(value) {
@@ -181,6 +183,21 @@ function displayContractNumber(contract) {
   return Number.isInteger(number) && number > 0 ? String(number) : text(contract?.id);
 }
 
+const CONSENT_STEPS = ["summary", "important", "sign", "complete"];
+
+function setConsentProgress(step) {
+  const currentIndex = Math.max(0, CONSENT_STEPS.indexOf(step));
+  document.querySelectorAll("[data-consent-step]").forEach((item, index) => {
+    item.classList.toggle("current", index === currentIndex);
+    item.classList.toggle("completed", index < currentIndex);
+    if (index === currentIndex) {
+      item.setAttribute("aria-current", "step");
+    } else {
+      item.removeAttribute("aria-current");
+    }
+  });
+}
+
 function renderContract() {
   if (!loadedContract?.data) {
     document.querySelector("#consent-error").hidden = false;
@@ -222,8 +239,10 @@ function renderContract() {
   document.querySelector("#consent-summary").hidden = false;
   document.querySelector("#consent-check-section").hidden = false;
   document.querySelector("#customer-sign-section").hidden = false;
+  document.querySelector("#consent-progress").hidden = false;
   document.querySelector("#consent-unlock").hidden = true;
   document.querySelector("#consent-error").hidden = true;
+  setConsentProgress("summary");
 }
 
 async function hydrateCloudContractIfNeeded(contract) {
@@ -390,6 +409,7 @@ function setupSignature() {
     const next = point(event);
     context.beginPath();
     context.moveTo(next.x, next.y);
+    setConsentProgress("sign");
   }
 
   function move(event) {
@@ -420,12 +440,124 @@ function setupSignature() {
   });
 }
 
+function buildCompletionEmail(result, data) {
+  const body = [
+    "車両売買契約の内容を確認し、電子署名と同意操作を完了しました。",
+    "",
+    `契約番号：${result.contractNumber}`,
+    `署名者：${result.customerName}`,
+    `車名：${text(data.carName)}`,
+    `登録番号：${text(data.plateNumber)}`,
+    `金額：${result.amount}`,
+    `完了日時：${result.completedAt}`,
+    "",
+    "確認・同意した事項：",
+    ...result.checkedConsents.map((item) => `・${item}`),
+    "",
+    "このメールは、お客様が契約確認ページで電子署名と同意操作を行った記録として送信されます。",
+    "",
+    ORDER_AUTO.name,
+    `代表 ${ORDER_AUTO.representative}`,
+    ORDER_AUTO.address,
+    `TEL ${ORDER_AUTO.phone}`,
+  ].join("\n");
+
+  return {
+    subject: "【契約完了】車両売買契約の電子署名が完了しました",
+    body,
+  };
+}
+
+function openCompletionEmail() {
+  if (!completionEmail) return;
+  const link = document.createElement("a");
+  link.href = `mailto:${ORDER_AUTO_EMAIL}?subject=${encodeMailtoValue(completionEmail.subject)}&body=${encodeMailtoValue(completionEmail.body)}`;
+  link.hidden = true;
+  document.body.append(link);
+  link.click();
+  link.remove();
+}
+
+function showCompletionScreen(result, data) {
+  completedConsentResult = result;
+  completionEmail = buildCompletionEmail(result, data);
+  document.querySelector("#consent-summary").hidden = true;
+  document.querySelector("#consent-check-section").hidden = true;
+  document.querySelector("#customer-sign-section").hidden = true;
+  document.querySelector("#consent-guide").hidden = true;
+  document.querySelector("#completion-summary-list").innerHTML = [
+    summaryRow("契約番号", result.contractNumber),
+    summaryRow("署名者", result.customerName),
+    summaryRow("車名", data.carName),
+    summaryRow("登録番号", data.plateNumber),
+    summaryRow("金額", result.amount),
+    summaryRow("完了日時", result.completedAt),
+  ].join("");
+  document.querySelector("#consent-complete-section").hidden = false;
+  setConsentProgress("complete");
+  document.querySelector("#consent-complete-section").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function printCustomerCopy() {
+  if (!completedConsentResult || !loadedContract?.data) return;
+  const data = loadedContract.data;
+  const result = completedConsentResult;
+  const signature = escapeHtml(result.customerSignature);
+  const checkedItems = result.checkedConsents.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    alert("お客様控えを開けませんでした。ブラウザのポップアップ設定を確認してください。");
+    return;
+  }
+
+  printWindow.document.write(`<!doctype html>
+    <html lang="ja"><head><meta charset="UTF-8"><title>車両売買契約 お客様控え</title>
+    <style>
+      @page { size: A4 portrait; margin: 14mm; }
+      * { box-sizing: border-box; }
+      body { margin: 0; color: #111; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; font-size: 12px; line-height: 1.55; }
+      h1 { margin: 0 0 4px; text-align: center; font-size: 22px; }
+      .copy { text-align: right; font-weight: 700; }
+      table { width: 100%; margin-top: 14px; border-collapse: collapse; }
+      th, td { border: 1px solid #333; padding: 7px 9px; text-align: left; vertical-align: top; }
+      th { width: 28%; background: #f5f5f5; }
+      h2 { margin: 18px 0 6px; font-size: 15px; }
+      li { margin: 3px 0; }
+      .signature { height: 86px; object-fit: contain; object-position: left center; }
+      .company { margin-top: 22px; padding-top: 10px; border-top: 1px solid #555; }
+      @media print { button { display: none; } }
+    </style></head><body>
+      <div class="copy">お客様控え</div>
+      <h1>車両売買契約 電子契約完了記録</h1>
+      <table>
+        <tr><th>契約番号</th><td>${escapeHtml(result.contractNumber)}</td></tr>
+        <tr><th>契約内容</th><td>${escapeHtml(contractTypeLabel(data))}</td></tr>
+        <tr><th>車名</th><td>${escapeHtml(text(data.carName))}</td></tr>
+        <tr><th>登録番号</th><td>${escapeHtml(text(data.plateNumber))}</td></tr>
+        <tr><th>車台番号</th><td>${escapeHtml(text(data.chassisNumber))}</td></tr>
+        <tr><th>買取金額</th><td>${escapeHtml(result.amount)}</td></tr>
+        <tr><th>署名者</th><td>${escapeHtml(result.customerName)}</td></tr>
+        <tr><th>完了日時</th><td>${escapeHtml(result.completedAt)}</td></tr>
+        <tr><th>電子署名</th><td><img class="signature" src="${signature}" alt="電子署名"></td></tr>
+      </table>
+      <h2>確認・同意した事項</h2>
+      <ul>${checkedItems}</ul>
+      <p class="company"><strong>${ORDER_AUTO.name}</strong><br>代表 ${ORDER_AUTO.representative}<br>${ORDER_AUTO.address}<br>TEL ${ORDER_AUTO.phone}</p>
+      <script>window.addEventListener("load", () => setTimeout(() => window.print(), 200));<\/script>
+    </body></html>`);
+  printWindow.document.close();
+}
+
 async function completeConsent() {
   if (!loadedContract?.data) return;
 
   if (!validateConsentForm()) {
     return;
   }
+
+  const completeButton = document.querySelector("#complete-consent");
+  completeButton.disabled = true;
+  completeButton.textContent = "契約を完了しています";
 
   const name = document.querySelector("#customer-name").value.trim();
 
@@ -456,28 +588,14 @@ async function completeConsent() {
       );
     } catch (error) {
       alert("同意結果をクラウド保存できませんでした。通信状況を確認してください。");
+      completeButton.disabled = false;
+      completeButton.textContent = "同意して完了メールを作成";
       return;
     }
   }
-
-  const body = [
-    "契約内容を確認し、電子同意しました。",
-    "",
-    `契約番号：${contractNumber}`,
-    `同意日時：${completedAt}`,
-    `氏名：${name}`,
-    `契約内容：${contractTypeLabel(data)}`,
-    `車両：${text(data.carName)} ${text(data.plateNumber)}`,
-    `金額：${amount}`,
-    "",
-    "確認した重要事項：",
-    ...result.checkedConsents.map((item) => `・${item}`),
-    "",
-    "このメールは、お客様が契約確認ページで同意操作を行った記録として送信しています。",
-  ].join("\n");
-
-  const subject = `契約同意完了 ${contractNumber}`;
-  window.location.href = `mailto:${ORDER_AUTO_EMAIL}?subject=${encodeMailtoValue(subject)}&body=${encodeMailtoValue(body)}`;
+  showCompletionScreen(result, data);
+  openCompletionEmail();
+  window.setTimeout(() => setConsentProgress("complete"), 0);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -489,6 +607,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
   document.querySelector("#complete-consent").addEventListener("click", completeConsent);
+  document.querySelector("#reopen-completion-email").addEventListener("click", openCompletionEmail);
+  document.querySelector("#save-customer-copy").addEventListener("click", printCustomerCopy);
   document.querySelector("#customer-name").addEventListener("input", () => {
     setFieldError(
       document.querySelector("#customer-name"),
@@ -497,6 +617,7 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   });
   document.querySelector("#customer-consents").addEventListener("change", () => {
+    setConsentProgress("important");
     const missing = !allConsentsChecked();
     setFieldError(
       document.querySelector("#customer-consents"),
@@ -508,5 +629,9 @@ document.addEventListener("DOMContentLoaded", () => {
       checkbox.closest("label")?.classList.toggle("field-error", hasError);
       checkbox.setAttribute("aria-invalid", hasError ? "true" : "false");
     });
+  });
+  document.querySelector("#consent-summary").addEventListener("click", () => setConsentProgress("summary"));
+  document.querySelector("#customer-sign-section").addEventListener("focusin", () => {
+    if (!completedConsentResult) setConsentProgress("sign");
   });
 });

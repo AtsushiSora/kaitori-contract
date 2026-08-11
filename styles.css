@@ -16,6 +16,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html {
   scroll-behavior: smooth;
   overflow-x: hidden;
@@ -377,6 +381,54 @@ textarea {
 .remote-flow-panel {
   display: grid;
   gap: 14px;
+}
+
+.remote-progress {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0;
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+  counter-reset: remote-step;
+}
+
+.remote-progress li {
+  position: relative;
+  min-width: 0;
+  padding: 34px 8px 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.remote-progress li::before {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 1;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--green);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--green);
+  content: counter(remote-step);
+  counter-increment: remote-step;
+  place-items: center;
+  transform: translateX(-50%);
+}
+
+.remote-progress li:not(:first-child)::after {
+  position: absolute;
+  top: 13px;
+  right: 50%;
+  width: 100%;
+  height: 2px;
+  background: var(--border);
+  content: "";
 }
 
 .remote-selected-contract {
@@ -1280,6 +1332,112 @@ textarea {
   color: var(--muted);
 }
 
+.consent-guide {
+  display: grid;
+  gap: 10px;
+  padding: 16px 0 2px;
+  border-top: 1px solid var(--line);
+}
+
+.consent-guide h2,
+.consent-guide ol {
+  margin: 0;
+}
+
+.consent-guide h2 {
+  font-size: 1.15rem;
+}
+
+.consent-guide ol {
+  display: grid;
+  gap: 7px;
+  padding-left: 1.55rem;
+  color: var(--muted);
+}
+
+.consent-progress {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 4px 0 2px;
+  padding: 0;
+  list-style: none;
+  counter-reset: consent-step;
+}
+
+.consent-progress li {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: center;
+  counter-increment: consent-step;
+}
+
+.consent-progress li::before {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 2px solid #bac6c0;
+  border-radius: 50%;
+  background: var(--white);
+  color: var(--muted);
+  content: counter(consent-step);
+}
+
+.consent-progress li:not(:first-child)::after {
+  position: absolute;
+  top: 14px;
+  right: 50%;
+  width: 100%;
+  height: 2px;
+  background: #d7dfdb;
+  content: "";
+}
+
+.consent-progress li.current,
+.consent-progress li.completed {
+  color: var(--green);
+}
+
+.consent-progress li.current::before,
+.consent-progress li.completed::before {
+  border-color: var(--green);
+}
+
+.consent-progress li.completed::before {
+  background: var(--green);
+  color: #fff;
+  content: "\2713";
+}
+
+.consent-progress li.completed::after,
+.consent-progress li.current::after {
+  background: var(--green);
+}
+
+.consent-complete {
+  display: grid;
+  gap: 14px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.consent-complete h2,
+.consent-complete p {
+  margin: 0;
+}
+
+.consent-complete h2 {
+  font-size: clamp(1.45rem, 4vw, 2rem);
+}
+
 .consent-summary {
   display: grid;
   gap: 12px;
@@ -1334,6 +1492,21 @@ textarea {
   touch-action: none;
 }
 
+@media (max-width: 620px) {
+  .consent-progress li {
+    font-size: 0.68rem;
+  }
+
+  .consent-progress li::before {
+    width: 28px;
+    height: 28px;
+  }
+
+  .consent-progress li:not(:first-child)::after {
+    top: 13px;
+  }
+}
+
 @media (max-width: 940px) {
   .site-header {
     position: absolute;
@@ -1359,6 +1532,15 @@ textarea {
 }
 
 @media (max-width: 640px) {
+  .remote-progress {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: 12px;
+  }
+
+  .remote-progress li:nth-child(4)::after {
+    display: none;
+  }
+
   .container {
     width: min(100% - 28px, 1120px);
   }

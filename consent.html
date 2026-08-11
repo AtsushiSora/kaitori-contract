@@ -9,10 +9,10 @@
       name="description"
       content="オーダーオートの車両契約内容を確認し、電子署名と同意を行うページです。"
     />
-    <link rel="stylesheet" href="styles.css?v=20260811-large-consent-checkbox" />
+    <link rel="stylesheet" href="styles.css?v=20260811-consent-flow" />
     <script src="supabase-config.js"></script>
     <script src="supabase-api.js?v=20260715-short-links-v2"></script>
-    <script src="consent.js?v=20260715-short-links-v2" defer></script>
+    <script src="consent.js?v=20260811-consent-flow" defer></script>
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -37,8 +37,28 @@
           <p class="eyebrow">Agreement</p>
           <h1>契約内容の確認</h1>
           <p id="consent-lead">
-            メールで届いた確認URLと、別途案内された開封パスコードを使って契約内容を確認してください。
+            メール・LINEで届いた確認URLと、別途案内された開封パスコードを使って契約内容を確認してください。
           </p>
+
+          <section class="consent-guide" id="consent-guide" aria-labelledby="consent-guide-title">
+            <h2 id="consent-guide-title">メール・LINEでご契約</h2>
+            <ol>
+              <li>契約内容をご確認ください</li>
+              <li>重要事項・契約条項をご確認ください</li>
+              <li>必須項目にチェックしてください</li>
+              <li>画面に電子署名をご記入ください</li>
+              <li>「同意して完了メールを作成」を押してください</li>
+              <li>完了メールの内容を確認し、「送信」を押してください</li>
+              <li>完了画面からお客様控えをPDF保存してください</li>
+            </ol>
+          </section>
+
+          <ol class="consent-progress" id="consent-progress" aria-label="契約手続きの進行状況" hidden>
+            <li data-consent-step="summary">内容確認</li>
+            <li data-consent-step="important">重要事項</li>
+            <li data-consent-step="sign">同意・署名</li>
+            <li data-consent-step="complete">契約完了</li>
+          </ol>
 
           <section class="consent-unlock" id="consent-unlock">
             <h2>開封パスコード</h2>
@@ -64,7 +84,10 @@
           </section>
 
           <section class="consent-summary" id="consent-check-section" hidden>
-            <h2>重要事項</h2>
+            <h2>重要事項・契約条項</h2>
+            <p class="form-note">
+              契約概要と各確認項目を読み、内容に問題がなければすべてにチェックしてください。
+            </p>
             <p id="customer-consents-error" class="field-error-message" hidden>
               未チェックの項目があります。すべて確認してください。
             </p>
@@ -93,8 +116,20 @@
               </button>
             </div>
             <p class="form-note">
-              同意結果と電子署名は安全に保存されます。完了後に作成されるメール本文も確認してください。
+              この操作で電子署名が確定し、契約が完了します。作成された完了メールの内容を確認し、送信してください。
             </p>
+          </section>
+
+          <section class="consent-complete" id="consent-complete-section" hidden>
+            <p class="eyebrow">Completed</p>
+            <h2>契約が完了しました</h2>
+            <p>電子署名と同意結果を保存しました。完了メールを送信した後、お客様控えを保存してください。</p>
+            <dl class="document-dl" id="completion-summary-list"></dl>
+            <div class="toolbar-actions">
+              <button class="button button-outline" type="button" id="reopen-completion-email">完了メールを再作成</button>
+              <button class="button button-primary" type="button" id="save-customer-copy">お客様控えPDFを保存</button>
+            </div>
+            <p class="form-note">PDF保存は表示される印刷画面から「PDFとして保存」または共有メニューの「ファイルに保存」を選んでください。</p>
           </section>
         </div>
       </section>

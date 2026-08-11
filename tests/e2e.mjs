@@ -160,6 +160,7 @@ try {
   });
   const testContractItem = page.locator("article.contract-list-item").filter({ hasText: "テスト車両" });
   await testContractItem.getByRole("button", { name: "メール・LINE契約" }).click();
+  assert.equal(await page.locator(".remote-progress li").count(), 6);
   await page.locator("#generate-consent-url").click();
   await page.waitForFunction(() => document.querySelector("#email-url")?.value);
   const shortUrl = await page.locator("#email-url").inputValue();
@@ -187,6 +188,10 @@ try {
   logPass("A4契約書PDFテンプレートを配信");
 
   await page.goto(`${baseUrl}/consent.html`);
+  assert.equal(await page.getByRole("heading", { name: "メール・LINEでご契約" }).isVisible(), true);
+  assert.equal(await page.locator("#consent-guide li").count(), 7);
+  assert.equal(await page.locator("#consent-progress li").count(), 4);
+  logPass("お客様向けに7手順と4段階の進行表示を用意");
   await page.evaluate(() => {
     document.querySelector("#consent-check-section").hidden = false;
     document.querySelector("#customer-consents").innerHTML =

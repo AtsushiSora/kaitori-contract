@@ -91,6 +91,23 @@ Deno.serve(async (request) => {
       return jsonResponse({ error: "Consent is already completed" }, 409, origin);
     }
 
+    const openedAt = new Date().toISOString();
+    const statusResponse = await fetch(
+      supabaseUrl(`/rest/v1/contracts?id=eq.${encodeURIComponent(contract.id)}&status=neq.%E5%AE%8C%E4%BA%86`),
+      {
+        method: "PATCH",
+        headers: serviceHeaders("return=minimal"),
+        body: JSON.stringify({
+          status: "署名待ち",
+          consent_status: "署名待ち",
+          updated_at: openedAt,
+        }),
+      },
+    );
+    if (!statusResponse.ok) {
+      console.error("contract status update failed", await statusResponse.text());
+    }
+
     const {
       remote_access_hash: _hash,
       remote_access_expires_at: _expires,

@@ -41,6 +41,20 @@ test("お客様同意画面のチェックボックスはタップしやすい�
   assert.match(source, /\.consent-list input\s*\{[\s\S]*?width:\s*26px;[\s\S]*?height:\s*26px;/);
 });
 
+test("メール・LINE契約は案内から完了通知まで同じ手順で表示する", async () => {
+  const contractSource = await text("contract.js");
+  const consentHtml = await text("consent.html");
+  const consentSource = await text("consent.js");
+  assert.match(contractSource, /【ご契約の手順】/);
+  assert.match(contractSource, /function buildLineMessage/);
+  assert.match(contractSource, /function buildPasscodeMessage/);
+  assert.match(contractSource, /完了画面からお客様控えをPDF保存/);
+  assert.match(consentHtml, /内容確認[\s\S]*重要事項[\s\S]*同意・署名[\s\S]*契約完了/);
+  assert.match(consentHtml, /id="consent-complete-section"/);
+  assert.match(consentSource, /function showCompletionScreen/);
+  assert.match(consentSource, /【契約完了】車両売買契約の電子署名が完了しました/);
+});
+
 test("契約データと本人確認ファイルは認証済み管理者だけが扱える", async () => {
   const schema = await text("supabase-schema.sql");
   assert.match(schema, /alter table public\.contracts enable row level security/i);
@@ -59,6 +73,7 @@ test("お客様向けURLは期限・ワンタイムトークン・完了済み�
   assert.match(source, /PUBLIC_DATA_FIELDS/);
   assert.doesNotMatch(source, /signature_data/);
   assert.doesNotMatch(source, /identity_files/);
+  assert.match(source, /status: "署名待ち"/);
 });
 
 test("クラウド確認URLは契約データを埋め込まず短いトークンだけを公開する", async () => {

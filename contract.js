@@ -1831,17 +1831,27 @@ function buildEmailBody() {
     `${safePlain(data.sellerName, "お客様")} 様`,
     "",
     "オーダーオートです。",
-    "車両契約の内容確認をお願いいたします。",
+    "車両売買契約の内容確認と電子署名をお願いいたします。",
     "",
+    `契約番号：${displayContractNumber(currentContract())}`,
     `契約内容：${contractTypeLabel(data)}`,
-    `車両：${safePlain(data.carName)} ${safePlain(data.plateNumber)}`,
+    `車名：${safePlain(data.carName)}`,
+    `登録番号：${safePlain(data.plateNumber)}`,
     `金額：${amountLabel(data) || "未入力"}`,
     "",
-    `確認URL：${url}`,
+    "【ご契約の手順】",
+    "1. 契約内容をご確認ください",
+    "2. 重要事項・契約条項をご確認ください",
+    "3. 必須項目にチェックしてください",
+    "4. 画面に電子署名をご記入ください",
+    "5. 「同意して完了メールを作成」を押してください",
+    "   ※この操作で電子署名が確定し、契約が完了します",
+    "6. 作成された完了メールの内容を確認し、「送信」を押してください",
+    "7. 完了画面からお客様控えをPDF保存してください",
     "",
-    "確認URLは安全なランダムトークンで保護されています。",
-    "開封パスコードは安全のため、このメールには記載していません。",
-    "別途お伝えするパスコードを入力し、内容をご確認のうえ、重要事項に同意して契約を完了してください。",
+    `確認URL：${url}`,
+    "有効期限：URL作成から7日間",
+    "開封パスコードは安全のため別のメールまたはLINEでお送りします。",
     passcode ? "" : "※先に「確認URL生成」を押して確認URLとパスコードを作成してください。",
     "",
     "オーダーオート",
@@ -1861,15 +1871,38 @@ function buildLineMessage() {
     `${safePlain(data.sellerName, "お客様")} 様`,
     "",
     "オーダーオートです。",
-    "車両契約の内容確認をお願いします。",
+    "車両売買契約の内容確認と電子署名をお願いします。",
     "",
+    `契約番号：${displayContractNumber(currentContract())}`,
     `契約内容：${contractTypeLabel(data)}`,
-    `車両：${safePlain(data.carName)} ${safePlain(data.plateNumber)}`,
+    `車名：${safePlain(data.carName)}`,
+    `登録番号：${safePlain(data.plateNumber)}`,
+    `金額：${amountLabel(data) || "未入力"}`,
+    "",
+    "【手順】",
+    "1. 契約内容を確認",
+    "2. 重要事項・契約条項を確認",
+    "3. 必須項目にチェック",
+    "4. 画面に電子署名を記入",
+    "5. 「同意して完了メールを作成」を押す",
+    "6. 完了メールの内容を確認して送信",
+    "7. 完了画面からお客様控えをPDF保存",
     "",
     `確認URL：${url}`,
     "",
-    "開封パスコードは安全のため、このLINEには記載していません。",
-    "別途お伝えする8桁のパスコードを入力して確認してください。",
+    "URLの有効期限は作成から7日間です。",
+    "8桁の開封パスコードは別のメッセージでお送りします。",
+  ].join("\n");
+}
+
+function buildPasscodeMessage() {
+  const passcode = document.querySelector("#consent-passcode")?.value.trim() || "【8桁のパスコード】";
+  return [
+    "契約確認ページの開封パスコードです。",
+    "",
+    passcode,
+    "",
+    "このパスコードは第三者に知らせないでください。",
   ].join("\n");
 }
 
@@ -2035,8 +2068,8 @@ async function copyConsentPasscode() {
   if (!field.value.trim()) return;
 
   try {
-    await navigator.clipboard.writeText(field.value);
-    setSaveStatus("開封パスコードをコピーしました。URLとは別経路で送ってください。", "success");
+    await navigator.clipboard.writeText(buildPasscodeMessage());
+    setSaveStatus("別送用のパスコード文面をコピーしました。", "success");
   } catch (error) {
     field.select();
     setSaveStatus("パスコード欄を選択しました。手動でコピーしてください。", "warning");
@@ -2055,6 +2088,7 @@ async function copyLineMessage() {
 
   try {
     await navigator.clipboard.writeText(message);
+    saveActiveContract("送信済み");
     setSaveStatus("LINE送信用の文面をコピーしました。パスコードは別送してください。", "success");
   } catch (error) {
     setSaveStatus("LINE文面をコピーできませんでした。URLコピーを使って手動で送ってください。", "warning");
@@ -2187,7 +2221,7 @@ async function openEmail() {
   if (!emailUrl.value.trim()) return;
   saveActiveContract("送信済み");
   const data = getFormData();
-  const subject = `契約内容確認のお願い（${contractTitle(data)}）`;
+  const subject = "【オーダーオート】車両売買契約のご確認と電子署名のお願い";
   const query = `subject=${encodeMailtoValue(subject)}&body=${encodeMailtoValue(emailBody.value)}`;
   window.location.href = `mailto:${encodeURIComponent(data.sellerEmail || "")}?${query}`;
 }
