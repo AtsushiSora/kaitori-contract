@@ -24,10 +24,16 @@ test("ブラウザ公開ファイルにサーバー秘密鍵を含めない", as
 });
 
 test("管理者ログインのパスワード入力は1つだけ", async () => {
-  const source = await text("admin.html");
+  const [source, authSource] = await Promise.all([text("admin.html"), text("admin-auth.js")]);
   const passwordInputs = source.match(/<input\b[^>]*type="password"[^>]*>/gi) || [];
   assert.equal(passwordInputs.length, 1);
   assert.doesNotMatch(source, /パス(?:ワード|コード)確認/);
+  assert.doesNotMatch(authSource, /orderAutoAdminCredential|PBKDF2|adminSetup/);
+});
+
+test("ログイン後は同一サイト内にだけ遷移する", async () => {
+  const source = await text("admin.js");
+  assert.match(source, /destination\.origin !== window\.location\.origin/);
 });
 
 test("メール本文の空白をプラス記号へ変換しない", async () => {

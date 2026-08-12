@@ -705,10 +705,6 @@ async function deleteContract(id) {
   renderRemoteSelectedContract();
 }
 
-function contractTitle(data) {
-  return data.completionMethod === "paper" ? "車両売買契約書" : "電子車両売買契約書";
-}
-
 function contractTypeLabel(data) {
   return isZeroAmountContract(data) ? "売買契約（買取金額0円）" : "売買契約";
 }

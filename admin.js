@@ -1,6 +1,11 @@
 function adminNextUrl() {
   const params = new URLSearchParams(window.location.search);
-  return params.get("next") || "contract.html";
+  const requested = params.get("next");
+  if (!requested) return "contract.html";
+
+  const destination = new URL(requested, window.location.href);
+  if (destination.origin !== window.location.origin) return "contract.html";
+  return `${destination.pathname}${destination.search}${destination.hash}`;
 }
 
 function setAdminMessage(message, tone = "neutral") {
@@ -10,85 +15,42 @@ function setAdminMessage(message, tone = "neutral") {
 }
 
 function setMode() {
-  const isCloud = window.OrderAutoCloud?.isConfigured();
-  const isSetup = !window.OrderAutoAdminAuth.hasCredential();
-
-  if (isCloud) {
-    document.querySelector("#admin-title").textContent = "管理者ログイン";
-    document.querySelector("#admin-copy").textContent =
-      "Supabaseの管理者メールアドレスとパスワードでログインしてください。";
-    document.querySelector("#admin-email-wrap").hidden = false;
-    document.querySelector("#admin-email").required = true;
-    document.querySelector("#admin-passcode").autocomplete = "current-password";
-    document.querySelector("#admin-submit").textContent = "ログイン";
-
-    if (window.OrderAutoAdminAuth.isAuthenticated()) {
-      setAdminMessage("Supabaseにログイン済みです。契約作成へ進めます。", "success");
-    } else {
-      setAdminMessage("Supabase接続が有効です。本番ログインで保護されます。", "success");
-    }
-    return;
-  }
-
-  document.querySelector("#admin-title").textContent = isSetup
-    ? "初回管理者設定"
-    : "管理人ログイン";
-  document.querySelector("#admin-copy").textContent = isSetup
-    ? "最初に管理者パスコードを設定してください。8文字以上を推奨します。"
-    : "契約一覧・契約書作成に進むには、管理者パスコードを入力してください。";
-  document.querySelector("#admin-passcode").autocomplete = isSetup
-    ? "new-password"
-    : "current-password";
-  document.querySelector("#admin-submit").textContent = isSetup
-    ? "設定して管理画面へ"
-    : "ログイン";
+  const emailWrap = document.querySelector("#admin-email-wrap");
+  emailWrap.hidden = false;
+  document.querySelector("#admin-email").required = true;
 
   if (window.OrderAutoAdminAuth.isAuthenticated()) {
-    setAdminMessage("ログイン済みです。契約作成へ進めます。", "success");
+    setAdminMessage("Supabaseにログイン済みです。契約作成へ進めます。", "success");
+  } else if (!window.OrderAutoCloud?.isConfigured()) {
+    setAdminMessage("Supabaseの接続設定を確認してください。", "warning");
   }
 }
 
 async function handleAdminSubmit(event) {
   event.preventDefault();
   const passcode = document.querySelector("#admin-passcode").value;
-  const isCloud = window.OrderAutoCloud?.isConfigured();
-  const isSetup = !window.OrderAutoAdminAuth.hasCredential();
 
-  if (isCloud && !document.querySelector("#admin-email").value.trim()) {
+  if (!window.OrderAutoCloud?.isConfigured()) {
+    setAdminMessage("Supabaseの接続設定を確認してください。", "warning");
+    return;
+  }
+
+  if (!document.querySelector("#admin-email").value.trim()) {
     setAdminMessage("メールアドレスを入力してください。", "warning");
     return;
   }
 
   if (passcode.length < 8) {
-    setAdminMessage("パスコードは8文字以上にしてください。", "warning");
+    setAdminMessage("パスワードは8文字以上にしてください。", "warning");
     return;
   }
 
   try {
-    if (isCloud) {
-      await window.OrderAutoAdminAuth.login(passcode);
-      setAdminMessage("Supabaseにログインしました。", "success");
-      window.location.href = adminNextUrl();
-      return;
-    }
-
-    if (isSetup) {
-      await window.OrderAutoAdminAuth.setup(passcode);
-      setAdminMessage("管理者パスコードを設定しました。", "success");
-      window.location.href = adminNextUrl();
-      return;
-    }
-
-    const ok = await window.OrderAutoAdminAuth.login(passcode);
-    if (!ok) {
-      setAdminMessage("パスコードが違います。", "warning");
-      return;
-    }
-
-    setAdminMessage("ログインしました。", "success");
+    await window.OrderAutoAdminAuth.login(passcode);
+    setAdminMessage("Supabaseにログインしました。", "success");
     window.location.href = adminNextUrl();
   } catch (error) {
-    setAdminMessage("処理に失敗しました。ブラウザがWeb Cryptoに対応しているか確認してください。", "warning");
+    setAdminMessage("ログインできませんでした。メールアドレスとパスワードを確認してください。", "warning");
   }
 }
 
