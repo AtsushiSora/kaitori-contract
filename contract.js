@@ -1447,8 +1447,8 @@ function printTemplateContract(contract) {
 
           .print-page {
             display: block;
-            width: 209mm;
-            height: 296mm;
+            width: 170mm;
+            height: 240mm;
             margin: 0 auto;
             padding: 0;
             overflow: hidden;

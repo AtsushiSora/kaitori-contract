@@ -221,6 +221,12 @@ try {
   await paperContractItem.getByRole("button", { name: "この契約を印刷" }).click();
   const printPage = await printPagePromise;
   await printPage.waitForLoadState("load");
+  const printPageSize = await printPage.locator(".print-page").first().evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { width: style.width, height: style.height };
+  });
+  assert.ok(Math.abs(Number.parseFloat(printPageSize.width) - 642.52) < 1);
+  assert.ok(Math.abs(Number.parseFloat(printPageSize.height) - 907.09) < 1);
   const printPdf = await printPage.pdf({ printBackground: true, preferCSSPageSize: true });
   const printedPageCount = (printPdf.toString("latin1").match(/\/Type\s*\/Page\b/g) || []).length;
   assert.equal(printedPageCount, 4);
