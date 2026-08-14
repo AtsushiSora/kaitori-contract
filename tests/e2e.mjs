@@ -150,16 +150,18 @@ try {
         firstButtonTop: buttons[0].top,
         firstButtonWidth: buttons[0].width,
         firstRowDifference: Math.abs(buttons[0].top - buttons[1].top),
+        thirdButtonDifference: Math.abs(buttons[0].top - buttons[2].top),
         printButtonWidth: buttons.at(-1).width,
         hasHorizontalOverflow: toolbar.scrollWidth > toolbar.clientWidth,
       };
     });
   assert.ok(mobileToolbarLayout.titleBottom < mobileToolbarLayout.firstButtonTop);
-  assert.ok(mobileToolbarLayout.firstButtonWidth > 120);
+  assert.ok(mobileToolbarLayout.firstButtonWidth > 90);
   assert.ok(mobileToolbarLayout.firstRowDifference < 2);
-  assert.ok(mobileToolbarLayout.printButtonWidth > mobileToolbarLayout.firstButtonWidth * 1.8);
+  assert.ok(mobileToolbarLayout.thirdButtonDifference < 2);
+  assert.ok(mobileToolbarLayout.printButtonWidth > mobileToolbarLayout.firstButtonWidth * 2.8);
   assert.equal(mobileToolbarLayout.hasHorizontalOverflow, false);
-  logPass("スマホ縦向きの作成画面で見出しと2列操作ボタンを整列");
+  logPass("スマホ縦向きの作成画面で見出しと3列操作ボタンを整列");
   await page.setViewportSize({ width: 1280, height: 720 });
 
   await page.locator('[name="carName"]').fill("テスト車両");

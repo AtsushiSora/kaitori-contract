@@ -1674,43 +1674,55 @@ textarea {
 }
 
 @media (max-width: 640px) and (orientation: portrait) {
+  .contract-app {
+    padding: 14px 10px 48px;
+  }
+
+  .contract-workspace {
+    padding: 12px;
+  }
+
   .workspace-toolbar {
     display: grid;
     align-items: stretch;
-    gap: 14px;
+    gap: 10px;
+    margin-bottom: 12px;
   }
 
   .workspace-toolbar > div:first-child {
-    padding-bottom: 12px;
+    padding: 0 2px 9px;
     border-bottom: 1px solid var(--line);
   }
 
   .workspace-toolbar .eyebrow {
-    margin-bottom: 4px;
+    margin-bottom: 2px;
+    font-size: 0.72rem;
   }
 
   .workspace-toolbar h2 {
-    font-size: 1.35rem;
+    font-size: 1.2rem;
   }
 
   .toolbar-actions {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
   }
 
   .toolbar-actions .button {
     min-width: 0;
-    min-height: 50px;
-    padding: 9px 8px;
-    font-size: 0.84rem;
-    line-height: 1.35;
+    min-height: 46px;
+    padding: 7px 4px;
+    font-size: 0.72rem;
+    line-height: 1.25;
     text-align: center;
     white-space: normal;
   }
 
   .toolbar-actions #print-contract {
     grid-column: 1 / -1;
+    min-height: 48px;
+    font-size: 0.84rem;
   }
 }
 
