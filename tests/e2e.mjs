@@ -111,27 +111,33 @@ try {
 
   const createCardBox = await page.locator(".top-action-card-wide").boundingBox();
   const listCardBox = await page.getByRole("button", { name: /契約一覧/ }).boundingBox();
-  const paperCardBox = await page.locator('[data-completion-method="paper"]').boundingBox();
+  const paperCardBox = await page.locator('[data-list-mode="paper"]').boundingBox();
   const remoteCardBox = await page.getByRole("button", { name: /メール・LINEで契約/ }).boundingBox();
-  const tabletCardBox = await page.locator('[data-completion-method="tablet"]').boundingBox();
+  const tabletCardBox = await page.locator('[data-list-mode="tablet"]').boundingBox();
   assert.ok(createCardBox && listCardBox && paperCardBox && remoteCardBox && tabletCardBox);
   assert.ok(createCardBox.width > listCardBox.width * 1.8);
   assert.ok(Math.abs(listCardBox.y - paperCardBox.y) < 2 && listCardBox.x < paperCardBox.x);
   assert.ok(Math.abs(remoteCardBox.y - tabletCardBox.y) < 2 && remoteCardBox.x < tabletCardBox.x);
   logPass("トップメニューを横長1段と2列2段で表示");
 
-  await page.locator('[data-completion-method="paper"]').click();
-  assert.match(page.url(), /#create$/);
-  assert.equal(await page.locator('[data-app-view="create"]').isVisible(), true);
-  assert.equal(await page.locator('[name="completionMethod"]').inputValue(), "paper");
-  assert.equal(await page.locator("#signature-panel").isHidden(), true);
-  logPass("トップの紙で印刷から印刷用の契約作成へ移動");
+  await page.locator('[data-list-mode="paper"]').click();
+  assert.match(page.url(), /#list-paper$/);
+  assert.equal(await page.locator('[data-app-view="list"]').isVisible(), true);
+  assert.equal(await page.locator("#list-view-title").textContent(), "紙で印刷");
+  logPass("トップの紙で印刷から契約選択一覧へ移動");
 
   await page.locator('[aria-label="メインナビゲーション"] a[href="#top"]').click();
-  await page.locator('[data-completion-method="tablet"]').click();
-  assert.equal(await page.locator('[name="completionMethod"]').inputValue(), "tablet");
-  assert.equal(await page.locator("#signature-panel").isVisible(), true);
-  logPass("トップの対面電子署名から電子サイン用の契約作成へ移動");
+  await page.locator('[data-list-mode="tablet"]').click();
+  assert.match(page.url(), /#list-tablet$/);
+  assert.equal(await page.locator("#list-view-title").textContent(), "対面電子署名");
+  logPass("トップの対面電子署名から契約選択一覧へ移動");
+
+  await page.locator('[aria-label="メインナビゲーション"] a[href="#top"]').click();
+  await page.locator(".top-action-card-wide").click();
+  assert.match(page.url(), /#create$/);
+  assert.equal(await page.locator('[name="completionMethod"]').inputValue(), "paper");
+  assert.equal(await page.locator("#signature-panel").isHidden(), true);
+  logPass("トップの契約書作成から新規入力へ移動");
 
   const legends = await page.locator("#contract-form fieldset > legend").allTextContents();
   assert.deepEqual(legends, ["車両情報", "金額・引取情報", "車両名義人", "売主情報", "契約方法"]);
@@ -204,6 +210,23 @@ try {
   assert.equal(await page.locator("#contract-list").getByText("テスト車両").count() > 0, true);
   logPass("契約一覧への反映と検索");
 
+  await page.locator('[aria-label="メインナビゲーション"] a[href="#top"]').click();
+  await page.locator('[data-app-view="top"] [data-list-mode="paper"]').click();
+  const paperContractItem = page.locator("article.contract-list-item").filter({ hasText: "テスト車両" });
+  assert.equal(await paperContractItem.getByRole("button", { name: "この契約を印刷" }).count(), 1);
+  assert.equal(await paperContractItem.getByRole("button", { name: "編集" }).count(), 0);
+  logPass("紙で印刷は一覧から対象契約だけを選択");
+
+  await page.locator('[aria-label="メインナビゲーション"] a[href="#top"]').click();
+  await page.locator('[data-app-view="top"] [data-list-mode="tablet"]').click();
+  const tabletContractItem = page.locator("article.contract-list-item").filter({ hasText: "テスト車両" });
+  await tabletContractItem.getByRole("button", { name: "この契約に署名" }).click();
+  assert.match(page.url(), /#create$/);
+  assert.equal(await page.locator('[name="carName"]').inputValue(), "テスト車両");
+  assert.equal(await page.locator('[name="completionMethod"]').inputValue(), "tablet");
+  assert.equal(await page.locator("#signature-panel").isVisible(), true);
+  logPass("対面電子署名は一覧の契約情報を署名画面へ反映");
+
   await page.evaluate(() => {
     localStorage.setItem("orderAutoSupabaseSession", JSON.stringify({
       access_token: "e2e-test-token",
@@ -211,8 +234,13 @@ try {
       expires_at: Math.floor(Date.now() / 1000) + 3600,
     }));
   });
+  await page.locator('[aria-label="メインナビゲーション"] a[href="#top"]').click();
+  await page.locator('[data-app-view="top"] [data-list-mode="remote"]').click();
+  assert.equal(await page.locator("#list-view-title").textContent(), "メール・LINEで契約");
   const testContractItem = page.locator("article.contract-list-item").filter({ hasText: "テスト車両" });
-  await testContractItem.getByRole("button", { name: "メール・LINE契約" }).click();
+  assert.equal(await testContractItem.getByRole("button", { name: "編集" }).count(), 0);
+  await testContractItem.getByRole("button", { name: "メール・LINEで送る" }).click();
+  assert.match(page.url(), /#remote$/);
   assert.equal(await page.locator(".remote-progress li").count(), 6);
   await page.locator("#generate-consent-url").click();
   await page.waitForFunction(() => document.querySelector("#email-url")?.value);
@@ -222,6 +250,7 @@ try {
   assert.match(await page.locator("#consent-passcode").inputValue(), /^\d{8}$/);
   assert.match(await page.locator("#email-body").inputValue(), new RegExp(shortUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(await page.locator("#email-body").inputValue(), /契約番号：26081101/);
+  logPass("メール・LINE契約は一覧の契約情報を送信画面へ反映");
   logPass("クラウド契約で短い確認URLと別送パスコードを生成");
 
   await page.evaluate(() => localStorage.removeItem("orderAutoSupabaseSession"));

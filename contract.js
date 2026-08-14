@@ -32,6 +32,7 @@ let activeId = "";
 let activeFilter = "all";
 let activePreviewCopy = "customer";
 let activeAppPage = "top";
+let activeListMode = "manage";
 let signatureData = "";
 let identityFiles = [];
 const identityPreviewUrls = new Map();
@@ -1674,8 +1675,14 @@ function setAppPage(page, updateHash = true) {
   });
 
   document.querySelectorAll("[data-app-page]").forEach((button) => {
-    button.classList.toggle("active", button.dataset.appPage === activeAppPage);
+    const matchesPage = button.dataset.appPage === activeAppPage;
+    const matchesListMode = activeAppPage !== "list" || !button.dataset.listMode || button.dataset.listMode === activeListMode;
+    button.classList.toggle("active", matchesPage && matchesListMode);
   });
+
+  if (activeAppPage === "list") {
+    renderList();
+  }
 
   if (activeAppPage === "remote") {
     renderRemoteSelectedContract();
@@ -1686,7 +1693,7 @@ function setAppPage(page, updateHash = true) {
     const pageHashes = {
       top: "#top",
       create: "#create",
-      list: "#list",
+      list: activeListMode === "manage" ? "#list" : `#list-${activeListMode}`,
       remote: "#remote",
     };
     const nextHash = pageHashes[activeAppPage] || "#top";
@@ -1699,9 +1706,56 @@ function setAppPage(page, updateHash = true) {
 function appPageFromHash() {
   const hash = window.location.hash.replace("#", "");
   if (hash === "create" || hash === "contract-app") return "create";
-  if (hash === "list" || hash === "contracts") return "list";
+  if (hash === "list" || hash === "contracts" || hash.startsWith("list-")) return "list";
   if (hash === "remote" || hash === "mail" || hash === "line") return "remote";
   return "top";
+}
+
+function normalizeListMode(mode) {
+  return ["manage", "paper", "remote", "tablet"].includes(mode) ? mode : "manage";
+}
+
+function listModeFromHash() {
+  const hash = window.location.hash.replace("#", "");
+  if (!hash.startsWith("list-")) return "manage";
+  return normalizeListMode(hash.slice(5));
+}
+
+function setListMode(mode) {
+  activeListMode = normalizeListMode(mode);
+  const copies = {
+    manage: {
+      kicker: "Contracts",
+      title: "契約一覧",
+      description: "",
+    },
+    paper: {
+      kicker: "Print Contract",
+      title: "紙で印刷",
+      description: "印刷する契約を選んでください。選択した契約のお客様控え・店控えをA4で印刷します。",
+    },
+    remote: {
+      kicker: "Remote Contract",
+      title: "メール・LINEで契約",
+      description: "お客様へ送る契約を選んでください。選択後に確認URLとパスコードを作成します。",
+    },
+    tablet: {
+      kicker: "In-person Signature",
+      title: "対面電子署名",
+      description: "その場で署名する契約を選んでください。完了済みの契約は再署名できません。",
+    },
+  };
+  const copy = copies[activeListMode];
+  const kicker = document.querySelector("#list-view-kicker");
+  const title = document.querySelector("#list-view-title");
+  const description = document.querySelector("#list-view-description");
+  if (kicker) kicker.textContent = copy.kicker;
+  if (title) title.textContent = copy.title;
+  if (description) {
+    description.hidden = !copy.description;
+    description.textContent = copy.description;
+  }
+  renderList();
 }
 
 function renderList() {
@@ -1726,19 +1780,38 @@ function renderList() {
     .map((contract) => {
       const data = contract.data || {};
       const active = contract.id === activeId ? "active" : "";
+      const standardActions = `
+        <button class="mini-button" type="button" data-send-remote-contract="${contract.id}">メール・LINE契約</button>
+        <button class="mini-button" type="button" data-edit-contract="${contract.id}">編集</button>
+        <button class="mini-button danger" type="button" data-delete-contract="${contract.id}">削除</button>
+      `;
+      const paperActions = `
+        <button class="mini-button selection-action" type="button" data-print-list-contract="${contract.id}">この契約を印刷</button>
+      `;
+      const remoteActions = contract.status === "完了"
+        ? '<span class="completed-contract-label">契約完了済み</span>'
+        : `<button class="mini-button selection-action" type="button" data-send-remote-contract="${contract.id}">メール・LINEで送る</button>`;
+      const tabletActions = contract.status === "完了"
+        ? '<span class="completed-contract-label">署名完了済み</span>'
+        : `<button class="mini-button selection-action" type="button" data-sign-tablet-contract="${contract.id}">この契約に署名</button>`;
+      const actions = activeListMode === "paper"
+        ? paperActions
+        : activeListMode === "remote"
+          ? remoteActions
+          : activeListMode === "tablet"
+            ? tabletActions
+            : standardActions;
       return `
         <article class="contract-list-item ${active}" data-id="${contract.id}">
-          <button class="contract-list-main" type="button" data-edit-contract="${contract.id}">
+          <div class="contract-list-main">
             <span>
               <strong>${safeValue(data.sellerName, "氏名未入力")}</strong>
               <small>契約番号 ${escapeHtml(displayContractNumber(contract))} / ${safeValue(data.carName, "車名未入力")} / ${escapeHtml(contractTypeLabel(data))}</small>
             </span>
-          </button>
+          </div>
           <em>${escapeHtml(contract.status)}</em>
           <div class="contract-list-actions">
-            <button class="mini-button" type="button" data-send-remote-contract="${contract.id}">メール・LINE契約</button>
-            <button class="mini-button" type="button" data-edit-contract="${contract.id}">編集</button>
-            <button class="mini-button danger" type="button" data-delete-contract="${contract.id}">削除</button>
+            ${actions}
           </div>
         </article>
       `;
@@ -1766,6 +1839,50 @@ function selectRemoteContract(id) {
   setSaveStatus("送信する契約書を選択しました。確認URL生成へ進んでください。", "success");
 }
 
+function printContractFromList(id) {
+  const contract = contracts.find((item) => item.id === id);
+  if (!contract) {
+    setSaveStatus("印刷する契約を読み込めませんでした。", "warning");
+    return;
+  }
+  activeId = id;
+  populateForm(contract);
+  renderList();
+  printTemplateContract({
+    ...contract,
+    signatureData: "",
+    data: {
+      ...(contract.data || {}),
+      completionMethod: "paper",
+      signatureData: "",
+    },
+  });
+}
+
+function startTabletSignature(id) {
+  const contract = contracts.find((item) => item.id === id);
+  if (!contract) {
+    setSaveStatus("署名する契約を読み込めませんでした。", "warning");
+    return;
+  }
+  if (contract.status === "完了") {
+    setSaveStatus("この契約は署名完了済みです。", "warning");
+    return;
+  }
+
+  activeId = id;
+  populateForm(contract);
+  const completionMethod = document.querySelector("#contract-form")?.elements.completionMethod;
+  if (completionMethod) completionMethod.value = "tablet";
+  updateModePanels();
+  updatePreview();
+  setAppPage("create");
+  setSaveStatus("契約情報を読み込みました。お客様に電子署名をご記入いただいてください。", "success");
+  window.requestAnimationFrame(() => {
+    document.querySelector("#signature-panel")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+}
+
 function renderRemoteSelectedContract() {
   const target = document.querySelector("#remote-selected-contract");
   if (!target) return;
@@ -1775,7 +1892,7 @@ function renderRemoteSelectedContract() {
     target.innerHTML = `
       <div class="remote-empty-state">
         <p>送信する契約が選択されていません。</p>
-        <button class="button button-outline" type="button" data-app-page="list">契約一覧へ</button>
+        <button class="button button-outline" type="button" data-app-page="list" data-list-mode="remote">契約一覧へ</button>
       </div>
     `;
     return;
@@ -1789,7 +1906,7 @@ function renderRemoteSelectedContract() {
         <strong>${safeValue(data.sellerName, "氏名未入力")}</strong>
         <small>${safeValue(data.carName, "車名未入力")} / ${escapeHtml(contract.status || "下書き")}</small>
       </div>
-      <button class="mini-button" type="button" data-app-page="list">契約を変更</button>
+      <button class="mini-button" type="button" data-app-page="list" data-list-mode="remote">契約を変更</button>
     </article>
   `;
 }
@@ -2344,7 +2461,11 @@ function setupEvents() {
   document.querySelectorAll("[data-app-page]").forEach((button) => {
     button.addEventListener("click", () => {
       const page = button.dataset.appPage;
+      if (page === "list") {
+        setListMode(button.dataset.listMode || "manage");
+      }
       if (page === "create") {
+        activeListMode = "manage";
         clearContractForm(false);
         const completionMethod = button.dataset.completionMethod;
         if (completionMethod && form.elements.completionMethod) {
@@ -2358,7 +2479,9 @@ function setupEvents() {
   });
 
   window.addEventListener("hashchange", () => {
-    setAppPage(appPageFromHash(), false);
+    const page = appPageFromHash();
+    if (page === "list") setListMode(listModeFromHash());
+    setAppPage(page, false);
   });
 
   document.querySelector("#new-contract").addEventListener("click", () => {
@@ -2371,6 +2494,9 @@ function setupEvents() {
   document.querySelector("#remote-selected-contract")?.addEventListener("click", (event) => {
     const pageButton = event.target.closest("[data-app-page]");
     if (!pageButton) return;
+    if (pageButton.dataset.appPage === "list") {
+      setListMode(pageButton.dataset.listMode || "remote");
+    }
     setAppPage(pageButton.dataset.appPage);
   });
   document.querySelector("#export-contracts").addEventListener("click", exportContracts);
@@ -2464,6 +2590,18 @@ function setupEvents() {
       return;
     }
 
+    const printButton = event.target.closest("[data-print-list-contract]");
+    if (printButton) {
+      printContractFromList(printButton.dataset.printListContract);
+      return;
+    }
+
+    const tabletButton = event.target.closest("[data-sign-tablet-contract]");
+    if (tabletButton) {
+      startTabletSignature(tabletButton.dataset.signTabletContract);
+      return;
+    }
+
     const remoteButton = event.target.closest("[data-send-remote-contract]");
     if (remoteButton) {
       selectRemoteContract(remoteButton.dataset.sendRemoteContract);
@@ -2507,6 +2645,9 @@ document.addEventListener("DOMContentLoaded", () => {
   renderList();
 
   const initialPage = appPageFromHash();
+  if (initialPage === "list") {
+    setListMode(listModeFromHash());
+  }
   if (initialPage === "create") {
     clearContractForm(false);
   }

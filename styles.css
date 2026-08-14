@@ -355,6 +355,17 @@ textarea {
   gap: 8px;
 }
 
+.contract-list-description {
+  margin: 0;
+  padding: 12px 14px;
+  border-left: 4px solid var(--green);
+  color: var(--muted);
+  background: #f7fbf8;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.65;
+}
+
 .contract-sidebar h2,
 .workspace-toolbar h2 {
   margin: 0;
@@ -648,6 +659,32 @@ textarea {
 
 .mini-button.danger:hover {
   border-color: #b64040;
+}
+
+.mini-button.selection-action {
+  min-height: 42px;
+  padding-inline: 18px;
+  border-color: var(--green);
+  color: var(--white);
+  background: var(--green);
+}
+
+.mini-button.selection-action:hover,
+.mini-button.selection-action:focus-visible {
+  border-color: var(--green-dark);
+  background: var(--green-dark);
+}
+
+.completed-contract-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 7px;
+  color: var(--muted);
+  background: #edf1ee;
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .empty-state {
