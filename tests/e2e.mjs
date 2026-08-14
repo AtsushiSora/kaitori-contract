@@ -185,6 +185,19 @@ try {
   assert.match(stored, /テスト車両/);
   logPass("下書きを端末内とSupabaseへ同時保存");
 
+  await page.locator("#complete-contract").click();
+  await page.waitForURL(/#list$/);
+  const completedContractItem = page
+    .locator("article.contract-list-item")
+    .filter({ hasText: "テスト車両" });
+  assert.equal(await completedContractItem.locator("em").textContent(), "完了");
+  logPass("完了にすると保存後に契約一覧へ移動");
+
+  await completedContractItem.getByRole("button", { name: "編集" }).click();
+  await page.locator("#save-contract").click();
+  await page.waitForFunction(() =>
+    document.querySelector("#cloud-save-status")?.textContent.includes("Supabaseへ保存しました"),
+  );
   await page.locator('[aria-label="メインナビゲーション"] a[href="#list"]').click();
   assert.equal(await page.locator("#contract-list").getByText("テスト車両").count() > 0, true);
   await page.locator("#contract-search").fill("テスト車両");

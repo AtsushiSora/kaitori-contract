@@ -2387,11 +2387,16 @@ function setupEvents() {
   document.querySelectorAll("[data-preview-copy]").forEach((button) => {
     button.addEventListener("click", () => setPreviewCopy(button.dataset.previewCopy));
   });
-  document.querySelector("#complete-contract").addEventListener("click", () => {
-    const contract = currentContract();
-    if (contract) contract.completedAt = formatDateTime();
-    saveActiveContract("完了", { createIfMissing: true });
-    submitCloudRecord();
+  document.querySelector("#complete-contract").addEventListener("click", async () => {
+    let contract = currentContract();
+    if (!contract) {
+      const savedLocally = saveActiveContract("完了", { createIfMissing: true });
+      if (!savedLocally) return;
+      contract = currentContract();
+    }
+    contract.completedAt = formatDateTime();
+    await submitCloudRecord("完了");
+    setAppPage("list");
   });
   document.querySelector("#print-contract").addEventListener("click", () => {
     saveActiveContract(currentContract()?.status || "下書き", { createIfMissing: true });
