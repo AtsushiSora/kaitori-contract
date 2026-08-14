@@ -217,21 +217,28 @@ try {
   assert.equal(await paperContractItem.getByRole("button", { name: "編集" }).count(), 0);
   logPass("紙で印刷は一覧から対象契約だけを選択");
 
+  const printPdfDataUrl = await page.evaluate(async () => {
+    const pdf = await buildContractPrintPdf(currentContract());
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(pdf);
+    });
+  });
+  const printPdf = Buffer.from(printPdfDataUrl.split(",")[1], "base64");
+  const printPdfSource = printPdf.toString("latin1");
+  const printedPageCount = (printPdfSource.match(/\/Type\s*\/Page\b/g) || []).length;
+  assert.equal(printedPageCount, 4);
+  assert.equal((printPdfSource.match(/\/MediaBox \[0 0 595\.28 841\.89\]/g) || []).length, 4);
+  assert.equal((printPdfSource.match(/595\.28 0 0 841\.89 0 0 cm/g) || []).length, 4);
   const printPagePromise = context.waitForEvent("page");
   await paperContractItem.getByRole("button", { name: "この契約を印刷" }).click();
   const printPage = await printPagePromise;
-  await printPage.waitForLoadState("load");
-  const printPageSize = await printPage.locator(".print-page").first().evaluate((element) => {
-    const style = getComputedStyle(element);
-    return { width: style.width, height: style.height };
-  });
-  assert.ok(Math.abs(Number.parseFloat(printPageSize.width) - 642.52) < 1);
-  assert.ok(Math.abs(Number.parseFloat(printPageSize.height) - 907.09) < 1);
-  const printPdf = await printPage.pdf({ printBackground: true, preferCSSPageSize: true });
-  const printedPageCount = (printPdf.toString("latin1").match(/\/Type\s*\/Page\b/g) || []).length;
-  assert.equal(printedPageCount, 4);
+  await printPage.waitForURL(/^blob:/);
+  assert.match(printPage.url(), /^blob:/);
   await printPage.close();
-  logPass("A4印刷が表面・条項・店控え・条項の4ページに収まる");
+  logPass("A4全面PDFが表面・条項・店控え・条項の4ページで生成される");
 
   await page.locator('[aria-label="メインナビゲーション"] a[href="#top"]').click();
   await page.locator('[data-app-view="top"] [data-list-mode="tablet"]').click();

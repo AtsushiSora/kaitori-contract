@@ -1406,7 +1406,7 @@ function contractTemplateSvg(contract, copyType = "customer") {
   `;
 }
 
-function printTemplateContract(contract) {
+async function printTemplateContract(contract) {
   const printWindow = window.open("", "_blank");
   if (!printWindow) {
     setSaveStatus("印刷画面を開けませんでした。ブラウザのポップアップ許可を確認してください。", "warning");
@@ -1418,88 +1418,49 @@ function printTemplateContract(contract) {
     <html lang="ja">
       <head>
         <meta charset="UTF-8" />
-        <title>車両売買契約書</title>
+        <title>車両売買契約書を作成中</title>
         <style>
-          @page {
-            size: 210mm 297mm;
-            margin: 0;
-          }
-
-          * {
-            box-sizing: border-box;
-          }
-
           html,
           body {
             margin: 0;
-            background: #fff;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+            min-height: 100%;
+            display: grid;
+            place-items: center;
+            background: #f2f4f3;
+            color: #17211d;
+            font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
           }
-
-          .pdf-contract-svg {
-            display: block;
-            width: 100% !important;
-            max-width: none !important;
-            height: 100% !important;
-            background: #fff;
-          }
-
-          .print-page {
-            display: block;
-            width: 170mm;
-            height: 240mm;
-            margin: 0 auto;
-            padding: 0;
-            overflow: hidden;
-            break-inside: avoid;
-            page-break-inside: avoid;
-            break-after: page;
-            page-break-after: always;
-          }
-
-          .print-page:last-of-type {
-            break-after: auto;
-            page-break-after: auto;
-          }
-
-          @media screen {
-            body {
-              display: grid;
-              justify-content: center;
-              padding: 16px;
-              background: #e5e5e5;
-            }
-            .pdf-contract-svg { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); }
-            .print-page { margin-bottom: 16px; }
-          }
-
-          @media print {
-            html,
-            body {
-              width: 210mm;
-              min-height: 297mm;
-              padding: 0;
-              overflow: visible;
-            }
-            .pdf-contract-svg { box-shadow: none; }
-          }
+          p { margin: 0; padding: 24px; font-size: 16px; }
         </style>
       </head>
       <body>
-        <div class="print-page">${contractTemplateSvg(contract, "customer")}</div>
-        <div class="print-page">${contractTermsSvg()}</div>
-        <div class="print-page">${contractTemplateSvg(contract, "shop")}</div>
-        <div class="print-page">${contractTermsSvg()}</div>
-        <script>
-          window.addEventListener("load", () => {
-            setTimeout(() => window.print(), 250);
-          });
-        <\/script>
+        <p>印刷用A4 PDFを作成しています。</p>
       </body>
     </html>
   `);
   printWindow.document.close();
+
+  try {
+    setSaveStatus("印刷用A4 PDFを作成しています。", "pending");
+    const pdfBlob = await buildContractPrintPdf(contract);
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    let printRequested = false;
+    const requestPrint = () => {
+      if (printRequested || printWindow.closed) return;
+      printRequested = true;
+      setTimeout(() => printWindow.print(), 350);
+    };
+
+    printWindow.addEventListener("load", requestPrint, { once: true });
+    printWindow.location.replace(pdfUrl);
+    setTimeout(requestPrint, 1800);
+    setTimeout(() => URL.revokeObjectURL(pdfUrl), 120000);
+    setSaveStatus("A4印刷用PDFを開きました。", "success");
+  } catch (error) {
+    console.error(error);
+    printWindow.close();
+    setSaveStatus("印刷用PDFの作成に失敗しました。もう一度お試しください。", "warning");
+  }
 }
 
 function textBytes(value) {
@@ -1513,6 +1474,32 @@ function base64ToBytes(base64) {
     bytes[index] = binary.charCodeAt(index);
   }
   return bytes;
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function inlineSvgImages(svg) {
+  const documentNode = new DOMParser().parseFromString(svg, "image/svg+xml");
+  const images = [...documentNode.querySelectorAll("image[href]")];
+
+  await Promise.all(
+    images.map(async (image) => {
+      const href = image.getAttribute("href");
+      if (!href || href.startsWith("data:")) return;
+      const response = await fetch(href, { cache: "force-cache", credentials: "same-origin" });
+      if (!response.ok) throw new Error(`PDF template image could not be loaded: ${response.status}`);
+      image.setAttribute("href", await blobToDataUrl(await response.blob()));
+    }),
+  );
+
+  return new XMLSerializer().serializeToString(documentNode.documentElement);
 }
 
 function buildImagePdf(imagePages) {
@@ -1575,7 +1562,8 @@ function buildImagePdf(imagePages) {
 }
 
 async function svgToPdfImagePage(svg) {
-  const svgBlob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+  const inlinedSvg = await inlineSvgImages(svg);
+  const svgBlob = new Blob([inlinedSvg], { type: "image/svg+xml;charset=utf-8" });
   const svgUrl = URL.createObjectURL(svgBlob);
   const image = new Image();
   image.decoding = "async";
@@ -1607,6 +1595,16 @@ async function svgToPdfImagePage(svg) {
   } finally {
     URL.revokeObjectURL(svgUrl);
   }
+}
+
+async function buildContractPrintPdf(contract) {
+  const pages = await Promise.all([
+    svgToPdfImagePage(contractTemplateSvg(contract, "customer")),
+    svgToPdfImagePage(contractTermsSvg()),
+    svgToPdfImagePage(contractTemplateSvg(contract, "shop")),
+    svgToPdfImagePage(contractTermsSvg()),
+  ]);
+  return buildImagePdf(pages);
 }
 
 function contractPdfFilename(contract) {
