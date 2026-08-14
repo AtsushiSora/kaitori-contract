@@ -137,6 +137,31 @@ try {
   assert.deepEqual(legends, ["車両情報", "金額・引取情報", "車両名義人", "売主情報", "契約方法"]);
   logPass("入力項目がPDFの上から順に表示");
 
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileToolbarLayout = await page
+    .locator('[data-app-view="create"] .workspace-toolbar')
+    .evaluate((toolbar) => {
+      const title = toolbar.querySelector("#editor-title").getBoundingClientRect();
+      const buttons = [...toolbar.querySelectorAll(".toolbar-actions .button")].map((button) =>
+        button.getBoundingClientRect(),
+      );
+      return {
+        titleBottom: title.bottom,
+        firstButtonTop: buttons[0].top,
+        firstButtonWidth: buttons[0].width,
+        firstRowDifference: Math.abs(buttons[0].top - buttons[1].top),
+        printButtonWidth: buttons.at(-1).width,
+        hasHorizontalOverflow: toolbar.scrollWidth > toolbar.clientWidth,
+      };
+    });
+  assert.ok(mobileToolbarLayout.titleBottom < mobileToolbarLayout.firstButtonTop);
+  assert.ok(mobileToolbarLayout.firstButtonWidth > 120);
+  assert.ok(mobileToolbarLayout.firstRowDifference < 2);
+  assert.ok(mobileToolbarLayout.printButtonWidth > mobileToolbarLayout.firstButtonWidth * 1.8);
+  assert.equal(mobileToolbarLayout.hasHorizontalOverflow, false);
+  logPass("スマホ縦向きの作成画面で見出しと2列操作ボタンを整列");
+  await page.setViewportSize({ width: 1280, height: 720 });
+
   await page.locator('[name="carName"]').fill("テスト車両");
   await page.locator('[name="chassisNumber"]').fill("TEST-1234567");
   await page.locator('[name="purchaseAmount"]').fill("1100001");
