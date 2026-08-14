@@ -1439,19 +1439,21 @@ function printTemplateContract(contract) {
 
           .pdf-contract-svg {
             display: block;
-            width: 210mm !important;
+            width: 100% !important;
             max-width: none !important;
-            height: 297mm !important;
+            height: 100% !important;
             background: #fff;
           }
 
           .print-page {
             display: block;
-            width: 210mm;
-            height: 297mm;
-            margin: 0;
+            width: 209mm;
+            height: 296mm;
+            margin: 0 auto;
             padding: 0;
             overflow: hidden;
+            break-inside: avoid;
+            page-break-inside: avoid;
             break-after: page;
             page-break-after: always;
           }

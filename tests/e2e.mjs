@@ -217,6 +217,16 @@ try {
   assert.equal(await paperContractItem.getByRole("button", { name: "編集" }).count(), 0);
   logPass("紙で印刷は一覧から対象契約だけを選択");
 
+  const printPagePromise = context.waitForEvent("page");
+  await paperContractItem.getByRole("button", { name: "この契約を印刷" }).click();
+  const printPage = await printPagePromise;
+  await printPage.waitForLoadState("load");
+  const printPdf = await printPage.pdf({ printBackground: true, preferCSSPageSize: true });
+  const printedPageCount = (printPdf.toString("latin1").match(/\/Type\s*\/Page\b/g) || []).length;
+  assert.equal(printedPageCount, 4);
+  await printPage.close();
+  logPass("A4印刷が表面・条項・店控え・条項の4ページに収まる");
+
   await page.locator('[aria-label="メインナビゲーション"] a[href="#top"]').click();
   await page.locator('[data-app-view="top"] [data-list-mode="tablet"]').click();
   const tabletContractItem = page.locator("article.contract-list-item").filter({ hasText: "テスト車両" });
