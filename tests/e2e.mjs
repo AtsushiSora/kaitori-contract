@@ -172,6 +172,10 @@ try {
   await page.locator('[name="sellerPostalCode"]').fill("7300000");
   await page.locator('[name="completionMethod"]').selectOption("paper");
   await page.locator("#save-contract").click();
+  await page.waitForFunction(() =>
+    document.querySelector("#cloud-save-status")?.textContent.includes("Supabaseへ保存しました"),
+  );
+  assert.equal(await page.locator("#cloud-save-contract").count(), 0);
   assert.match(await page.locator("#contract-preview").textContent(), /\d{8}/);
 
   const stored = await page.evaluate(() => {
@@ -179,7 +183,7 @@ try {
     return key ? localStorage.getItem(key) : "";
   });
   assert.match(stored, /テスト車両/);
-  logPass("下書きを端末内に保存");
+  logPass("下書きを端末内とSupabaseへ同時保存");
 
   await page.locator('[aria-label="メインナビゲーション"] a[href="#list"]').click();
   assert.equal(await page.locator("#contract-list").getByText("テスト車両").count() > 0, true);

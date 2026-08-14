@@ -2205,18 +2205,27 @@ function importContractsFile(file) {
   reader.readAsText(file);
 }
 
-async function submitCloudRecord() {
-  saveActiveContract(currentContract()?.status || "下書き", { createIfMissing: true });
+async function submitCloudRecord(status = currentContract()?.status || "下書き") {
+  const savedLocally = saveActiveContract(status, { createIfMissing: true });
+  if (!savedLocally) return false;
 
   if (cloudEnabled()) {
-    await syncActiveContractToCloud();
-    return;
+    return syncActiveContractToCloud();
+  }
+
+  if (window.OrderAutoCloud?.isConfigured()) {
+    setSaveStatus(
+      "この端末には保存済みです。クラウド保存には管理者として再ログインしてください。",
+      "warning",
+    );
+    return false;
   }
 
   setSaveStatus(
     "この端末には保存済みです。クラウド保存を使うにはsupabase-config.jsを設定してください。",
     "warning",
   );
+  return false;
 }
 
 function safePlain(value, fallback = "未入力") {
@@ -2373,9 +2382,8 @@ function setupEvents() {
     event.target.value = "";
   });
   document.querySelector("#save-contract").addEventListener("click", () => {
-    saveActiveContract("下書き", { createIfMissing: true });
+    submitCloudRecord("下書き");
   });
-  document.querySelector("#cloud-save-contract").addEventListener("click", submitCloudRecord);
   document.querySelectorAll("[data-preview-copy]").forEach((button) => {
     button.addEventListener("click", () => setPreviewCopy(button.dataset.previewCopy));
   });
