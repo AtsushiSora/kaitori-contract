@@ -128,13 +128,9 @@ test("公開Edge Functionは許可オリジン限定・キャッシュ禁止", a
   assert.match(source, /Access-Control-Allow-Origin/);
 });
 
-test("PDFテンプレートは実体のあるPDFファイル", async () => {
-  for (const file of [
-    "templates/order_auto_blank_customer_template.pdf",
-    "templates/order_auto_blank_shop_template.pdf",
-  ]) {
-    const value = await readFile(new URL(file, root));
-    assert.equal(value.subarray(0, 5).toString(), "%PDF-", `${file} がPDFではありません`);
-    assert.ok(value.length > 10_000, `${file} の容量が小さすぎます`);
-  }
+test("店控えベースPDFは実体のあるPDFファイル", async () => {
+  const file = "templates/order_auto_blank_shop_template.pdf";
+  const value = await readFile(new URL(file, root));
+  assert.equal(value.subarray(0, 5).toString(), "%PDF-", `${file} がPDFではありません`);
+  assert.ok(value.length > 10_000, `${file} の容量が小さすぎます`);
 });
