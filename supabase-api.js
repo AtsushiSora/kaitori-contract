@@ -275,7 +275,15 @@ async function deleteCloudFile(path) {
   );
 }
 
-async function uploadIdentityFiles(contractId, files = []) {
+function attachmentExtension(file) {
+  const type = String(file?.type || "").toLowerCase();
+  if (type === "application/pdf") return "pdf";
+  if (type === "image/png") return "png";
+  if (type === "image/webp") return "webp";
+  return "jpg";
+}
+
+async function uploadContractFiles(contractId, files = []) {
   const uploaded = [];
   for (const file of files) {
     if (!file.dataUrl) {
@@ -283,13 +291,16 @@ async function uploadIdentityFiles(contractId, files = []) {
       continue;
     }
     const safeId = file.id || `${Date.now()}`;
-    const path = `${contractId}/identity/${safeId}.jpg`;
+    const folder = file.category === "vehicle" ? "vehicle" : "identity";
+    const path = `${contractId}/${folder}/${safeId}.${attachmentExtension(file)}`;
     await uploadCloudFile(path, file.dataUrl);
     const { dataUrl, ...meta } = file;
     uploaded.push({ ...meta, storagePath: path });
   }
   return uploaded;
 }
+
+const uploadIdentityFiles = uploadContractFiles;
 
 async function saveConsentResult(contractId, result, accessToken = "") {
   const endpoint = supabaseConfig().consentSubmitEndpoint;
@@ -321,6 +332,7 @@ window.OrderAutoCloud = {
   createConsentAccess,
   upsertContract: upsertCloudContract,
   deleteContract: deleteCloudContract,
+  uploadContractFiles,
   uploadIdentityFiles,
   getPrivateFileUrl,
   deleteFile: deleteCloudFile,

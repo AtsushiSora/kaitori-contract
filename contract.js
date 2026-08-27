@@ -35,11 +35,13 @@ let activeAppPage = "top";
 let activeListMode = "manage";
 let signatureData = "";
 let identityFiles = [];
+let vehicleFiles = [];
 const identityPreviewUrls = new Map();
 let isDrawing = false;
 
 const CRYPTO_ITERATIONS = 200000;
 const MAX_IDENTITY_FILES = 4;
+const MAX_VEHICLE_FILES = 8;
 const MAX_IDENTITY_FILE_BYTES = 8 * 1024 * 1024;
 const IDENTITY_IMAGE_MAX_EDGE = 1600;
 const IDENTITY_IMAGE_QUALITY = 0.82;
@@ -361,6 +363,7 @@ async function compressIdentityImage(file) {
 
   return {
     id: `ID-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    category: "identity",
     name: file.name,
     type: "image/jpeg",
     size: dataUrlSize(dataUrl),
@@ -370,6 +373,53 @@ async function compressIdentityImage(file) {
     addedAt: formatDateTime(),
     dataUrl,
   };
+}
+
+async function prepareVehicleDocument(file, documentType) {
+  if (file.size > MAX_IDENTITY_FILE_BYTES) {
+    throw new Error("1件あたり8MB以下のファイルを選択してください。");
+  }
+
+  if (file.type.startsWith("image/")) {
+    const image = await compressIdentityImage(file);
+    return {
+      ...image,
+      id: `VEH-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      category: "vehicle",
+      documentType,
+    };
+  }
+
+  if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+    return {
+      id: `VEH-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      category: "vehicle",
+      documentType,
+      name: file.name,
+      type: "application/pdf",
+      size: file.size,
+      originalSize: file.size,
+      addedAt: formatDateTime(),
+      dataUrl: await readFileAsDataUrl(file),
+    };
+  }
+
+  throw new Error("画像またはPDFだけ添付できます。");
+}
+
+function splitContractFiles(files = []) {
+  const source = Array.isArray(files) ? files : [];
+  return {
+    identity: source.filter((file) => file?.category !== "vehicle"),
+    vehicle: source.filter((file) => file?.category === "vehicle"),
+  };
+}
+
+function combinedContractFiles() {
+  return [
+    ...identityFiles.map((file) => ({ ...file, category: "identity" })),
+    ...vehicleFiles.map((file) => ({ ...file, category: "vehicle" })),
+  ];
 }
 
 function renderIdentityFiles() {
@@ -403,6 +453,41 @@ function renderIdentityFiles() {
   hydrateIdentityPreviews();
 }
 
+function renderVehicleFiles() {
+  const list = document.querySelector("#vehicle-document-list");
+  if (!list) return;
+
+  if (!vehicleFiles.length) {
+    list.innerHTML = '<p class="empty-state">車両書類は未添付です。</p>';
+    return;
+  }
+
+  list.innerHTML = vehicleFiles
+    .map((file, index) => {
+      const previewUrl = file.dataUrl || identityPreviewUrls.get(file.storagePath) || "";
+      const isImage = String(file.type || "").startsWith("image/");
+      const preview = isImage && previewUrl
+        ? `<img src="${escapeHtml(previewUrl)}" alt="${escapeHtml(file.documentType || file.name || `車両書類${index + 1}`)}" />`
+        : '<div class="identity-photo-placeholder">PDF</div>';
+      return `
+        <div class="identity-photo-item">
+          ${preview}
+          <div>
+            <strong>${escapeHtml(file.documentType || "車両書類")} / ${escapeHtml(file.name || `書類${index + 1}`)}</strong>
+            <span>${escapeHtml(formatBytes(file.size))}</span>
+          </div>
+          <div class="attachment-item-actions">
+            <button class="mini-button" type="button" data-open-vehicle-document="${index}">表示</button>
+            <button class="mini-button danger" type="button" data-remove-vehicle-document="${index}">削除</button>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  hydrateVehiclePreviews();
+}
+
 async function hydrateIdentityPreviews() {
   if (!cloudEnabled() || !window.OrderAutoCloud?.getPrivateFileUrl) return;
   const pending = identityFiles.filter(
@@ -422,6 +507,27 @@ async function hydrateIdentityPreviews() {
     }),
   );
   renderIdentityFiles();
+}
+
+async function hydrateVehiclePreviews() {
+  if (!cloudEnabled() || !window.OrderAutoCloud?.getPrivateFileUrl) return;
+  const pending = vehicleFiles.filter(
+    (file) => file.storagePath && !file.dataUrl && !identityPreviewUrls.has(file.storagePath),
+  );
+  if (!pending.length) return;
+
+  await Promise.all(
+    pending.map(async (file) => {
+      identityPreviewUrls.set(file.storagePath, "");
+      try {
+        const url = await window.OrderAutoCloud.getPrivateFileUrl(file.storagePath);
+        identityPreviewUrls.set(file.storagePath, url);
+      } catch (error) {
+        identityPreviewUrls.set(file.storagePath, "");
+      }
+    }),
+  );
+  renderVehicleFiles();
 }
 
 function getFormData() {
@@ -495,8 +601,11 @@ function populateForm(contract) {
 
   renderConsents(data, data.consents || []);
   signatureData = contract?.signatureData || "";
-  identityFiles = Array.isArray(contract?.identityFiles) ? contract.identityFiles : [];
+  const attachments = splitContractFiles(contract?.identityFiles);
+  identityFiles = attachments.identity;
+  vehicleFiles = attachments.vehicle;
   renderIdentityFiles();
+  renderVehicleFiles();
   updateModePanels();
   updatePreview();
 }
@@ -559,6 +668,7 @@ function clearContractForm(showStatus = true) {
   activeId = "";
   signatureData = "";
   identityFiles = [];
+  vehicleFiles = [];
   populateForm({ data: defaultContractData(), signatureData: "", identityFiles: [] });
   renderList();
   renderRemoteSelectedContract();
@@ -589,6 +699,8 @@ async function loadCloudContracts() {
         populateForm(currentContract());
       }
       renderList();
+      renderCustomerList();
+      renderVehicleList();
     }
     setSaveStatus("Supabaseと同期しました。", "success");
   } catch (error) {
@@ -603,26 +715,34 @@ async function syncActiveContractToCloud() {
 
   try {
     setSaveStatus("Supabaseへ保存中です。", "pending");
-    const identitySummary = await window.OrderAutoCloud.uploadIdentityFiles(
+    const localFiles = contract.identityFiles || [];
+    const uploadFiles = window.OrderAutoCloud.uploadContractFiles || window.OrderAutoCloud.uploadIdentityFiles;
+    const identitySummary = await uploadFiles(
       contract.id,
-      contract.identityFiles || [],
+      localFiles,
     );
     const saved = await window.OrderAutoCloud.upsertContract(contract, identitySummary);
     if (saved) {
-      identitySummary.forEach((file, index) => {
-        const localDataUrl = contract.identityFiles?.[index]?.dataUrl;
+      const localById = new Map(localFiles.map((file) => [file.id, file]));
+      identitySummary.forEach((file) => {
+        const localDataUrl = localById.get(file.id)?.dataUrl;
         if (file.storagePath && localDataUrl) {
           identityPreviewUrls.set(file.storagePath, localDataUrl);
         }
       });
       contract.identityFiles = identitySummary;
-      identityFiles = identitySummary;
+      const attachments = splitContractFiles(identitySummary);
+      identityFiles = attachments.identity;
+      vehicleFiles = attachments.vehicle;
       contract.contractNumber = saved.contractNumber || contract.contractNumber;
       contract.cloudSavedAt = formatDateTime();
       contract.consentStatus = saved.consentStatus || contract.consentStatus || "";
       persistContracts();
       renderList();
       renderIdentityFiles();
+      renderVehicleFiles();
+      renderCustomerList();
+      renderVehicleList();
     }
     setSaveStatus("Supabaseへ保存しました。", "success");
     return true;
@@ -645,18 +765,20 @@ function saveActiveContract(status, options = {}) {
       return false;
     }
     existing.signatureData = signatureData;
-    existing.identityFiles = identityFiles;
+    existing.identityFiles = combinedContractFiles();
     contracts.unshift(existing);
     activeId = existing.id;
   }
 
   existing.data = getFormData();
   existing.signatureData = signatureData;
-  existing.identityFiles = identityFiles;
+  existing.identityFiles = combinedContractFiles();
   existing.status = status || existing.status || "下書き";
   existing.updatedAt = formatDateTime();
   const saved = persistContracts();
   renderList();
+  renderCustomerList();
+  renderVehicleList();
   renderRemoteSelectedContract();
   updatePreview();
   if (saved) {
@@ -685,11 +807,15 @@ async function deleteContract(id) {
     document.querySelector("#contract-form").reset();
     signatureData = "";
     identityFiles = [];
+    vehicleFiles = [];
     renderIdentityFiles();
+    renderVehicleFiles();
     updateModePanels();
     updatePreview();
   }
   renderList();
+  renderCustomerList();
+  renderVehicleList();
   setAppPage("list");
 
   if (cloudEnabled() && window.OrderAutoCloud?.deleteContract) {
@@ -1661,7 +1787,7 @@ function setPreviewCopy(copyType) {
 }
 
 function setAppPage(page, updateHash = true) {
-  const nextPage = ["top", "create", "list", "remote"].includes(page) ? page : "top";
+  const nextPage = ["top", "create", "list", "remote", "customers", "vehicles"].includes(page) ? page : "top";
   const previousPage = activeAppPage;
 
   if (previousPage === "create" && nextPage !== "create") {
@@ -1689,12 +1815,22 @@ function setAppPage(page, updateHash = true) {
     buildEmailBody();
   }
 
+  if (activeAppPage === "customers") {
+    renderCustomerList();
+  }
+
+  if (activeAppPage === "vehicles") {
+    renderVehicleList();
+  }
+
   if (updateHash) {
     const pageHashes = {
       top: "#top",
       create: "#create",
       list: activeListMode === "manage" ? "#list" : `#list-${activeListMode}`,
       remote: "#remote",
+      customers: "#customers",
+      vehicles: "#vehicles",
     };
     const nextHash = pageHashes[activeAppPage] || "#top";
     if (window.location.hash !== nextHash) {
@@ -1708,6 +1844,8 @@ function appPageFromHash() {
   if (hash === "create" || hash === "contract-app") return "create";
   if (hash === "list" || hash === "contracts" || hash.startsWith("list-")) return "list";
   if (hash === "remote" || hash === "mail" || hash === "line") return "remote";
+  if (hash === "customers") return "customers";
+  if (hash === "vehicles") return "vehicles";
   return "top";
 }
 
@@ -1817,6 +1955,214 @@ function renderList() {
       `;
     })
     .join("");
+}
+
+function normalizedDigits(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function customerGroups() {
+  const groups = new Map();
+  contracts.forEach((contract) => {
+    const data = contract.data || {};
+    normalizeSellerNameFields(data);
+    const phone = normalizedDigits(data.sellerMobile || data.sellerHomePhone || data.sellerPhone);
+    const fallback = [data.sellerName, data.sellerBirthdate].filter(Boolean).join("|");
+    const key = phone ? `phone:${phone}` : fallback ? `person:${fallback}` : `contract:${contract.id}`;
+    if (!groups.has(key)) {
+      groups.set(key, { key, data, contracts: [] });
+    }
+    const group = groups.get(key);
+    group.contracts.push(contract);
+    if (!group.data.sellerName && data.sellerName) group.data = data;
+  });
+  return [...groups.values()];
+}
+
+function vehicleGroups() {
+  const groups = new Map();
+  contracts.forEach((contract) => {
+    const data = contract.data || {};
+    normalizePlateNumberFields(data);
+    const chassis = String(data.chassisNumber || "").replace(/[\s-]/g, "").toUpperCase();
+    const plate = String(data.plateNumber || "").replace(/\s/g, "");
+    const key = chassis ? `chassis:${chassis}` : plate ? `plate:${plate}` : `contract:${contract.id}`;
+    if (!groups.has(key)) {
+      groups.set(key, { key, data, contracts: [] });
+    }
+    const group = groups.get(key);
+    group.contracts.push(contract);
+    if (!group.data.carName && data.carName) group.data = data;
+  });
+  return [...groups.values()];
+}
+
+function attachmentReferences(group, category) {
+  const seen = new Set();
+  const references = [];
+  group.contracts.forEach((contract) => {
+    (contract.identityFiles || []).forEach((file, index) => {
+      const fileCategory = file?.category === "vehicle" ? "vehicle" : "identity";
+      if (fileCategory !== category) return;
+      const key = file.storagePath || file.id || `${contract.id}:${index}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      references.push({ contract, file, index });
+    });
+  });
+  return references;
+}
+
+function managementContractHistory(group) {
+  return group.contracts
+    .map((contract) => {
+      const data = contract.data || {};
+      return `
+        <div class="management-history-row">
+          <div>
+            <strong>契約番号 ${escapeHtml(displayContractNumber(contract))}</strong>
+            <span>${safeValue(data.carName, "車名未入力")} / ${escapeHtml(amountLabel(data) || "金額未入力")} / ${escapeHtml(contract.status || "下書き")}</span>
+          </div>
+          <button class="mini-button" type="button" data-management-edit-contract="${escapeHtml(contract.id)}">契約を開く</button>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function managementAttachments(group, category) {
+  const files = attachmentReferences(group, category);
+  if (!files.length) return '<p class="empty-state">添付書類はありません。</p>';
+  return `
+    <div class="management-attachments">
+      ${files.map(({ contract, file, index }) => `
+        <button class="attachment-chip" type="button" data-view-contract-file="${escapeHtml(contract.id)}" data-file-index="${index}">
+          <span>${escapeHtml(file.documentType || (category === "identity" ? "本人確認書類" : "車両書類"))}</span>
+          <small>${escapeHtml(file.name || "保存済みファイル")}</small>
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderCustomerList() {
+  const list = document.querySelector("#customer-list");
+  if (!list) return;
+  const query = String(document.querySelector("#customer-search")?.value || "").trim().toLowerCase();
+  const groups = customerGroups().filter((group) => {
+    const data = group.data || {};
+    return !query || [data.sellerName, data.sellerMobile, data.sellerHomePhone, data.sellerAddress]
+      .join(" ")
+      .toLowerCase()
+      .includes(query);
+  });
+
+  if (!groups.length) {
+    list.innerHTML = '<p class="empty-state">該当する顧客はありません。</p>';
+    return;
+  }
+
+  list.innerHTML = groups.map((group) => {
+    const data = group.data || {};
+    const phone = data.sellerMobile || data.sellerHomePhone || data.sellerPhone || "電話番号未入力";
+    return `
+      <details class="management-card">
+        <summary>
+          <span>
+            <strong>${safeValue(data.sellerName, "氏名未入力")}</strong>
+            <small>${escapeHtml(phone)} / 契約 ${group.contracts.length}件</small>
+          </span>
+          <em>${safeValue(data.sellerAddress, "住所未入力")}</em>
+        </summary>
+        <div class="management-card-body">
+          <dl class="management-facts">
+            <div><dt>生年月日</dt><dd>${safeValue(data.sellerBirthdate)}</dd></div>
+            <div><dt>携帯電話</dt><dd>${safeValue(data.sellerMobile)}</dd></div>
+            <div><dt>自宅電話</dt><dd>${safeValue(data.sellerHomePhone)}</dd></div>
+            <div><dt>住所</dt><dd>${safeValue(data.sellerAddress)}</dd></div>
+          </dl>
+          <section><h3>契約履歴</h3>${managementContractHistory(group)}</section>
+          <section><h3>本人確認書類</h3>${managementAttachments(group, "identity")}</section>
+        </div>
+      </details>
+    `;
+  }).join("");
+}
+
+function renderVehicleList() {
+  const list = document.querySelector("#vehicle-list");
+  if (!list) return;
+  const query = String(document.querySelector("#vehicle-search")?.value || "").trim().toLowerCase();
+  const groups = vehicleGroups().filter((group) => {
+    const data = group.data || {};
+    return !query || [data.carName, data.plateNumber, data.chassisNumber, data.sellerName]
+      .join(" ")
+      .toLowerCase()
+      .includes(query);
+  });
+
+  if (!groups.length) {
+    list.innerHTML = '<p class="empty-state">該当する買取車両はありません。</p>';
+    return;
+  }
+
+  list.innerHTML = groups.map((group) => {
+    const data = group.data || {};
+    return `
+      <details class="management-card">
+        <summary>
+          <span>
+            <strong>${safeValue(data.carName, "車名未入力")}</strong>
+            <small>${safeValue(data.plateNumber, "登録番号未入力")} / 契約 ${group.contracts.length}件</small>
+          </span>
+          <em>${safeValue(data.sellerName, "売主未入力")}</em>
+        </summary>
+        <div class="management-card-body">
+          <dl class="management-facts">
+            <div><dt>車台番号</dt><dd>${safeValue(data.chassisNumber)}</dd></div>
+            <div><dt>年式</dt><dd>${safeValue(data.carYear)}</dd></div>
+            <div><dt>色</dt><dd>${safeValue(data.carColor)}</dd></div>
+            <div><dt>走行距離</dt><dd>${safeValue(data.mileage)}</dd></div>
+            <div><dt>買取金額</dt><dd>${escapeHtml(amountLabel(data) || "未入力")}</dd></div>
+            <div><dt>売主</dt><dd>${safeValue(data.sellerName)}</dd></div>
+          </dl>
+          <section><h3>契約履歴</h3>${managementContractHistory(group)}</section>
+          <section><h3>車両書類</h3>${managementAttachments(group, "vehicle")}</section>
+        </div>
+      </details>
+    `;
+  }).join("");
+}
+
+async function openAttachmentFile(file) {
+  if (!file) {
+    setSaveStatus("添付書類を読み込めませんでした。", "warning");
+    return;
+  }
+
+  try {
+    const url = file.dataUrl || identityPreviewUrls.get(file.storagePath) || (
+      file.storagePath && cloudEnabled()
+        ? await window.OrderAutoCloud.getPrivateFileUrl(file.storagePath)
+        : ""
+    );
+    if (!url) throw new Error("file unavailable");
+    if (file.storagePath) identityPreviewUrls.set(file.storagePath, url);
+    const link = document.createElement("a");
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    document.body.append(link);
+    link.click();
+    link.remove();
+  } catch (error) {
+    setSaveStatus("添付書類を表示できませんでした。再ログイン後にお試しください。", "warning");
+  }
+}
+
+async function openContractFile(contractId, fileIndex) {
+  const contract = contracts.find((item) => item.id === contractId);
+  await openAttachmentFile(contract?.identityFiles?.[Number(fileIndex)]);
 }
 
 function clearRemoteSendFields() {
@@ -2263,6 +2609,43 @@ async function handleIdentityPhotoSelect(event) {
   }
 }
 
+async function handleVehicleDocumentSelect(event) {
+  const files = Array.from(event.target.files || []);
+  event.target.value = "";
+  if (!files.length) return;
+
+  const available = MAX_VEHICLE_FILES - vehicleFiles.length;
+  if (available <= 0) {
+    setSaveStatus(`車両書類は最大${MAX_VEHICLE_FILES}件までです。`, "warning");
+    return;
+  }
+
+  const documentType = document.querySelector("#vehicle-document-type")?.value || "その他";
+  const selected = files.slice(0, available);
+  setSaveStatus("車両書類を読み込み中です。", "pending");
+
+  try {
+    const prepared = [];
+    for (const file of selected) {
+      prepared.push(await prepareVehicleDocument(file, documentType));
+    }
+    vehicleFiles = [...vehicleFiles, ...prepared];
+    renderVehicleFiles();
+    const saved = saveActiveContract(currentContract()?.status || "下書き");
+    if (saved) {
+      const omitted = files.length - selected.length;
+      setSaveStatus(
+        omitted > 0
+          ? `最大${MAX_VEHICLE_FILES}件までのため、先頭${selected.length}件を添付しました。`
+          : "車両書類を添付しました。この端末内に保存されています。",
+        omitted > 0 ? "warning" : "success",
+      );
+    }
+  } catch (error) {
+    setSaveStatus(error.message || "車両書類を読み込めませんでした。", "warning");
+  }
+}
+
 function exportContracts() {
   const payload = {
     exportedAt: formatDateTime(),
@@ -2548,7 +2931,10 @@ function setupEvents() {
   document.querySelector("#open-email")?.addEventListener("click", openEmail);
   document.querySelector("#email-url")?.addEventListener("input", buildEmailBody);
   document.querySelector("#contract-search").addEventListener("input", renderList);
+  document.querySelector("#customer-search")?.addEventListener("input", renderCustomerList);
+  document.querySelector("#vehicle-search")?.addEventListener("input", renderVehicleList);
   document.querySelector("#identity-photo-input")?.addEventListener("change", handleIdentityPhotoSelect);
+  document.querySelector("#vehicle-document-input")?.addEventListener("change", handleVehicleDocumentSelect);
   document.querySelectorAll("[data-date-picker]").forEach((button) => {
     button.addEventListener("click", () => {
       const field = form.elements[button.dataset.datePicker];
@@ -2580,6 +2966,54 @@ function setupEvents() {
       }
     }
     setSaveStatus("本人確認書類の写真を削除しました。", "success");
+  });
+
+  document.querySelector("#vehicle-document-list")?.addEventListener("click", async (event) => {
+    const openButton = event.target.closest("[data-open-vehicle-document]");
+    if (openButton) {
+      await openAttachmentFile(vehicleFiles[Number(openButton.dataset.openVehicleDocument)]);
+      return;
+    }
+
+    const removeButton = event.target.closest("[data-remove-vehicle-document]");
+    if (!removeButton) return;
+    const index = Number(removeButton.dataset.removeVehicleDocument);
+    const removed = vehicleFiles[index];
+    vehicleFiles = vehicleFiles.filter((_, itemIndex) => itemIndex !== index);
+    renderVehicleFiles();
+    saveActiveContract(currentContract()?.status || "下書き");
+    if (removed?.storagePath && cloudEnabled() && window.OrderAutoCloud?.deleteFile) {
+      try {
+        const synced = await syncActiveContractToCloud();
+        if (!synced) return;
+        await window.OrderAutoCloud.deleteFile(removed.storagePath);
+        identityPreviewUrls.delete(removed.storagePath);
+      } catch (error) {
+        setSaveStatus("端末から削除しました。クラウド側の削除は再度確認してください。", "warning");
+        return;
+      }
+    }
+    setSaveStatus("車両書類を削除しました。", "success");
+  });
+
+  document.querySelectorAll("#customer-list, #vehicle-list").forEach((list) => {
+    list.addEventListener("click", async (event) => {
+      const attachmentButton = event.target.closest("[data-view-contract-file]");
+      if (attachmentButton) {
+        await openContractFile(
+          attachmentButton.dataset.viewContractFile,
+          attachmentButton.dataset.fileIndex,
+        );
+        return;
+      }
+
+      const editButton = event.target.closest("[data-management-edit-contract]");
+      if (!editButton) return;
+      activeId = editButton.dataset.managementEditContract;
+      populateForm(currentContract());
+      renderList();
+      setAppPage("create");
+    });
   });
 
   document.querySelector("#contract-list").addEventListener("click", async (event) => {
@@ -2643,6 +3077,8 @@ document.addEventListener("DOMContentLoaded", () => {
     populateForm({ data: defaultContractData(), signatureData: "", identityFiles: [] });
   }
   renderList();
+  renderCustomerList();
+  renderVehicleList();
 
   const initialPage = appPageFromHash();
   if (initialPage === "list") {

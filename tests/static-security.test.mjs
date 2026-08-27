@@ -85,6 +85,22 @@ test("契約データと本人確認ファイルは認証済み管理者だけ�
   assert.doesNotMatch(schema, /grant[^;]+\bto\s+(?:anon|public)\b/i);
 });
 
+test("顧客・買取車両一覧と車両書類を既存の非公開保存領域で管理する", async () => {
+  const [html, contractSource, apiSource] = await Promise.all([
+    text("contract.html"),
+    text("contract.js"),
+    text("supabase-api.js"),
+  ]);
+  assert.match(html, /data-app-view="customers"/);
+  assert.match(html, /data-app-view="vehicles"/);
+  assert.match(html, /id="vehicle-document-input"[^>]+application\/pdf/);
+  assert.match(contractSource, /function customerGroups\(\)/);
+  assert.match(contractSource, /function vehicleGroups\(\)/);
+  assert.match(contractSource, /category:\s*"vehicle"/);
+  assert.match(apiSource, /file\.category === "vehicle" \? "vehicle" : "identity"/);
+  assert.doesNotMatch(apiSource, /publicUrl|getPublicUrl/);
+});
+
 test("お客様向けURLは期限・ワンタイムトークン・完了済みを検証する", async () => {
   const source = await text("supabase/functions/public-contract/index.ts");
   assert.match(source, /constantTimeEqual\(tokenHash, contract\.remote_access_hash/);

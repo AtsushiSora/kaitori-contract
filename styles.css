@@ -317,6 +317,213 @@ textarea {
   font-weight: 800;
 }
 
+.management-page {
+  min-width: 0;
+}
+
+.management-panel {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: 0 12px 42px rgba(23, 33, 31, 0.06);
+}
+
+.management-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.management-head h2,
+.management-card-body h3 {
+  margin: 0;
+  color: var(--ink);
+}
+
+.management-search {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.management-search input {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 13px;
+  border: 1px solid #cfd8d2;
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--white);
+}
+
+.management-note {
+  margin: 0;
+  padding: 12px 14px;
+  border-left: 4px solid var(--green);
+  color: var(--muted);
+  background: #f7fbf8;
+  font-weight: 700;
+  line-height: 1.65;
+}
+
+.management-list {
+  display: grid;
+  gap: 12px;
+}
+
+.management-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfb;
+  overflow: hidden;
+}
+
+.management-card[open] {
+  border-color: rgba(15, 122, 77, 0.5);
+  box-shadow: inset 4px 0 0 var(--green);
+}
+
+.management-card summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.7fr);
+  gap: 16px;
+  align-items: center;
+  padding: 16px 18px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.management-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.management-card summary span {
+  display: grid;
+  gap: 4px;
+}
+
+.management-card summary strong {
+  color: var(--ink);
+  font-size: 1.08rem;
+}
+
+.management-card summary small,
+.management-card summary em {
+  color: var(--muted);
+  font-style: normal;
+  font-weight: 700;
+}
+
+.management-card summary em {
+  text-align: right;
+}
+
+.management-card-body {
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+  border-top: 1px solid var(--line);
+  background: var(--white);
+}
+
+.management-card-body section {
+  display: grid;
+  gap: 10px;
+}
+
+.management-card-body h3 {
+  font-size: 1rem;
+}
+
+.management-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.management-facts div {
+  min-width: 0;
+  padding: 10px 12px;
+  background: #fbfdfb;
+}
+
+.management-facts dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.management-facts dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.management-history-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.management-history-row div {
+  display: grid;
+  gap: 3px;
+}
+
+.management-history-row span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.management-attachments {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.attachment-chip {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(15, 122, 77, 0.28);
+  border-radius: 8px;
+  color: var(--green-dark);
+  background: #f7fbf8;
+  cursor: pointer;
+  text-align: left;
+}
+
+.attachment-chip span,
+.attachment-chip small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-chip span {
+  font-weight: 900;
+}
+
+.attachment-chip small {
+  color: var(--muted);
+}
+
 .contract-sidebar,
 .contract-workspace,
 .contract-form-panel,
@@ -898,6 +1105,24 @@ textarea {
 .identity-upload-field {
   display: grid;
   gap: 10px;
+}
+
+.vehicle-document-field {
+  display: grid;
+  gap: 10px;
+}
+
+.vehicle-document-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 280px) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.attachment-item-actions {
+  display: flex !important;
+  grid-auto-flow: column;
+  gap: 6px !important;
 }
 
 .identity-upload-button {
@@ -1655,6 +1880,53 @@ textarea {
     padding: 18px;
   }
 
+  .management-panel {
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .management-head {
+    display: grid;
+    align-items: stretch;
+  }
+
+  .management-card summary {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 14px;
+  }
+
+  .management-card summary em {
+    text-align: left;
+  }
+
+  .management-card-body {
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .management-facts,
+  .management-attachments {
+    grid-template-columns: 1fr;
+  }
+
+  .management-history-row {
+    grid-template-columns: 1fr;
+  }
+
+  .management-history-row .mini-button {
+    width: 100%;
+  }
+
+  .vehicle-document-controls {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .vehicle-document-controls .identity-upload-button {
+    width: 100%;
+  }
+
   .contract-document {
     padding: 8px;
   }
@@ -1697,6 +1969,18 @@ textarea {
 
   .identity-photo-item .mini-button {
     grid-column: 1 / -1;
+  }
+
+  .identity-photo-item .attachment-item-actions {
+    grid-column: 1 / -1;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .identity-photo-item .attachment-item-actions .mini-button {
+    grid-column: auto;
+    width: 100%;
   }
 
   .manual-section-wide {

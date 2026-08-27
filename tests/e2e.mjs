@@ -99,6 +99,10 @@ try {
       });
       return;
     }
+    if (request.method() === "PUT" && url.pathname.startsWith("/storage/v1/object/contract-files/")) {
+      await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+      return;
+    }
     await route.fulfill({ status: 404, contentType: "application/json", body: "{}" });
   });
   await page.goto(`${baseUrl}/admin.html`);
@@ -114,11 +118,14 @@ try {
   const paperCardBox = await page.locator('[data-list-mode="paper"]').boundingBox();
   const remoteCardBox = await page.getByRole("button", { name: /メール・LINEで契約/ }).boundingBox();
   const tabletCardBox = await page.locator('[data-list-mode="tablet"]').boundingBox();
-  assert.ok(createCardBox && listCardBox && paperCardBox && remoteCardBox && tabletCardBox);
+  const customerCardBox = await page.getByRole("button", { name: /顧客一覧/ }).boundingBox();
+  const vehicleCardBox = await page.getByRole("button", { name: /買取車両一覧/ }).boundingBox();
+  assert.ok(createCardBox && listCardBox && paperCardBox && remoteCardBox && tabletCardBox && customerCardBox && vehicleCardBox);
   assert.ok(createCardBox.width > listCardBox.width * 1.8);
-  assert.ok(Math.abs(listCardBox.y - paperCardBox.y) < 2 && listCardBox.x < paperCardBox.x);
-  assert.ok(Math.abs(remoteCardBox.y - tabletCardBox.y) < 2 && remoteCardBox.x < tabletCardBox.x);
-  logPass("トップメニューを横長1段と2列2段で表示");
+  assert.ok(Math.abs(paperCardBox.y - tabletCardBox.y) < 2 && paperCardBox.x < tabletCardBox.x);
+  assert.ok(Math.abs(remoteCardBox.y - listCardBox.y) < 2 && remoteCardBox.x < listCardBox.x);
+  assert.ok(Math.abs(customerCardBox.y - vehicleCardBox.y) < 2 && customerCardBox.x < vehicleCardBox.x);
+  logPass("トップメニューを指定順の横長1段と2列3段で表示");
 
   await page.locator('[data-list-mode="paper"]').click();
   assert.match(page.url(), /#list-paper$/);
@@ -176,6 +183,15 @@ try {
   await page.locator('[name="sellerLastName"]').fill("山田");
   await page.locator('[name="sellerFirstName"]').fill("太郎");
   await page.locator('[name="sellerPostalCode"]').fill("7300000");
+  await page.locator('[name="sellerMobile"]').fill("09012345678");
+  await page.locator('[name="sellerAddress"]').fill("広島県広島市中区テスト町1-2-3");
+  await page.locator("#vehicle-document-type").selectOption("車検証");
+  await page.locator("#vehicle-document-input").setInputFiles({
+    name: "test-registration.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4\n%%EOF\n"),
+  });
+  assert.match(await page.locator("#vehicle-document-list").textContent(), /車検証 \/ test-registration\.pdf/);
   await page.locator('[name="completionMethod"]').selectOption("paper");
   await page.locator("#save-contract").click();
   await page.waitForFunction(() =>
@@ -189,7 +205,8 @@ try {
     return key ? localStorage.getItem(key) : "";
   });
   assert.match(stored, /テスト車両/);
-  logPass("下書きを端末内とSupabaseへ同時保存");
+  assert.match(stored, /test-registration\.pdf/);
+  logPass("車両書類付き下書きを端末内とSupabaseへ同時保存");
 
   await page.locator("#complete-contract").click();
   await page.waitForURL(/#list$/);
@@ -209,6 +226,23 @@ try {
   await page.locator("#contract-search").fill("テスト車両");
   assert.equal(await page.locator("#contract-list").getByText("テスト車両").count() > 0, true);
   logPass("契約一覧への反映と検索");
+
+  await page.locator('[aria-label="メインナビゲーション"] a[href="#top"]').click();
+  await page.getByRole("button", { name: /顧客一覧/ }).click();
+  assert.match(page.url(), /#customers$/);
+  assert.match(await page.locator("#customer-list").textContent(), /山田 太郎/);
+  await page.locator("#customer-search").fill("09012345678");
+  assert.equal(await page.locator("#customer-list .management-card").count(), 1);
+  logPass("保存済み契約から顧客一覧と検索を自動生成");
+
+  await page.locator('[data-app-view="customers"] [data-app-page="top"]').click();
+  await page.getByRole("button", { name: /買取車両一覧/ }).click();
+  assert.match(page.url(), /#vehicles$/);
+  assert.match(await page.locator("#vehicle-list").textContent(), /テスト車両/);
+  await page.locator("#vehicle-list .management-card").click();
+  assert.match(await page.locator("#vehicle-list").textContent(), /車検証/);
+  assert.match(await page.locator("#vehicle-list").textContent(), /test-registration\.pdf/);
+  logPass("保存済み契約から買取車両一覧と車両書類を自動生成");
 
   await page.locator('[aria-label="メインナビゲーション"] a[href="#top"]').click();
   await page.locator('[data-app-view="top"] [data-list-mode="paper"]').click();
