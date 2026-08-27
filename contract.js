@@ -38,6 +38,7 @@ let identityFiles = [];
 let vehicleFiles = [];
 const identityPreviewUrls = new Map();
 let isDrawing = false;
+let adminNotifications = [];
 
 const CRYPTO_ITERATIONS = 200000;
 const MAX_IDENTITY_FILES = 4;
@@ -643,6 +644,9 @@ function createContractRecord(data = defaultContractData(), status = "下書き"
     signedAt: "",
     signatureData: "",
     identityFiles: [],
+    parentContractId: "",
+    versionNumber: 1,
+    lockedAt: "",
     data,
   };
 }
@@ -708,6 +712,48 @@ async function loadCloudContracts() {
   }
 }
 
+function renderAdminNotifications() {
+  const list = document.querySelector("#admin-notification-list");
+  if (!list) return;
+  if (!adminNotifications.length) {
+    list.innerHTML = '<p class="empty-state">新しい通知はありません。</p>';
+    return;
+  }
+  list.innerHTML = adminNotifications.map((notification) => {
+    const unread = !notification.read_at;
+    const emailStatus = notification.payload?.emailStatus;
+    const emailLabel = emailStatus === "sent"
+      ? "通知メール送信済み"
+      : emailStatus === "not_configured"
+        ? "通知メール未設定"
+        : emailStatus?.startsWith?.("failed:")
+          ? "通知メール送信失敗"
+          : "";
+    return `<article class="admin-notification-item ${unread ? "unread" : ""}">
+      <div>
+        <strong>${escapeHtml(notification.title)}</strong>
+        <p>${escapeHtml(notification.message)}</p>
+        <small>${escapeHtml(notification.created_at || "")}${emailLabel ? ` / ${escapeHtml(emailLabel)}` : ""}</small>
+      </div>
+      ${unread ? `<button class="mini-button" type="button" data-read-notification="${notification.id}">確認済みにする</button>` : '<span class="notification-read-label">確認済み</span>'}
+    </article>`;
+  }).join("");
+}
+
+async function loadAdminNotifications() {
+  if (!cloudEnabled() || !window.OrderAutoCloud?.listAdminNotifications) {
+    renderAdminNotifications();
+    return;
+  }
+  try {
+    adminNotifications = await window.OrderAutoCloud.listAdminNotifications();
+    renderAdminNotifications();
+  } catch (error) {
+    const list = document.querySelector("#admin-notification-list");
+    if (list) list.innerHTML = '<p class="empty-state">通知を読み込めませんでした。</p>';
+  }
+}
+
 async function syncActiveContractToCloud() {
   if (!cloudEnabled()) return false;
   const contract = currentContract();
@@ -756,6 +802,11 @@ function saveActiveContract(status, options = {}) {
   const createIfMissing = Boolean(options.createIfMissing);
   let existing = currentContract();
 
+  if (existing?.status === "完了") {
+    setSaveStatus("完了済み契約は変更できません。「複製して修正」から新しい版を作成してください。", "warning");
+    return false;
+  }
+
   if (!existing) {
     if (!createIfMissing) return false;
     try {
@@ -785,6 +836,32 @@ function saveActiveContract(status, options = {}) {
     setSaveStatus("この端末に保存しました。Supabase設定後はクラウドにも保存できます。");
   }
   return saved;
+}
+
+function reviseCompletedContract(id) {
+  const source = contracts.find((contract) => contract.id === id);
+  if (!source || source.status !== "完了") return;
+  let revised;
+  try {
+    revised = createContractRecord(JSON.parse(JSON.stringify(source.data || {})), "下書き");
+  } catch (error) {
+    setSaveStatus(error.message, "warning");
+    return;
+  }
+  revised.parentContractId = source.parentContractId || source.id;
+  revised.versionNumber = Number(source.versionNumber || 1) + 1;
+  revised.data.contractDate = "";
+  revised.data.completionMethod = "paper";
+  contracts.unshift(revised);
+  activeId = revised.id;
+  signatureData = "";
+  identityFiles = [];
+  vehicleFiles = [];
+  persistContracts();
+  populateForm(revised);
+  renderList();
+  setAppPage("create");
+  setSaveStatus(`完了済み契約を複製し、第${revised.versionNumber}版の下書きを作成しました。本人確認・車両書類は再確認してください。`, "success");
 }
 
 async function deleteContract(id) {
@@ -1918,9 +1995,12 @@ function renderList() {
     .map((contract) => {
       const data = contract.data || {};
       const active = contract.id === activeId ? "active" : "";
+      const editAction = contract.status === "完了"
+        ? `<button class="mini-button" type="button" data-revise-contract="${contract.id}">複製して修正</button>`
+        : `<button class="mini-button" type="button" data-edit-contract="${contract.id}">編集</button>`;
       const standardActions = `
         <button class="mini-button" type="button" data-send-remote-contract="${contract.id}">メール・LINE契約</button>
-        <button class="mini-button" type="button" data-edit-contract="${contract.id}">編集</button>
+        ${editAction}
         <button class="mini-button danger" type="button" data-delete-contract="${contract.id}">削除</button>
       `;
       const paperActions = `
@@ -1944,7 +2024,7 @@ function renderList() {
           <div class="contract-list-main">
             <span>
               <strong>${safeValue(data.sellerName, "氏名未入力")}</strong>
-              <small>契約番号 ${escapeHtml(displayContractNumber(contract))} / ${safeValue(data.carName, "車名未入力")} / ${escapeHtml(contractTypeLabel(data))}</small>
+              <small>契約番号 ${escapeHtml(displayContractNumber(contract))} / 第${Number(contract.versionNumber || 1)}版 / ${safeValue(data.carName, "車名未入力")} / ${escapeHtml(contractTypeLabel(data))}</small>
             </span>
           </div>
           <em>${escapeHtml(contract.status)}</em>
@@ -2496,6 +2576,7 @@ async function generateConsentUrl() {
     try {
       await window.OrderAutoCloud.createConsentAccess(
         currentContract().id,
+        accessToken,
         accessCredential,
         expiresAt,
       );
@@ -2813,6 +2894,13 @@ function setupSignatureCanvas() {
 }
 
 function setupEvents() {
+  document.querySelector("#refresh-notifications")?.addEventListener("click", loadAdminNotifications);
+  document.querySelector("#admin-notification-list")?.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-read-notification]");
+    if (!button || !window.OrderAutoCloud?.markNotificationRead) return;
+    await window.OrderAutoCloud.markNotificationRead(button.dataset.readNotification);
+    await loadAdminNotifications();
+  });
   const form = document.querySelector("#contract-form");
 
   document.querySelector("#admin-logout").addEventListener("click", () => {
@@ -3010,6 +3098,10 @@ function setupEvents() {
       const editButton = event.target.closest("[data-management-edit-contract]");
       if (!editButton) return;
       activeId = editButton.dataset.managementEditContract;
+      if (currentContract()?.status === "完了") {
+        reviseCompletedContract(activeId);
+        return;
+      }
       populateForm(currentContract());
       renderList();
       setAppPage("create");
@@ -3044,6 +3136,11 @@ function setupEvents() {
     }
 
     const editButton = event.target.closest("[data-edit-contract]");
+    const reviseButton = event.target.closest("[data-revise-contract]");
+    if (reviseButton) {
+      reviseCompletedContract(reviseButton.dataset.reviseContract);
+      return;
+    }
     if (!editButton) return;
     saveActiveContract();
     activeId = editButton.dataset.editContract;
@@ -3089,4 +3186,5 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   setAppPage(initialPage, false);
   loadCloudContracts();
+  loadAdminNotifications();
 });

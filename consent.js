@@ -27,6 +27,7 @@ let isDrawing = false;
 let hasCustomerSignature = false;
 let completedConsentResult = null;
 let completionEmail = null;
+let preparedIdentityDocuments = [];
 const DEFAULT_CRYPTO_ITERATIONS = 200000;
 
 function base64UrlToBytes(value) {
@@ -183,6 +184,171 @@ function displayContractNumber(contract) {
   return Number.isInteger(number) && number > 0 ? String(number) : text(contract?.id);
 }
 
+function remoteField(id) {
+  return document.querySelector(`#${id}`);
+}
+
+function setRemoteSellerType(type) {
+  const normalized = type === "corporate" ? "corporate" : "individual";
+  remoteField("remote-seller-type").value = normalized;
+  document.querySelectorAll("[data-seller-kind]").forEach((group) => {
+    group.hidden = group.dataset.sellerKind !== normalized;
+  });
+  syncCustomerNameFromSeller();
+}
+
+function sellerInputValue(id) {
+  return String(remoteField(id)?.value || "").trim();
+}
+
+function collectRemoteSeller() {
+  const sellerType = sellerInputValue("remote-seller-type") === "corporate" ? "corporate" : "individual";
+  return {
+    sellerType,
+    sellerLastName: sellerInputValue("remote-seller-last-name"),
+    sellerFirstName: sellerInputValue("remote-seller-first-name"),
+    sellerLastKana: sellerInputValue("remote-seller-last-kana"),
+    sellerFirstKana: sellerInputValue("remote-seller-first-kana"),
+    sellerPostalCode: sellerInputValue("remote-seller-postal"),
+    sellerAddress: sellerInputValue("remote-seller-address"),
+    sellerHomePhone: sellerInputValue("remote-seller-home-phone"),
+    sellerMobile: sellerInputValue("remote-seller-mobile"),
+    sellerEmail: sellerInputValue("remote-seller-email"),
+    sellerBirthdate: sellerInputValue("remote-seller-birthdate"),
+    corporateName: sellerInputValue("remote-corporate-name"),
+    corporateNumber: sellerInputValue("remote-corporate-number"),
+    corporatePostalCode: sellerInputValue("remote-corporate-postal"),
+    corporateAddress: sellerInputValue("remote-corporate-address"),
+    corporatePhone: sellerInputValue("remote-corporate-phone"),
+    representativeTitle: sellerInputValue("remote-representative-title"),
+    representativeLastName: sellerInputValue("remote-representative-last-name"),
+    representativeFirstName: sellerInputValue("remote-representative-first-name"),
+    identityType: "運転免許証",
+    identityNumber: sellerInputValue("remote-identity-number"),
+    licenseBackStatus: sellerInputValue("remote-license-back-status") === "has_entries" ? "has_entries" : "none",
+  };
+}
+
+function sellerSignatureName(seller = collectRemoteSeller()) {
+  return seller.sellerType === "corporate"
+    ? `${seller.representativeLastName} ${seller.representativeFirstName}`.trim()
+    : `${seller.sellerLastName} ${seller.sellerFirstName}`.trim();
+}
+
+function syncCustomerNameFromSeller() {
+  const name = sellerSignatureName();
+  remoteField("customer-name").value = name;
+}
+
+function populateRemoteSeller(data) {
+  const mappings = {
+    "remote-seller-last-name": data.sellerLastName,
+    "remote-seller-first-name": data.sellerFirstName,
+    "remote-seller-last-kana": data.sellerLastKana,
+    "remote-seller-first-kana": data.sellerFirstKana,
+    "remote-seller-postal": data.sellerPostalCode,
+    "remote-seller-address": data.sellerAddress,
+    "remote-seller-home-phone": data.sellerHomePhone,
+    "remote-seller-mobile": data.sellerMobile || data.sellerPhone,
+    "remote-seller-email": data.sellerEmail,
+    "remote-seller-birthdate": data.sellerBirthdate,
+    "remote-corporate-name": data.corporateName,
+    "remote-corporate-number": data.corporateNumber,
+    "remote-corporate-postal": data.corporatePostalCode,
+    "remote-corporate-address": data.corporateAddress,
+    "remote-corporate-phone": data.corporatePhone,
+    "remote-representative-title": data.representativeTitle,
+    "remote-representative-last-name": data.representativeLastName,
+    "remote-representative-first-name": data.representativeFirstName,
+    "remote-identity-number": data.identityNumber,
+    "remote-license-back-status": data.licenseBackStatus || "none",
+  };
+  Object.entries(mappings).forEach(([id, value]) => {
+    const field = remoteField(id);
+    if (field) field.value = String(value || "");
+  });
+  setRemoteSellerType(data.sellerType);
+  remoteField("remote-license-back-field").hidden =
+    sellerInputValue("remote-license-back-status") !== "has_entries";
+}
+
+function markRemoteField(id, missing) {
+  const field = remoteField(id);
+  if (!field) return;
+  field.classList.toggle("field-error", missing);
+  field.setAttribute("aria-invalid", missing ? "true" : "false");
+}
+
+function validateRemoteSellerForm() {
+  const seller = collectRemoteSeller();
+  const individualRequired = [
+    "remote-seller-last-name", "remote-seller-first-name", "remote-seller-postal",
+    "remote-seller-address", "remote-seller-birthdate",
+  ];
+  const corporateRequired = [
+    "remote-corporate-name", "remote-corporate-postal", "remote-corporate-address",
+    "remote-corporate-phone", "remote-representative-last-name", "remote-representative-first-name",
+  ];
+  const required = seller.sellerType === "corporate" ? corporateRequired : individualRequired;
+  const missing = [];
+  [...individualRequired, ...corporateRequired].forEach((id) => markRemoteField(id, false));
+  required.forEach((id) => {
+    const isMissing = !sellerInputValue(id);
+    markRemoteField(id, isMissing);
+    if (isMissing) missing.push(id);
+  });
+  if (seller.sellerType === "individual") {
+    const phoneMissing = !seller.sellerMobile && !seller.sellerHomePhone;
+    markRemoteField("remote-seller-mobile", phoneMissing);
+    markRemoteField("remote-seller-home-phone", phoneMissing);
+    if (phoneMissing) missing.push("remote-seller-mobile");
+  }
+  const identityMissing = !seller.identityNumber;
+  markRemoteField("remote-identity-number", identityMissing);
+  if (identityMissing) missing.push("remote-identity-number");
+  const frontMissing = !remoteField("remote-license-front").files?.[0];
+  markRemoteField("remote-license-front", frontMissing);
+  if (frontMissing) missing.push("remote-license-front");
+  const backMissing = seller.licenseBackStatus === "has_entries" && !remoteField("remote-license-back").files?.[0];
+  markRemoteField("remote-license-back", backMissing);
+  if (backMissing) missing.push("remote-license-back");
+  remoteField("remote-seller-error").hidden = missing.length === 0;
+  if (missing.length) remoteField(missing[0])?.scrollIntoView({ behavior: "smooth", block: "center" });
+  return missing.length === 0;
+}
+
+function fileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result || "")));
+    reader.addEventListener("error", reject);
+    reader.readAsDataURL(file);
+  });
+}
+
+function imageFromDataUrl(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener("load", () => resolve(image));
+    image.addEventListener("error", reject);
+    image.src = dataUrl;
+  });
+}
+
+async function prepareRemoteIdentityDocument(file, side) {
+  if (!file || !["image/jpeg", "image/png"].includes(file.type) || file.size > 8 * 1024 * 1024) {
+    throw new Error("本人確認画像は8MB以下のJPEGまたはPNGを選択してください。");
+  }
+  const source = await fileAsDataUrl(file);
+  const image = await imageFromDataUrl(source);
+  const scale = Math.min(1, 1400 / Math.max(image.width, image.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.width * scale));
+  canvas.height = Math.max(1, Math.round(image.height * scale));
+  canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+  return { side, name: file.name, type: "image/jpeg", dataUrl: canvas.toDataURL("image/jpeg", 0.8) };
+}
+
 const CONSENT_STEPS = ["summary", "important", "sign", "complete"];
 
 function setConsentProgress(step) {
@@ -211,6 +377,7 @@ function renderContract() {
   signatureCanvas.getContext("2d").clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
   hasCustomerSignature = false;
   document.querySelector("#customer-name").value = data.sellerName || "";
+  populateRemoteSeller(data);
   document.querySelector("#summary-list").innerHTML = [
     summaryRow("契約番号", contractNumber),
     summaryRow("契約内容", contractTypeLabel(data)),
@@ -237,6 +404,7 @@ function renderContract() {
   clearConsentValidation();
 
   document.querySelector("#consent-summary").hidden = false;
+  document.querySelector("#seller-input-section").hidden = false;
   document.querySelector("#consent-check-section").hidden = false;
   document.querySelector("#customer-sign-section").hidden = false;
   document.querySelector("#consent-progress").hidden = false;
@@ -345,6 +513,11 @@ function clearConsentValidation() {
     checkbox.closest("label")?.classList.remove("field-error");
     checkbox.removeAttribute("aria-invalid");
   });
+  remoteField("remote-seller-error").hidden = true;
+  document.querySelectorAll("#remote-seller-form input, #remote-seller-form select").forEach((field) => {
+    field.classList.remove("field-error");
+    field.removeAttribute("aria-invalid");
+  });
 }
 
 function validateConsentForm() {
@@ -357,6 +530,7 @@ function validateConsentForm() {
   );
   const consentsMissing = uncheckedItems.length > 0;
   const signatureMissing = !hasCustomerSignature;
+  const sellerMissing = !validateRemoteSellerForm();
 
   setFieldError(customerName, document.querySelector("#customer-name-error"), nameMissing);
   setFieldError(customerConsents, document.querySelector("#customer-consents-error"), consentsMissing);
@@ -367,11 +541,13 @@ function validateConsentForm() {
     checkbox.setAttribute("aria-invalid", hasError ? "true" : "false");
   });
 
-  if (!nameMissing && !consentsMissing && !signatureMissing) {
+  if (!sellerMissing && !nameMissing && !consentsMissing && !signatureMissing) {
     return true;
   }
 
-  const firstError = nameMissing
+  const firstError = sellerMissing
+    ? document.querySelector("#seller-input-section")
+    : nameMissing
     ? customerName
     : consentsMissing
       ? customerConsents
@@ -482,6 +658,7 @@ function showCompletionScreen(result, data) {
   completedConsentResult = result;
   completionEmail = buildCompletionEmail(result, data);
   document.querySelector("#consent-summary").hidden = true;
+  document.querySelector("#seller-input-section").hidden = true;
   document.querySelector("#consent-check-section").hidden = true;
   document.querySelector("#customer-sign-section").hidden = true;
   document.querySelector("#consent-guide").hidden = true;
@@ -559,6 +736,26 @@ async function completeConsent() {
   completeButton.disabled = true;
   completeButton.textContent = "契約を完了しています";
 
+  const seller = collectRemoteSeller();
+  try {
+    const front = await prepareRemoteIdentityDocument(
+      remoteField("remote-license-front").files[0],
+      "front",
+    );
+    preparedIdentityDocuments = [front];
+    if (seller.licenseBackStatus === "has_entries") {
+      preparedIdentityDocuments.push(await prepareRemoteIdentityDocument(
+        remoteField("remote-license-back").files[0],
+        "back",
+      ));
+    }
+  } catch (error) {
+    alert(error.message || "本人確認画像を読み込めませんでした。");
+    completeButton.disabled = false;
+    completeButton.textContent = "同意して完了メールを作成";
+    return;
+  }
+
   const name = document.querySelector("#customer-name").value.trim();
 
   const data = loadedContract.data;
@@ -577,6 +774,8 @@ async function completeConsent() {
     plateNumber: data.plateNumber,
     amount,
     customerSignature: document.querySelector("#customer-signature").toDataURL("image/png"),
+    seller,
+    identityDocuments: preparedIdentityDocuments,
   };
 
   if (loadedContract.cloudMode && window.OrderAutoCloud?.isConfigured()) {
@@ -615,6 +814,26 @@ document.addEventListener("DOMContentLoaded", () => {
       document.querySelector("#customer-name-error"),
       !document.querySelector("#customer-name").value.trim(),
     );
+  });
+  document.querySelector("#remote-seller-type").addEventListener("change", (event) => {
+    setRemoteSellerType(event.target.value);
+  });
+  document.querySelector("#remote-license-back-status").addEventListener("change", (event) => {
+    const needsBack = event.target.value === "has_entries";
+    remoteField("remote-license-back-field").hidden = !needsBack;
+    if (!needsBack) {
+      remoteField("remote-license-back").value = "";
+      markRemoteField("remote-license-back", false);
+    }
+  });
+  document.querySelector("#remote-seller-form").addEventListener("input", (event) => {
+    event.target.classList.remove("field-error");
+    event.target.removeAttribute("aria-invalid");
+    remoteField("remote-seller-error").hidden = true;
+    if ([
+      "remote-seller-last-name", "remote-seller-first-name",
+      "remote-representative-last-name", "remote-representative-first-name",
+    ].includes(event.target.id)) syncCustomerNameFromSeller();
   });
   document.querySelector("#customer-consents").addEventListener("change", () => {
     setConsentProgress("important");

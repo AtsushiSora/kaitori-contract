@@ -104,8 +104,11 @@ test("顧客・買取車両一覧と車両書類を既存の非公開保存領�
 test("お客様向けURLは期限・ワンタイムトークン・完了済みを検証する", async () => {
   const source = await text("supabase/functions/public-contract/index.ts");
   assert.match(source, /constantTimeEqual\(tokenHash, contract\.remote_access_hash/);
-  assert.match(source, /query\.set\("remote_access_hash", `eq\.\$\{tokenHash\}`\)/);
+  assert.match(source, /query\.set\("remote_link_hash", `eq\.\$\{linkHash\}`\)/);
+  assert.match(source, /remote_access_hash: `eq\.\$\{tokenHash\}`/);
   assert.match(source, /Date\.now\(\) > expiresAt/);
+  assert.match(source, /failedAttempts >= 5/);
+  assert.match(source, /15 \* 60 \* 1000/);
   assert.match(source, /contract\.remote_used_at \|\| contract\.consent_status === "完了"/);
   assert.match(source, /PUBLIC_DATA_FIELDS/);
   assert.doesNotMatch(source, /signature_data/);
@@ -129,11 +132,37 @@ test("クラウド確認URLは契約データを埋め込まず短いトーク�
 test("電子同意は氏名・全チェック・画像署名が揃わないと完了しない", async () => {
   const source = await text("supabase/functions/submit-consent/index.ts");
   assert.match(source, /required\.every\(\(item\) => checked\.includes\(item\)\)/);
-  assert.match(source, /!customerName[\s\S]*!allChecked[\s\S]*!validSignature/);
+  assert.match(source, /!customerName[\s\S]*!allChecked[\s\S]*comparableName\(customerName\)[\s\S]*!validSignature/);
   assert.match(source, /value\.startsWith\("data:image\/png;base64,"\)/);
   assert.match(source, /status: "完了"/);
   assert.match(source, /consent_status: "完了"/);
   assert.match(source, /remote_used_at: completedAt/);
+});
+
+test("遠隔契約は個人・法人、免許証条件、完了ロック、管理通知を備える", async () => {
+  const [html, consentSource, submitSource, schema, apiSource, contractSource] = await Promise.all([
+    text("consent.html"),
+    text("consent.js"),
+    text("supabase/functions/submit-consent/index.ts"),
+    text("supabase-schema.sql"),
+    text("supabase-api.js"),
+    text("contract.js"),
+  ]);
+  assert.match(html, /value="individual"[\s\S]*value="corporate"/);
+  assert.match(html, /運転免許証（表面・必須）/);
+  assert.match(html, /記載なし（添付不要）[\s\S]*記載あり（添付する）/);
+  assert.match(consentSource, /licenseBackStatus === "has_entries"/);
+  assert.match(submitSource, /sellerType === "corporate"/);
+  assert.match(submitSource, /customer-license-\$\{document\.side\}/);
+  assert.match(submitSource, /contract-files/);
+  assert.match(submitSource, /安全のため、このメールには本人確認書類を添付していません/);
+  assert.match(submitSource, /admin_notifications/);
+  assert.match(schema, /prevent_completed_contract_overwrite/);
+  assert.match(schema, /old\.status = '完了'/);
+  assert.match(schema, /create table if not exists public\.admin_notifications/);
+  assert.match(apiSource, /listAdminNotifications/);
+  assert.match(contractSource, /function reviseCompletedContract/);
+  assert.match(contractSource, /parentContractId/);
 });
 
 test("公開Edge Functionは許可オリジン限定・キャッシュ禁止", async () => {

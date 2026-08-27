@@ -111,6 +111,9 @@ function dbContractToLocal(row) {
     cloudSavedAt: row.updated_at || "",
     consentStatus: row.consent_status || "",
     consentResult: row.consent_result || null,
+    parentContractId: row.parent_contract_id || "",
+    versionNumber: Number(row.version_number || 1),
+    lockedAt: row.locked_at || "",
     data: row.data || {},
   };
 }
@@ -128,6 +131,9 @@ function localContractToDb(contract, identityFiles = []) {
     signed_at_text: contract.signedAt || "",
     consent_status: contract.consentStatus || "",
     consent_result: contract.consentResult || null,
+    parent_contract_id: contract.parentContractId || null,
+    version_number: Number(contract.versionNumber || 1),
+    locked_at: contract.lockedAt || null,
     updated_at: new Date().toISOString(),
   };
 }
@@ -165,18 +171,24 @@ async function hashAccessToken(token) {
   return bytesToHex(new Uint8Array(digest));
 }
 
-async function createConsentAccess(contractId, token, expiresAt) {
+async function createConsentAccess(contractId, linkToken, credential, expiresAt) {
   if (!supabaseIsAuthenticated()) {
     throw new Error("Administrator authentication is required");
   }
-  const tokenHash = await hashAccessToken(token);
+  const [linkHash, tokenHash] = await Promise.all([
+    hashAccessToken(linkToken),
+    hashAccessToken(credential),
+  ]);
   await supabaseRequest(`/rest/v1/contracts?id=eq.${encodeURIComponent(contractId)}`, {
     method: "PATCH",
     headers: { Prefer: "return=minimal" },
     body: JSON.stringify({
       remote_access_hash: tokenHash,
+      remote_link_hash: linkHash,
       remote_access_expires_at: new Date(expiresAt).toISOString(),
       remote_used_at: null,
+      remote_failed_attempts: 0,
+      remote_locked_until: null,
     }),
   });
 }
@@ -321,6 +333,22 @@ async function saveConsentResult(contractId, result, accessToken = "") {
   if (!response.ok) throw new Error(await response.text());
 }
 
+async function listAdminNotifications() {
+  const rows = await supabaseRequest(
+    "/rest/v1/admin_notifications?select=*&order=created_at.desc&limit=50",
+    { method: "GET" },
+  );
+  return rows || [];
+}
+
+async function markNotificationRead(id) {
+  await supabaseRequest(`/rest/v1/admin_notifications?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ read_at: new Date().toISOString() }),
+  });
+}
+
 window.OrderAutoCloud = {
   isConfigured: supabaseIsConfigured,
   isAuthenticated: supabaseIsAuthenticated,
@@ -337,4 +365,6 @@ window.OrderAutoCloud = {
   getPrivateFileUrl,
   deleteFile: deleteCloudFile,
   saveConsentResult,
+  listAdminNotifications,
+  markNotificationRead,
 };

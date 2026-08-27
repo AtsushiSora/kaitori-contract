@@ -83,6 +83,54 @@
             <dl class="document-dl" id="summary-list"></dl>
           </section>
 
+          <section class="consent-summary" id="seller-input-section" hidden>
+            <h2>売主情報・本人確認</h2>
+            <p class="form-note">契約者ご本人が入力してください。入力内容と本人確認書類は管理者確認を待たず、署名完了時に契約へ反映されます。</p>
+            <div class="remote-seller-grid" id="remote-seller-form">
+              <label class="full">契約者区分
+                <select id="remote-seller-type">
+                  <option value="individual">個人</option>
+                  <option value="corporate">法人</option>
+                </select>
+              </label>
+              <div class="remote-seller-fields full" data-seller-kind="individual">
+                <label>名字<input id="remote-seller-last-name" autocomplete="family-name" /></label>
+                <label>名前<input id="remote-seller-first-name" autocomplete="given-name" /></label>
+                <label>フリガナ（名字）<input id="remote-seller-last-kana" /></label>
+                <label>フリガナ（名前）<input id="remote-seller-first-kana" /></label>
+                <label>郵便番号<input id="remote-seller-postal" inputmode="numeric" autocomplete="postal-code" /></label>
+                <label class="full">住所<input id="remote-seller-address" autocomplete="street-address" /></label>
+                <label>自宅電話<input id="remote-seller-home-phone" inputmode="tel" autocomplete="tel" /></label>
+                <label>携帯電話<input id="remote-seller-mobile" inputmode="tel" autocomplete="tel" /></label>
+                <label class="full">生年月日<input id="remote-seller-birthdate" type="date" /></label>
+              </div>
+              <div class="remote-seller-fields full" data-seller-kind="corporate" hidden>
+                <label class="full">法人名<input id="remote-corporate-name" autocomplete="organization" /></label>
+                <label>法人番号<input id="remote-corporate-number" inputmode="numeric" /></label>
+                <label>郵便番号<input id="remote-corporate-postal" inputmode="numeric" autocomplete="postal-code" /></label>
+                <label class="full">法人所在地<input id="remote-corporate-address" autocomplete="street-address" /></label>
+                <label>法人電話番号<input id="remote-corporate-phone" inputmode="tel" autocomplete="tel" /></label>
+                <label>代表者役職<input id="remote-representative-title" placeholder="例：代表取締役" /></label>
+                <label>代表者の名字<input id="remote-representative-last-name" autocomplete="family-name" /></label>
+                <label>代表者の名前<input id="remote-representative-first-name" autocomplete="given-name" /></label>
+              </div>
+              <label>メールアドレス<input id="remote-seller-email" type="email" autocomplete="email" /></label>
+              <label>運転免許証番号<input id="remote-identity-number" inputmode="numeric" /></label>
+              <div class="full identity-document-fields">
+                <label>運転免許証（表面・必須）<input id="remote-license-front" type="file" accept="image/jpeg,image/png" /></label>
+                <label>免許証裏面
+                  <select id="remote-license-back-status">
+                    <option value="none">記載なし（添付不要）</option>
+                    <option value="has_entries">記載あり（添付する）</option>
+                  </select>
+                </label>
+                <label id="remote-license-back-field" hidden>運転免許証（裏面）<input id="remote-license-back" type="file" accept="image/jpeg,image/png" /></label>
+              </div>
+            </div>
+            <p id="remote-seller-error" class="field-error-message" hidden>未入力の必須項目または本人確認書類があります。色の付いた箇所を確認してください。</p>
+            <p class="form-note">本人確認画像は非公開領域に保存し、メール・LINEには添付しません。法人契約では代表者の運転免許証を使用します。</p>
+          </section>
+
           <section class="consent-summary" id="consent-check-section" hidden>
             <h2>重要事項・契約条項</h2>
             <p class="form-note">
@@ -98,7 +146,8 @@
             <h2>電子署名</h2>
             <label class="customer-name-label">
               氏名
-              <input id="customer-name" autocomplete="name" />
+              <input id="customer-name" autocomplete="name" readonly />
+              <small>個人は売主氏名、法人は代表者氏名が自動で入ります。</small>
               <span id="customer-name-error" class="field-error-message" hidden>
                 氏名を入力してください。
               </span>

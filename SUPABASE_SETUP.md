@@ -43,6 +43,7 @@ URLとパスコードの両方がそろわない限り、契約内容は取得�
 Supabase CLIを使う場合は、プロジェクトをリンクしてから次を実行します。
 
 ```bash
+supabase db push
 supabase functions deploy public-contract --no-verify-jwt
 supabase functions deploy submit-consent --no-verify-jwt
 ```
@@ -50,6 +51,20 @@ supabase functions deploy submit-consent --no-verify-jwt
 公開関数はSupabase Authのログインを要求しない代わりに、DBへ保存したトークンのハッシュ、有効期限、使用済み状態を関数内で必ず検証します。`SUPABASE_SERVICE_ROLE_KEY`をHTMLやJavaScriptへ記載しないでください。
 
 別ドメインへ移行するときはEdge FunctionのSecret `ALLOWED_ORIGINS` に許可するOriginをカンマ区切りで設定します。
+
+### 完了メール通知
+
+契約完了を管理者へメール通知する場合は、Edge FunctionのSecretを設定します。
+
+```bash
+supabase secrets set RESEND_API_KEY="re_xxx"
+supabase secrets set ADMIN_NOTIFICATION_EMAIL="admin@example.com"
+supabase secrets set NOTIFICATION_FROM_EMAIL="オーダーオート <contract@example.com>"
+```
+
+`NOTIFICATION_FROM_EMAIL`はResendで認証済みのドメインを使います。本人確認書類はメールに添付されません。未設定または送信失敗時は、管理画面内の通知に状態が残ります。
+
+本人確認書類は非公開の `contract-files` Storageに保存され、自動削除は行いません。削除は管理者が運用方針に沿って実施します。
 
 ## 4. 本番前に必ずやること
 

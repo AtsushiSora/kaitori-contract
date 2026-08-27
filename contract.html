@@ -85,6 +85,15 @@
                 <small>買取車両・契約履歴・車両書類を確認</small>
               </button>
             </div>
+            <section class="admin-notification-panel" aria-labelledby="notification-title">
+              <div class="admin-notification-head">
+                <h3 id="notification-title">管理画面内通知</h3>
+                <button class="mini-button" type="button" id="refresh-notifications">更新</button>
+              </div>
+              <div id="admin-notification-list" class="admin-notification-list" aria-live="polite">
+                <p class="empty-state">新しい通知はありません。</p>
+              </div>
+            </section>
           </section>
 
           <section class="app-view management-page" data-app-view="customers" hidden>

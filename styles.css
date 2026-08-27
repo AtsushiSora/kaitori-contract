@@ -317,6 +317,58 @@ textarea {
   font-weight: 800;
 }
 
+.admin-notification-panel {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+}
+
+.admin-notification-head,
+.admin-notification-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.admin-notification-head h3,
+.admin-notification-item p {
+  margin: 0;
+}
+
+.admin-notification-list {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-notification-item {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfb;
+}
+
+.admin-notification-item.unread {
+  border-left: 5px solid var(--green);
+  background: #f1f8f4;
+}
+
+.admin-notification-item > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.admin-notification-item small,
+.notification-read-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
 .management-page {
   min-width: 0;
 }
@@ -1730,6 +1782,49 @@ textarea {
   font-size: 1.2rem;
 }
 
+.remote-seller-grid,
+.remote-seller-fields,
+.identity-document-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.remote-seller-grid label,
+.remote-seller-fields label,
+.identity-document-fields label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.remote-seller-grid .full,
+.remote-seller-fields.full,
+.remote-seller-fields .full,
+.identity-document-fields.full {
+  grid-column: 1 / -1;
+}
+
+.remote-seller-grid input,
+.remote-seller-grid select {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid #cfd8d2;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--white);
+  color: var(--ink);
+}
+
+.identity-document-fields {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfb;
+}
+
 .customer-name-label {
   display: grid;
   gap: 8px;
@@ -1755,6 +1850,19 @@ textarea {
 }
 
 @media (max-width: 620px) {
+  .remote-seller-grid,
+  .remote-seller-fields,
+  .identity-document-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .remote-seller-grid .full,
+  .remote-seller-fields.full,
+  .remote-seller-fields .full,
+  .identity-document-fields.full {
+    grid-column: auto;
+  }
+
   .consent-progress li {
     font-size: 0.68rem;
   }
@@ -1888,6 +1996,11 @@ textarea {
   .management-head {
     display: grid;
     align-items: stretch;
+  }
+
+  .admin-notification-item {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .management-card summary {

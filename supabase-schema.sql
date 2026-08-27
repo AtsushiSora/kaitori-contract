@@ -7,8 +7,14 @@ create table if not exists public.contracts (
   consent_status text,
   consent_result jsonb,
   remote_access_hash text,
+  remote_link_hash text,
   remote_access_expires_at timestamptz,
   remote_used_at timestamptz,
+  remote_failed_attempts integer not null default 0,
+  remote_locked_until timestamptz,
+  parent_contract_id text,
+  version_number integer not null default 1,
+  locked_at timestamptz,
   created_at_text text,
   updated_at_text text,
   completed_at_text text,
@@ -19,9 +25,23 @@ create table if not exists public.contracts (
 
 alter table public.contracts
   add column if not exists remote_access_hash text,
+  add column if not exists remote_link_hash text,
   add column if not exists remote_access_expires_at timestamptz,
   add column if not exists remote_used_at timestamptz,
+  add column if not exists remote_failed_attempts integer not null default 0,
+  add column if not exists remote_locked_until timestamptz,
+  add column if not exists parent_contract_id text,
+  add column if not exists version_number integer not null default 1,
+  add column if not exists locked_at timestamptz,
   add column if not exists contract_number text;
+
+create index if not exists contracts_remote_link_hash_idx
+  on public.contracts (remote_link_hash)
+  where remote_link_hash is not null;
+
+create index if not exists contracts_parent_contract_id_idx
+  on public.contracts (parent_contract_id)
+  where parent_contract_id is not null;
 
 create unique index if not exists contracts_contract_number_key
   on public.contracts (contract_number)
@@ -133,18 +153,33 @@ create table if not exists public.consent_events (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.admin_notifications (
+  id bigint generated always as identity primary key,
+  contract_id text references public.contracts(id) on delete cascade,
+  notification_type text not null,
+  title text not null,
+  message text not null,
+  payload jsonb not null default '{}'::jsonb,
+  read_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
 alter table public.contracts enable row level security;
 alter table public.consent_events enable row level security;
+alter table public.admin_notifications enable row level security;
 
 grant usage on schema public to authenticated;
 grant select, insert, update, delete on table public.contracts to authenticated;
 grant select on table public.consent_events to authenticated;
+grant select, update, delete on table public.admin_notifications to authenticated;
 
 -- Edge Functions use the service role after validating the one-time access token.
 grant usage on schema public to service_role;
 grant select, update on table public.contracts to service_role;
 grant insert on table public.consent_events to service_role;
+grant insert on table public.admin_notifications to service_role;
 grant usage, select on sequence public.consent_events_id_seq to service_role;
+grant usage, select on sequence public.admin_notifications_id_seq to service_role;
 
 drop policy if exists "authenticated users can manage contracts" on public.contracts;
 create policy "authenticated users can manage contracts"
@@ -160,6 +195,34 @@ on public.consent_events
 for select
 to authenticated
 using (true);
+
+drop policy if exists "authenticated users can manage admin notifications" on public.admin_notifications;
+create policy "authenticated users can manage admin notifications"
+on public.admin_notifications
+for all
+to authenticated
+using (true)
+with check (true);
+
+create or replace function public.prevent_completed_contract_overwrite()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if old.status = '完了' and coalesce(auth.role(), '') <> 'service_role' then
+    raise exception 'Completed contracts are locked. Create a new version instead.' using errcode = '42501';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists protect_completed_contracts on public.contracts;
+create trigger protect_completed_contracts
+before update on public.contracts
+for each row
+execute function public.prevent_completed_contract_overwrite();
 
 insert into storage.buckets (id, name, public)
 values ('contract-files', 'contract-files', false)

@@ -78,6 +78,14 @@ try {
       await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
       return;
     }
+    if (request.method() === "GET" && url.pathname === "/rest/v1/admin_notifications") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+      return;
+    }
+    if (request.method() === "PATCH" && url.pathname === "/rest/v1/admin_notifications") {
+      await route.fulfill({ status: 204, body: "" });
+      return;
+    }
     if (request.method() === "POST" && url.pathname === "/rest/v1/contracts") {
       const body = request.postDataJSON();
       await route.fulfill({
@@ -232,7 +240,7 @@ try {
   assert.equal(await completedContractItem.locator("em").textContent(), "完了");
   logPass("完了にすると保存後に契約一覧へ移動");
 
-  await completedContractItem.getByRole("button", { name: "編集" }).click();
+  await completedContractItem.getByRole("button", { name: "複製して修正" }).click();
   await page.locator("#save-contract").click();
   await page.waitForFunction(() =>
     document.querySelector("#cloud-save-status")?.textContent.includes("Supabaseへ保存しました"),
@@ -262,7 +270,7 @@ try {
 
   await page.locator('[aria-label="メインナビゲーション"] a[href="#top"]').click();
   await page.locator('[data-app-view="top"] [data-list-mode="paper"]').click();
-  const paperContractItem = page.locator("article.contract-list-item").filter({ hasText: "テスト車両" });
+  const paperContractItem = page.locator("article.contract-list-item").filter({ hasText: "テスト車両" }).first();
   assert.equal(await paperContractItem.getByRole("button", { name: "この契約を印刷" }).count(), 1);
   assert.equal(await paperContractItem.getByRole("button", { name: "編集" }).count(), 0);
   logPass("紙で印刷は一覧から対象契約だけを選択");
@@ -292,7 +300,7 @@ try {
 
   await page.locator('[aria-label="メインナビゲーション"] a[href="#top"]').click();
   await page.locator('[data-app-view="top"] [data-list-mode="tablet"]').click();
-  const tabletContractItem = page.locator("article.contract-list-item").filter({ hasText: "テスト車両" });
+  const tabletContractItem = page.locator("article.contract-list-item").filter({ hasText: "テスト車両" }).first();
   await tabletContractItem.getByRole("button", { name: "この契約に署名" }).click();
   assert.match(page.url(), /#create$/);
   assert.equal(await page.locator('[name="carName"]').inputValue(), "テスト車両");
@@ -310,7 +318,7 @@ try {
   await page.locator('[aria-label="メインナビゲーション"] a[href="#top"]').click();
   await page.locator('[data-app-view="top"] [data-list-mode="remote"]').click();
   assert.equal(await page.locator("#list-view-title").textContent(), "メール・LINEで契約");
-  const testContractItem = page.locator("article.contract-list-item").filter({ hasText: "テスト車両" });
+  const testContractItem = page.locator("article.contract-list-item").filter({ hasText: "テスト車両" }).first();
   assert.equal(await testContractItem.getByRole("button", { name: "編集" }).count(), 0);
   await testContractItem.getByRole("button", { name: "メール・LINEで送る" }).click();
   assert.match(page.url(), /#remote$/);
