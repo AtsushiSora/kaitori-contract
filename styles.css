@@ -1953,9 +1953,14 @@ textarea {
   }
 
   .date-input-wrap,
+  .deadline-input-group,
   .plate-number-grid,
   .vehicle-condition-input-grid {
     grid-template-columns: 1fr;
+  }
+
+  .deadline-input-group {
+    gap: 14px;
   }
 
   .identity-photo-item {

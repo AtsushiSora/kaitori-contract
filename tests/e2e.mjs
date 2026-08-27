@@ -175,6 +175,19 @@ try {
   assert.ok(mobileToolbarLayout.printButtonWidth > mobileToolbarLayout.firstButtonWidth * 2.8);
   assert.equal(mobileToolbarLayout.hasHorizontalOverflow, false);
   logPass("スマホ縦向きの作成画面で見出しと3列操作ボタンを整列");
+
+  const mobileDeadlineLayout = await page.locator(".deadline-input-group").evaluate((group) => {
+    const labels = [...group.children].map((item) => item.getBoundingClientRect());
+    return {
+      singleColumn: labels.every((label, index) => index === 0 || label.top > labels[index - 1].bottom),
+      labelsFit: labels.every((label) => label.left >= group.getBoundingClientRect().left && label.right <= group.getBoundingClientRect().right),
+      hasHorizontalOverflow: group.scrollWidth > group.clientWidth,
+    };
+  });
+  assert.equal(mobileDeadlineLayout.singleColumn, true);
+  assert.equal(mobileDeadlineLayout.labelsFit, true);
+  assert.equal(mobileDeadlineLayout.hasHorizontalOverflow, false);
+  logPass("スマホ縦向きの期限入力を重なりのない1列で表示");
   await page.setViewportSize({ width: 1280, height: 720 });
 
   await page.locator('[name="carName"]').fill("テスト車両");
@@ -191,6 +204,9 @@ try {
     mimeType: "application/pdf",
     buffer: Buffer.from("%PDF-1.4\n%%EOF\n"),
   });
+  await page.waitForFunction(() =>
+    document.querySelector("#vehicle-document-list")?.textContent.includes("test-registration.pdf"),
+  );
   assert.match(await page.locator("#vehicle-document-list").textContent(), /車検証 \/ test-registration\.pdf/);
   await page.locator('[name="completionMethod"]').selectOption("paper");
   await page.locator("#save-contract").click();
