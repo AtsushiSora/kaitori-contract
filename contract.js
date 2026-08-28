@@ -1919,6 +1919,10 @@ function setAppPage(page, updateHash = true) {
     void loadCloudContracts();
   }
 
+  if (previousPage !== activeAppPage) {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }
+
   if (updateHash) {
     const pageHashes = {
       top: "#top",

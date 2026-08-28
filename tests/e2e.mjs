@@ -201,10 +201,19 @@ try {
   logPass("トップの対面電子署名から契約選択一覧へ移動");
 
   await page.locator('[aria-label="メインナビゲーション"] a[href="#top"]').click();
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await page.locator(".top-action-card-wide").click();
   assert.match(page.url(), /#create$/);
   assert.equal(await page.locator('[name="completionMethod"]').inputValue(), "paper");
   assert.equal(await page.locator("#signature-panel").isHidden(), true);
+  assert.equal(await page.evaluate(() => window.scrollY), 0);
+  const createViewTop = await page.locator('[data-app-view="create"] .workspace-toolbar').evaluate((element) =>
+    element.getBoundingClientRect().top,
+  );
+  const headerBottom = await page.locator(".site-header").evaluate((element) =>
+    element.getBoundingClientRect().bottom,
+  );
+  assert.ok(createViewTop >= headerBottom);
   logPass("トップの契約書作成から新規入力へ移動");
 
   const legends = await page.locator("#contract-form fieldset > legend").allTextContents();
