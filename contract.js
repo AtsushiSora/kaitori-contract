@@ -719,7 +719,11 @@ async function loadCloudContracts() {
 
 function renderAdminNotifications() {
   const list = document.querySelector("#admin-notification-list");
+  const deleteReadButton = document.querySelector("#delete-read-notifications");
   if (!list) return;
+  if (deleteReadButton) {
+    deleteReadButton.disabled = !adminNotifications.some((notification) => notification.read_at);
+  }
   if (!adminNotifications.length) {
     list.innerHTML = '<p class="empty-state">新しい通知はありません。</p>';
     return;
@@ -735,12 +739,15 @@ function renderAdminNotifications() {
           ? "通知メール送信失敗"
           : "";
     return `<article class="admin-notification-item ${unread ? "unread" : ""}">
-      <div>
+      <div class="notification-item-content">
         <strong>${escapeHtml(notification.title)}</strong>
         <p>${escapeHtml(notification.message)}</p>
         <small>${escapeHtml(notification.created_at || "")}${emailLabel ? ` / ${escapeHtml(emailLabel)}` : ""}</small>
       </div>
-      ${unread ? `<button class="mini-button" type="button" data-read-notification="${notification.id}">確認済みにする</button>` : '<span class="notification-read-label">確認済み</span>'}
+      <div class="notification-item-actions">
+        ${unread ? `<button class="mini-button" type="button" data-read-notification="${notification.id}">確認済みにする</button>` : '<span class="notification-read-label">確認済み</span>'}
+        <button class="mini-button danger" type="button" data-delete-notification="${notification.id}" aria-label="${escapeHtml(notification.title)}を削除">削除</button>
+      </div>
     </article>`;
   }).join("");
 }
@@ -2904,11 +2911,38 @@ function setupSignatureCanvas() {
 
 function setupEvents() {
   document.querySelector("#refresh-notifications")?.addEventListener("click", loadAdminNotifications);
+  document.querySelector("#delete-read-notifications")?.addEventListener("click", async () => {
+    const confirmedCount = adminNotifications.filter((notification) => notification.read_at).length;
+    if (!confirmedCount || !window.OrderAutoCloud?.deleteReadAdminNotifications) return;
+    if (!window.confirm(`確認済みの通知${confirmedCount}件を削除します。よろしいですか？`)) return;
+    try {
+      await window.OrderAutoCloud.deleteReadAdminNotifications();
+      await loadAdminNotifications();
+    } catch (error) {
+      window.alert("確認済み通知を削除できませんでした。通信状態を確認して、もう一度お試しください。");
+    }
+  });
   document.querySelector("#admin-notification-list")?.addEventListener("click", async (event) => {
-    const button = event.target.closest("[data-read-notification]");
-    if (!button || !window.OrderAutoCloud?.markNotificationRead) return;
-    await window.OrderAutoCloud.markNotificationRead(button.dataset.readNotification);
-    await loadAdminNotifications();
+    const readButton = event.target.closest("[data-read-notification]");
+    if (readButton && window.OrderAutoCloud?.markNotificationRead) {
+      try {
+        await window.OrderAutoCloud.markNotificationRead(readButton.dataset.readNotification);
+        await loadAdminNotifications();
+      } catch (error) {
+        window.alert("通知を確認済みにできませんでした。通信状態を確認して、もう一度お試しください。");
+      }
+      return;
+    }
+
+    const deleteButton = event.target.closest("[data-delete-notification]");
+    if (!deleteButton || !window.OrderAutoCloud?.deleteAdminNotification) return;
+    if (!window.confirm("この通知を削除します。よろしいですか？")) return;
+    try {
+      await window.OrderAutoCloud.deleteAdminNotification(deleteButton.dataset.deleteNotification);
+      await loadAdminNotifications();
+    } catch (error) {
+      window.alert("通知を削除できませんでした。通信状態を確認して、もう一度お試しください。");
+    }
   });
   const form = document.querySelector("#contract-form");
 

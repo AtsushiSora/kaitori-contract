@@ -349,6 +349,20 @@ async function markNotificationRead(id) {
   });
 }
 
+async function deleteAdminNotification(id) {
+  await supabaseRequest(`/rest/v1/admin_notifications?id=eq.${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: { Prefer: "return=minimal" },
+  });
+}
+
+async function deleteReadAdminNotifications() {
+  await supabaseRequest("/rest/v1/admin_notifications?read_at=not.is.null", {
+    method: "DELETE",
+    headers: { Prefer: "return=minimal" },
+  });
+}
+
 window.OrderAutoCloud = {
   isConfigured: supabaseIsConfigured,
   isAuthenticated: supabaseIsAuthenticated,
@@ -367,4 +381,6 @@ window.OrderAutoCloud = {
   saveConsentResult,
   listAdminNotifications,
   markNotificationRead,
+  deleteAdminNotification,
+  deleteReadAdminNotifications,
 };

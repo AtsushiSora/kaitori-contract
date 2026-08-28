@@ -340,6 +340,15 @@ textarea {
   margin: 0;
 }
 
+.admin-notification-head-actions,
+.notification-item-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .admin-notification-list {
   display: grid;
   gap: 8px;
@@ -357,7 +366,7 @@ textarea {
   background: #f1f8f4;
 }
 
-.admin-notification-item > div {
+.notification-item-content {
   display: grid;
   gap: 4px;
   min-width: 0;
@@ -367,6 +376,11 @@ textarea {
 .notification-read-label {
   color: var(--muted);
   font-size: 0.8rem;
+}
+
+.admin-notification-head .mini-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 
 .management-page {
@@ -2001,6 +2015,15 @@ textarea {
   .admin-notification-item {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .admin-notification-head {
+    align-items: flex-start;
+  }
+
+  .admin-notification-head-actions,
+  .notification-item-actions {
+    justify-content: flex-start;
   }
 
   .management-card summary {

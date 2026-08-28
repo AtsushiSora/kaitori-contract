@@ -57,6 +57,24 @@ try {
   const context = await browser.newContext({ acceptDownloads: true });
   const page = await context.newPage();
   let cloudContractRows = [];
+  let adminNotificationRows = [
+    {
+      id: 1,
+      title: "未確認通知",
+      message: "確認操作のテスト",
+      payload: { emailStatus: "sent" },
+      read_at: null,
+      created_at: "2026-08-28T09:00:00+09:00",
+    },
+    {
+      id: 2,
+      title: "確認済み通知",
+      message: "削除操作のテスト",
+      payload: { emailStatus: "sent" },
+      read_at: "2026-08-28T09:05:00+09:00",
+      created_at: "2026-08-28T08:55:00+09:00",
+    },
+  ];
 
   page.on("dialog", (dialog) => dialog.accept());
   await context.route("https://cumvescylyetumupupmc.supabase.co/**", async (route) => {
@@ -84,10 +102,28 @@ try {
       return;
     }
     if (request.method() === "GET" && url.pathname === "/rest/v1/admin_notifications") {
-      await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(adminNotificationRows),
+      });
       return;
     }
     if (request.method() === "PATCH" && url.pathname === "/rest/v1/admin_notifications") {
+      const id = url.searchParams.get("id")?.replace(/^eq\./, "");
+      adminNotificationRows = adminNotificationRows.map((notification) =>
+        String(notification.id) === id
+          ? { ...notification, read_at: new Date().toISOString() }
+          : notification,
+      );
+      await route.fulfill({ status: 204, body: "" });
+      return;
+    }
+    if (request.method() === "DELETE" && url.pathname === "/rest/v1/admin_notifications") {
+      const id = url.searchParams.get("id")?.replace(/^eq\./, "");
+      adminNotificationRows = id
+        ? adminNotificationRows.filter((notification) => String(notification.id) !== id)
+        : adminNotificationRows.filter((notification) => !notification.read_at);
       await route.fulfill({ status: 204, body: "" });
       return;
     }
@@ -125,6 +161,18 @@ try {
   await page.waitForURL(/contract\.html/);
   assert.equal(await page.locator('[data-app-view="top"]').isVisible(), true);
   logPass("管理者ログインから契約トップへ移動");
+
+  await page.waitForFunction(() => document.querySelectorAll(".admin-notification-item").length === 2);
+  assert.equal(await page.locator("#delete-read-notifications").isEnabled(), true);
+  await page.locator("#delete-read-notifications").click();
+  await page.waitForFunction(() => document.querySelectorAll(".admin-notification-item").length === 1);
+  assert.match(await page.locator("#admin-notification-list").textContent(), /未確認通知/);
+  await page.locator("[data-read-notification]").click();
+  await page.waitForFunction(() => document.querySelector("[data-delete-notification]") && !document.querySelector("[data-read-notification]"));
+  await page.locator("[data-delete-notification]").click();
+  await page.waitForFunction(() => document.querySelectorAll(".admin-notification-item").length === 0);
+  assert.match(await page.locator("#admin-notification-list").textContent(), /新しい通知はありません/);
+  logPass("管理画面内通知を確認済み一括削除・個別削除");
 
   const createCardBox = await page.locator(".top-action-card-wide").boundingBox();
   const listCardBox = await page.getByRole("button", { name: /契約一覧/ }).boundingBox();

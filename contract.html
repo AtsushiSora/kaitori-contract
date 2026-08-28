@@ -9,14 +9,14 @@
       content="オーダーオートの車両売買契約書を作成、印刷、タブレット署名、メール送信できる契約作成システムです。"
     />
     <meta name="robots" content="noindex,nofollow" />
-    <link rel="stylesheet" href="styles.css?v=20260827-mobile-deadlines" />
+    <link rel="stylesheet" href="styles.css?v=20260828-notification-management" />
     <script src="supabase-config.js"></script>
-    <script src="supabase-api.js?v=20260827-contract-attachments"></script>
+    <script src="supabase-api.js?v=20260828-notification-management"></script>
     <script src="admin-auth.js?v=20260717-production"></script>
     <script>
       window.OrderAutoAdminAuth.requireAuth();
     </script>
-    <script src="contract.js?v=20260828-remote-consent-sync" defer></script>
+    <script src="contract.js?v=20260828-notification-management" defer></script>
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -88,7 +88,10 @@
             <section class="admin-notification-panel" aria-labelledby="notification-title">
               <div class="admin-notification-head">
                 <h3 id="notification-title">管理画面内通知</h3>
-                <button class="mini-button" type="button" id="refresh-notifications">更新</button>
+                <div class="admin-notification-head-actions">
+                  <button class="mini-button danger" type="button" id="delete-read-notifications" disabled>確認済みを削除</button>
+                  <button class="mini-button" type="button" id="refresh-notifications">更新</button>
+                </div>
               </div>
               <div id="admin-notification-list" class="admin-notification-list" aria-live="polite">
                 <p class="empty-state">新しい通知はありません。</p>

@@ -47,6 +47,19 @@ test("お客様同意画面のチェックボックスはタップしやすい�
   assert.match(source, /\.consent-list input\s*\{[\s\S]*?width:\s*26px;[\s\S]*?height:\s*26px;/);
 });
 
+test("管理画面内通知は個別削除と確認済み一括削除ができる", async () => {
+  const [html, contractSource, apiSource] = await Promise.all([
+    text("contract.html"),
+    text("contract.js"),
+    text("supabase-api.js"),
+  ]);
+  assert.match(html, /id="delete-read-notifications"/);
+  assert.match(contractSource, /data-delete-notification/);
+  assert.match(contractSource, /deleteReadAdminNotifications/);
+  assert.match(apiSource, /admin_notifications\?id=eq\.\$\{encodeURIComponent\(id\)\}[\s\S]*method: "DELETE"/);
+  assert.match(apiSource, /admin_notifications\?read_at=not\.is\.null[\s\S]*method: "DELETE"/);
+});
+
 test("メール・LINE契約は案内から完了通知まで同じ手順で表示する", async () => {
   const contractSource = await text("contract.js");
   const consentHtml = await text("consent.html");
