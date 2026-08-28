@@ -41,6 +41,10 @@ let isDrawing = false;
 let adminNotifications = [];
 let cloudContractsLoading = false;
 
+if ("scrollRestoration" in window.history) {
+  window.history.scrollRestoration = "manual";
+}
+
 const CRYPTO_ITERATIONS = 200000;
 const MAX_IDENTITY_FILES = 4;
 const MAX_VEHICLE_FILES = 8;
@@ -1878,6 +1882,13 @@ function setPreviewCopy(copyType) {
   updatePreview();
 }
 
+function resetAppScroll() {
+  window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  window.requestAnimationFrame(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  });
+}
+
 function setAppPage(page, updateHash = true) {
   const nextPage = ["top", "create", "list", "remote", "customers", "vehicles"].includes(page) ? page : "top";
   const previousPage = activeAppPage;
@@ -1920,7 +1931,7 @@ function setAppPage(page, updateHash = true) {
   }
 
   if (previousPage !== activeAppPage) {
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    resetAppScroll();
   }
 
   if (updateHash) {
@@ -3235,6 +3246,9 @@ document.addEventListener("DOMContentLoaded", () => {
     clearContractForm(false);
   }
   setAppPage(initialPage, false);
+  resetAppScroll();
   loadCloudContracts();
   loadAdminNotifications();
 });
+
+window.addEventListener("pageshow", resetAppScroll);

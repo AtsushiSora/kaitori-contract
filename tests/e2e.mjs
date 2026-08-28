@@ -214,6 +214,10 @@ try {
     element.getBoundingClientRect().bottom,
   );
   assert.ok(createViewTop >= headerBottom);
+  await page.evaluate(() => window.scrollTo(0, 600));
+  await page.reload();
+  await page.waitForFunction(() => document.querySelector('[data-app-view="create"]')?.hidden === false);
+  assert.equal(await page.evaluate(() => window.scrollY), 0);
   logPass("トップの契約書作成から新規入力へ移動");
 
   const legends = await page.locator("#contract-form fieldset > legend").allTextContents();
