@@ -39,6 +39,7 @@ let vehicleFiles = [];
 const identityPreviewUrls = new Map();
 let isDrawing = false;
 let adminNotifications = [];
+let cloudContractsLoading = false;
 
 const CRYPTO_ITERATIONS = 200000;
 const MAX_IDENTITY_FILES = 4;
@@ -683,7 +684,9 @@ function clearContractForm(showStatus = true) {
 }
 
 async function loadCloudContracts() {
-  if (!cloudEnabled()) return;
+  if (!cloudEnabled() || cloudContractsLoading) return;
+
+  cloudContractsLoading = true;
 
   try {
     setSaveStatus("Supabaseから契約一覧を読み込み中です。", "pending");
@@ -709,6 +712,8 @@ async function loadCloudContracts() {
     setSaveStatus("Supabaseと同期しました。", "success");
   } catch (error) {
     setSaveStatus("Supabaseから契約一覧を読み込めませんでした。ローカル保存で続行します。", "warning");
+  } finally {
+    cloudContractsLoading = false;
   }
 }
 
@@ -1898,6 +1903,10 @@ function setAppPage(page, updateHash = true) {
 
   if (activeAppPage === "vehicles") {
     renderVehicleList();
+  }
+
+  if (["list", "customers", "vehicles"].includes(activeAppPage)) {
+    void loadCloudContracts();
   }
 
   if (updateHash) {

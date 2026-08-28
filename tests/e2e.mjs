@@ -56,6 +56,7 @@ try {
   });
   const context = await browser.newContext({ acceptDownloads: true });
   const page = await context.newPage();
+  let cloudContractRows = [];
 
   page.on("dialog", (dialog) => dialog.accept());
   await context.route("https://cumvescylyetumupupmc.supabase.co/**", async (route) => {
@@ -75,7 +76,11 @@ try {
       return;
     }
     if (request.method() === "GET" && url.pathname === "/rest/v1/contracts") {
-      await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(cloudContractRows),
+      });
       return;
     }
     if (request.method() === "GET" && url.pathname === "/rest/v1/admin_notifications") {
@@ -339,6 +344,48 @@ try {
   assert.equal(await page.locator("#email-url").inputValue(), shortUrl);
   assert.match(await page.locator("#cloud-save-status").textContent(), /再ログイン/);
   logPass("ログイン期限切れ時は旧式の長いURLを発行しない");
+
+  const staleContract = await page.evaluate(() => {
+    const storedContracts = JSON.parse(localStorage.getItem("orderAutoContracts") || "[]");
+    return storedContracts.find((contract) => contract.data?.carName === "テスト車両");
+  });
+  assert.ok(staleContract);
+  cloudContractRows = [{
+    id: staleContract.id,
+    contract_number: "26081101",
+    status: "完了",
+    data: {
+      ...staleContract.data,
+      sellerLastName: "遠隔",
+      sellerFirstName: "完了",
+      sellerName: "遠隔 完了",
+      sellerMobile: "09000000000",
+    },
+    signature_data: "",
+    identity_files: [],
+    created_at_text: staleContract.createdAt,
+    updated_at_text: "2026/08/28 09:12",
+    completed_at_text: "2026-08-28T00:12:20.000Z",
+    signed_at_text: "2026-08-28T00:12:20.000Z",
+    consent_status: "完了",
+    consent_result: { completedAt: "2026-08-28T00:12:20.000Z" },
+    version_number: 1,
+    updated_at: "2026-08-28T00:12:20.000Z",
+  }];
+  await page.evaluate(() => {
+    localStorage.setItem("orderAutoSupabaseSession", JSON.stringify({
+      access_token: "e2e-test-token",
+      refresh_token: "e2e-test-refresh",
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
+    }));
+  });
+  await page.locator('[aria-label="メインナビゲーション"] a[href="#top"]').click();
+  await page.locator('[aria-label="メインナビゲーション"] a[href="#list"]').click();
+  await page.waitForFunction(() => document.querySelector("#contract-list")?.textContent.includes("遠隔 完了"));
+  const syncedContractItem = page.locator("article.contract-list-item").filter({ hasText: "26081101" }).first();
+  assert.match(await syncedContractItem.textContent(), /遠隔 完了/);
+  assert.equal(await syncedContractItem.locator("em").textContent(), "完了");
+  logPass("一覧を開くと遠隔署名後の売主情報と完了状態をクラウドから再同期");
 
   await page.locator('[aria-label="メインナビゲーション"] a[href="#list"]').click();
   await page.locator("#new-contract").click();
