@@ -42,6 +42,19 @@ test("メール本文の空白をプラス記号へ変換しない", async () =>
   assert.doesNotMatch(source, /new URLSearchParams\(\{\s*subject,\s*body: emailBody\.value/);
 });
 
+test("会社電話番号は画面・通知・契約書PDFで新番号に統一する", async () => {
+  const files = await browserFiles();
+  const sources = await Promise.all(files.map((file) => text(file)));
+  const combined = sources.join("\n");
+  const contractSource = await text("contract.js");
+
+  assert.doesNotMatch(combined, /080-2912-8616|08029128616/);
+  assert.match(combined, /070-8996-6421/);
+  assert.match(combined, /07089966421/);
+  assert.match(contractSource, /pdfWhiteRect\(145, 1405, 225, 42\)/);
+  assert.match(contractSource, /pdfField\(152, 1438, COMPANY\.phone, 13\)/);
+});
+
 test("お客様同意画面のチェックボックスはタップしやすい大きさ", async () => {
   const source = await text("styles.css");
   assert.match(source, /\.consent-list input\s*\{[\s\S]*?width:\s*26px;[\s\S]*?height:\s*26px;/);

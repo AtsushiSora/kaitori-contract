@@ -3,7 +3,7 @@ const ORDER_AUTO = {
   name: "オーダーオート",
   representative: "空 篤志",
   address: "広島県広島市佐伯区皆賀1-10-20",
-  phone: "080-2912-8616",
+  phone: "070-8996-6421",
 };
 
 const COMMON_CONSENT_TEXTS = [
