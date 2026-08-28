@@ -215,6 +215,10 @@ try {
   );
   assert.ok(createViewTop >= headerBottom);
   await page.evaluate(() => window.scrollTo(0, 600));
+  const scrolledHeaderBottom = await page.locator(".site-header").evaluate((element) =>
+    element.getBoundingClientRect().bottom,
+  );
+  assert.ok(scrolledHeaderBottom <= 0);
   await page.reload();
   await page.waitForFunction(() => document.querySelector('[data-app-view="create"]')?.hidden === false);
   assert.equal(await page.evaluate(() => window.scrollY), 0);
