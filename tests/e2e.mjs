@@ -516,6 +516,7 @@ try {
   assert.match(await page.locator("#consent-passcode").inputValue(), /^\d{8}$/);
   assert.match(await page.locator("#email-body").inputValue(), new RegExp(shortUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(await page.locator("#email-body").inputValue(), /契約番号：26081101/);
+  await page.locator("#remote-recipient-email").fill("customer@example.test");
   logPass("メール・LINE契約は一覧の契約情報を送信画面へ反映");
   logPass("クラウド契約で短い確認URLと別送パスコードを自動準備");
 
@@ -530,8 +531,11 @@ try {
     });
   });
   await page.locator("#copy-line-message").click();
+  await page.waitForFunction(() => Boolean(window.__copiedRemoteText));
   const copiedRemoteText = await page.evaluate(() => window.__copiedRemoteText || "");
-  assert.match(copiedRemoteText, /車両売買契約の内容確認/);
+  const lineCopyStatus = await page.locator("#remote-action-status").textContent();
+  const lineCloudStatus = await page.locator("#cloud-save-status").textContent();
+  assert.match(copiedRemoteText, /車両売買契約の内容確認/, `LINEコピー状態: ${lineCopyStatus} / ${lineCloudStatus}`);
   assert.match(copiedRemoteText, new RegExp(shortUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(await page.locator("#remote-action-status").textContent(), /LINE文面をコピーしました/);
   logPass("LINE文面コピーが送信文面と確認URLをコピー");
@@ -554,12 +558,19 @@ try {
     };
   });
   await page.locator("#open-email").click();
+  await page.waitForFunction(() => Boolean(window.__openedMailLink));
   const openedMailLink = await page.evaluate(() => window.__openedMailLink || "");
-  assert.match(openedMailLink, /^mailto:/);
+  assert.match(openedMailLink, /^mailto:customer%40example\.test\?/);
   assert.match(openedMailLink, /subject=/);
   assert.match(openedMailLink, /body=/);
   assert.match(await page.locator("#remote-action-status").textContent(), /メールアプリを開きます/);
   logPass("メール作成が宛先・件名・本文付きのメールアプリを起動");
+  const savedRecipientEmail = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("orderAutoContracts") || "[]")
+      .find((contract) => contract.data?.carName === "テスト車両")?.data?.sellerEmail,
+  );
+  assert.equal(savedRecipientEmail, "customer@example.test");
+  logPass("契約案内の送信先メールアドレスを契約データへ保存");
 
   await page.evaluate(() => localStorage.removeItem("orderAutoSupabaseSession"));
   await page.locator("#generate-consent-url").click();
@@ -635,6 +646,7 @@ try {
   logPass("お客様向けに7手順と4段階の進行表示を用意");
   await page.evaluate(() => {
     document.querySelector("#seller-input-section").hidden = false;
+    populateRemoteSeller({ sellerType: "individual", sellerEmail: "customer@example.test" });
     document.querySelector("#consent-check-section").hidden = false;
     document.querySelector("#customer-consents").innerHTML =
       '<label><input type="checkbox" name="customerConsent" />重要事項を確認しました</label>';
@@ -642,6 +654,11 @@ try {
   const consentCheckboxBox = await page.locator('[name="customerConsent"]').boundingBox();
   assert.ok(consentCheckboxBox?.width >= 26 && consentCheckboxBox?.height >= 26);
   logPass("同意チェックボックスを押しやすい大きさで表示");
+  assert.equal(await page.locator("#remote-seller-email").inputValue(), "customer@example.test");
+  assert.equal(await page.locator("#remote-seller-email-note").isVisible(), true);
+  await page.locator("#remote-seller-email").fill("changed@example.test");
+  assert.equal(await page.locator("#remote-seller-email-note").isVisible(), false);
+  logPass("契約案内の送信先をお客様画面へ自動入力し、必要なら修正可能");
 
   await page.locator("#remote-seller-postal").fill("7315124");
   await page.waitForFunction(() => document.querySelector("#remote-seller-address")?.value === "広島県広島市佐伯区皆賀");

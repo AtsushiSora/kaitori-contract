@@ -27,6 +27,7 @@ let isDrawing = false;
 let hasCustomerSignature = false;
 let completionEmail = null;
 let preparedIdentityDocuments = [];
+let prefilledRecipientEmail = "";
 const DEFAULT_CRYPTO_ITERATIONS = 200000;
 const POSTAL_CODE_API_URL = "https://zipcloud.ibsnet.co.jp/api/search";
 const remotePostalTimers = new Map();
@@ -326,6 +327,9 @@ function populateRemoteSeller(data) {
     const field = remoteField(id);
     if (field) field.value = String(value || "");
   });
+  prefilledRecipientEmail = String(data.sellerEmail || "").trim();
+  const emailNote = remoteField("remote-seller-email-note");
+  if (emailNote) emailNote.hidden = !prefilledRecipientEmail;
   setRemoteSellerType(data.sellerType);
   remoteField("remote-license-back-field").hidden =
     sellerInputValue("remote-license-back-status") !== "has_entries";
@@ -1007,6 +1011,10 @@ document.addEventListener("DOMContentLoaded", () => {
       "remote-seller-last-name", "remote-seller-first-name",
       "remote-representative-last-name", "remote-representative-first-name",
     ].includes(event.target.id)) syncCustomerNameFromSeller();
+    if (event.target.id === "remote-seller-email") {
+      remoteField("remote-seller-email-note").hidden =
+        !prefilledRecipientEmail || event.target.value.trim() !== prefilledRecipientEmail;
+    }
   });
   document.querySelector("#customer-consents").addEventListener("change", () => {
     setConsentProgress("important");

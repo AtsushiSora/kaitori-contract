@@ -193,6 +193,7 @@
             <div class="contract-grid">
               <form id="contract-form" class="contract-form-panel">
                 <input type="hidden" name="contractType" value="unified" />
+                <input type="hidden" name="sellerEmail" />
 
                 <fieldset id="customer-name-fields">
                   <legend>お客様名</legend>
@@ -549,6 +550,11 @@
                     <strong>1. 確認URLを作成</strong>
                     <span>選択中の契約からURLとパスコードを作成します。</span>
                   </div>
+
+                  <label>契約案内の送信先メールアドレス
+                    <input id="remote-recipient-email" type="email" autocomplete="email" placeholder="例：customer@example.com" />
+                    <small>登録すると、お客様の入力画面へ自動で反映されます。</small>
+                  </label>
 
                   <button class="button button-primary" type="button" id="generate-consent-url">確認URL生成</button>
 

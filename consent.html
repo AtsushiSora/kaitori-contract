@@ -120,7 +120,10 @@
                 <label>代表者の名字<input id="remote-representative-last-name" autocomplete="family-name" /></label>
                 <label>代表者の名前<input id="remote-representative-first-name" autocomplete="given-name" /></label>
               </div>
-              <label>メールアドレス<input id="remote-seller-email" type="email" autocomplete="email" required /></label>
+              <label>メールアドレス
+                <input id="remote-seller-email" type="email" autocomplete="email" required />
+                <small id="remote-seller-email-note" hidden>契約案内の送信先を入力しています。必要な場合は修正できます。</small>
+              </label>
               <label>運転免許証番号<input id="remote-identity-number" inputmode="numeric" /></label>
               <div class="full identity-document-fields">
                 <label>運転免許証（表面・必須）<input id="remote-license-front" type="file" accept="image/jpeg,image/png" /></label>

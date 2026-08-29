@@ -89,6 +89,8 @@ test("メール・LINE契約は案内から完了通知まで同じ手順で表�
   const consentHtml = await text("consent.html");
   const consentSource = await text("consent.js");
   assert.match(contractHtml, /<legend>お客様名<\/legend>[\s\S]*name="customerName"[\s\S]*<legend>車両情報<\/legend>/);
+  assert.match(contractHtml, /id="remote-recipient-email"[^>]+type="email"/);
+  assert.match(contractHtml, /name="sellerEmail"/);
   assert.match(contractSource, /function customerGreeting/);
   assert.match(contractSource, /if \(!name \|\| name === "お客様"\) return "お客様"/);
   assert.match(contractSource, /customerNameValue\(data\)/);
@@ -98,7 +100,10 @@ test("メール・LINE契約は案内から完了通知まで同じ手順で表�
   assert.match(contractSource, /確認完了メールに記載されたURLからお客様控えPDFを保存/);
   assert.match(consentHtml, /内容確認[\s\S]*重要事項[\s\S]*同意・署名[\s\S]*契約完了/);
   assert.match(consentHtml, /id="consent-complete-section"/);
+  assert.match(consentHtml, /id="remote-seller-email-note"[^>]+hidden/);
   assert.match(consentSource, /function showCompletionScreen/);
+  assert.match(consentSource, /prefilledRecipientEmail/);
+  assert.match(contractSource, /saveRemoteRecipientEmail\("送信済み", \{ required: true \}\)/);
   assert.match(consentSource, /【署名完了】車両売買契約の確認をお願いします/);
   assert.doesNotMatch(consentSource, /result\.downloadUrl/);
   assert.match(consentSource, /const ORDER_AUTO_EMAIL = "info@order-auto\.com"/);

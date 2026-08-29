@@ -701,6 +701,7 @@ function defaultContractData() {
   return {
     contractType: "unified",
     completionMethod: "paper",
+    sellerEmail: "",
     purchaseAmount: "",
     recycleDepositAmount: "",
     automobileTaxStatus: "完納",
@@ -2388,6 +2389,8 @@ function clearRemoteSendFields() {
   const passcodeField = document.querySelector("#consent-passcode");
   if (emailUrl) emailUrl.value = "";
   if (passcodeField) passcodeField.value = "";
+  const recipientField = document.querySelector("#remote-recipient-email");
+  if (recipientField) recipientField.value = currentContract()?.data?.sellerEmail || "";
   buildEmailBody();
   setRemoteActionStatus("確認URLを準備しています。", "pending");
 }
@@ -2402,6 +2405,45 @@ function selectRemoteContract(id) {
   renderRemoteSelectedContract();
   clearRemoteSendFields();
   setSaveStatus("送信する契約書を選択しました。確認URLを準備します。", "pending");
+}
+
+function applyRemoteRecipientEmail({ required = false } = {}) {
+  const field = document.querySelector("#remote-recipient-email");
+  const formField = document.querySelector("#contract-form")?.elements.sellerEmail;
+  if (!field || !formField) return true;
+  const email = field.value.trim();
+  if ((required && !email) || (email && !field.checkValidity())) {
+    field.classList.add("field-error");
+    field.setAttribute("aria-invalid", "true");
+    setRemoteActionStatus(
+      required ? "送信先メールアドレスを入力してください。" : "メールアドレスの形式を確認してください。",
+      "warning",
+    );
+    field.focus();
+    return false;
+  }
+  field.classList.remove("field-error");
+  field.removeAttribute("aria-invalid");
+  formField.value = email;
+  return true;
+}
+
+async function saveRemoteRecipientEmail(status, { required = false } = {}) {
+  if (!applyRemoteRecipientEmail({ required })) return false;
+  if (!saveActiveContract(status)) return false;
+  if (window.OrderAutoCloud?.isConfigured() && !cloudEnabled()) {
+    setRemoteActionStatus("管理者ログインの有効期限が切れています。再ログインしてください。", "warning");
+    return false;
+  }
+  if (cloudEnabled()) {
+    setRemoteActionStatus("送信先メールアドレスを契約へ保存しています。", "pending");
+    const synced = await syncActiveContractToCloud();
+    if (!synced) {
+      setRemoteActionStatus("送信先メールアドレスを保存できませんでした。もう一度お試しください。", "warning");
+    }
+    return synced;
+  }
+  return true;
 }
 
 function printContractFromList(id) {
@@ -2688,6 +2730,10 @@ async function generateConsentUrlRequest() {
     setRemoteActionsBusy(false);
     return false;
   }
+  if (!applyRemoteRecipientEmail()) {
+    setRemoteActionsBusy(false);
+    return false;
+  }
   if (["確認待ち", "完了"].includes(selectedContract.status) || ["確認待ち", "完了"].includes(selectedContract.consentStatus)) {
     setSaveStatus("署名済みの契約は確認URLを再発行できません。", "warning");
     setRemoteActionStatus("署名済みの契約は確認URLを再発行できません。", "warning");
@@ -2818,12 +2864,12 @@ async function copyLineMessage() {
     return;
   }
 
+  if (!(await saveRemoteRecipientEmail("送信済み"))) return;
   const message = buildLineMessage();
 
   try {
     const copied = await copyText(message);
     if (!copied) throw new Error("Copy failed");
-    saveActiveContract("送信済み");
     setSaveStatus("LINE送信用の文面をコピーしました。パスコードは別送してください。", "success");
     setRemoteActionStatus("LINE文面をコピーしました。LINEに貼り付けて送信してください。", "success");
   } catch (error) {
@@ -3031,7 +3077,7 @@ async function openEmail() {
     }
     return;
   }
-  saveActiveContract("送信済み");
+  if (!(await saveRemoteRecipientEmail("送信済み", { required: true }))) return;
   const data = getFormData();
   const subject = "【オーダーオート】車両売買契約のご確認と電子署名のお願い";
   const query = `subject=${encodeMailtoValue(subject)}&body=${encodeMailtoValue(emailBody.value)}`;
@@ -3257,6 +3303,12 @@ function setupEvents() {
   document.querySelector("#copy-consent-passcode")?.addEventListener("click", copyConsentPasscode);
   document.querySelector("#open-email")?.addEventListener("click", openEmail);
   document.querySelector("#email-url")?.addEventListener("input", buildEmailBody);
+  document.querySelector("#remote-recipient-email")?.addEventListener("input", (event) => {
+    event.target.classList.remove("field-error");
+    event.target.removeAttribute("aria-invalid");
+    const field = document.querySelector("#contract-form")?.elements.sellerEmail;
+    if (field) field.value = event.target.value.trim();
+  });
   document.querySelector("#contract-search").addEventListener("input", renderList);
   document.querySelector("#customer-search")?.addEventListener("input", renderCustomerList);
   document.querySelector("#vehicle-search")?.addEventListener("input", renderVehicleList);
