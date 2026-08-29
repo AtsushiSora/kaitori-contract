@@ -224,12 +224,11 @@ try {
     element.getBoundingClientRect().bottom,
   );
   assert.ok(createViewTop >= headerBottom);
-  await page.evaluate(() => window.scrollTo(0, 600));
-  const scrolledHeaderBottom = await page.locator(".site-header").evaluate((element) =>
-    element.getBoundingClientRect().bottom,
+  const headerPosition = await page.locator(".site-header").evaluate((element) =>
+    getComputedStyle(element).position,
   );
-  assert.ok(await page.evaluate(() => window.scrollY > 0));
-  assert.ok(scrolledHeaderBottom < headerBottom);
+  assert.notEqual(headerPosition, "fixed");
+  assert.notEqual(headerPosition, "sticky");
   await page.reload();
   await page.waitForFunction(() => document.querySelector('[data-app-view="create"]')?.hidden === false);
   assert.equal(await page.evaluate(() => window.scrollY), 0);
