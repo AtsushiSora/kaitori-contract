@@ -1884,6 +1884,23 @@ textarea {
   touch-action: none;
 }
 
+#customer-sign-section .customer-signature-actions {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.7fr) minmax(240px, 1.6fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+#complete-consent {
+  min-height: 60px;
+  padding: 13px 18px;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.35;
+  white-space: normal;
+  box-shadow: 0 8px 18px rgba(9, 93, 65, 0.2);
+}
+
 @media (max-width: 620px) {
   .remote-seller-grid,
   .remote-seller-fields,
@@ -2208,6 +2225,27 @@ textarea {
     line-height: 1.25;
     text-align: center;
     white-space: normal;
+  }
+
+  #customer-sign-section .customer-signature-actions {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  #customer-sign-section #complete-consent {
+    grid-row: 1;
+    min-height: 64px;
+    padding: 14px 16px;
+    font-size: 1rem;
+    line-height: 1.35;
+  }
+
+  #customer-sign-section #clear-customer-signature {
+    grid-row: 2;
+    width: min(48%, 180px);
+    min-height: 44px;
+    justify-self: start;
+    font-size: 0.76rem;
   }
 
   .toolbar-actions #print-contract {
