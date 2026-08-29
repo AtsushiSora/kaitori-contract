@@ -2670,7 +2670,7 @@ async function generateConsentUrlRequest() {
     setRemoteActionsBusy(false);
     return false;
   }
-  saveActiveContract("送信済み");
+  saveActiveContract(selectedContract.status || "下書き");
   const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
   const passcode = generatePasscode();
   const url = new URL("consent.html", window.location.href);
@@ -2952,6 +2952,32 @@ async function submitCloudRecord(status = currentContract()?.status || "下書�
   return false;
 }
 
+async function saveDraftAndOpenRemote() {
+  const button = document.querySelector("#save-draft-and-open-remote");
+  if (button) {
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+  }
+
+  try {
+    const cloudSaved = await submitCloudRecord("下書き");
+    const cloudConfigured = Boolean(window.OrderAutoCloud?.isConfigured());
+    if (!currentContract() || (cloudConfigured && !cloudSaved)) return;
+
+    const contractId = activeId;
+    setAppPage("remote");
+    selectRemoteContract(contractId);
+    window.requestAnimationFrame(() => {
+      generateConsentUrl();
+    });
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.setAttribute("aria-busy", "false");
+    }
+  }
+}
+
 function safePlain(value, fallback = "未入力") {
   const cleaned = String(value ?? "").trim();
   return cleaned || fallback;
@@ -3160,6 +3186,7 @@ function setupEvents() {
   document.querySelector("#save-contract").addEventListener("click", () => {
     submitCloudRecord("下書き");
   });
+  document.querySelector("#save-draft-and-open-remote")?.addEventListener("click", saveDraftAndOpenRemote);
   document.querySelectorAll("[data-preview-copy]").forEach((button) => {
     button.addEventListener("click", () => setPreviewCopy(button.dataset.previewCopy));
   });

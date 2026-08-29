@@ -9,14 +9,14 @@
       content="オーダーオートの車両売買契約書を作成、印刷、タブレット署名、メール送信できる契約作成システムです。"
     />
     <meta name="robots" content="noindex,nofollow" />
-    <link rel="stylesheet" href="styles.css?v=20260829-remote-actions" />
+    <link rel="stylesheet" href="styles.css?v=20260829-remote-draft-shortcut" />
     <script src="supabase-config.js"></script>
     <script src="supabase-api.js?v=20260828-notification-management"></script>
     <script src="admin-auth.js?v=20260717-production"></script>
     <script>
       window.OrderAutoAdminAuth.requireAuth();
     </script>
-    <script src="contract.js?v=20260829-unique-contract-id" defer></script>
+    <script src="contract.js?v=20260829-remote-draft-shortcut" defer></script>
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -397,6 +397,13 @@
                     <label class="full">使用者と売主との関係<input name="userRelationship" placeholder="例：本人、家族、勤務先" /></label>
                   </div>
                 </fieldset>
+
+                <div class="remote-draft-shortcut">
+                  <p>お客様情報は、送信する確認画面でご本人に入力していただけます。</p>
+                  <button class="button button-primary" type="button" id="save-draft-and-open-remote">
+                    下書き保存してメール・LINE契約へ
+                  </button>
+                </div>
 
                 <fieldset id="seller-fields">
                   <legend>売主情報</legend>

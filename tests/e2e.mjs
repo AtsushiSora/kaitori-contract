@@ -266,11 +266,58 @@ try {
   assert.equal(mobileDeadlineLayout.labelsFit, true);
   assert.equal(mobileDeadlineLayout.hasHorizontalOverflow, false);
   logPass("スマホ縦向きの期限入力を重なりのない1列で表示");
+
+  const mobileRemoteShortcutLayout = await page.locator(".remote-draft-shortcut").evaluate((shortcut) => {
+    const shortcutRect = shortcut.getBoundingClientRect();
+    const buttonRect = shortcut.querySelector(".button").getBoundingClientRect();
+    return {
+      buttonFits: buttonRect.left >= shortcutRect.left && buttonRect.right <= shortcutRect.right,
+      buttonIsWide: buttonRect.width >= shortcutRect.width - 34,
+      hasHorizontalOverflow: shortcut.scrollWidth > shortcut.clientWidth,
+    };
+  });
+  assert.equal(mobileRemoteShortcutLayout.buttonFits, true);
+  assert.equal(mobileRemoteShortcutLayout.buttonIsWide, true);
+  assert.equal(mobileRemoteShortcutLayout.hasHorizontalOverflow, false);
+  logPass("スマホ縦向きで下書き保存からメール・LINE契約へ進むボタンを枠内に表示");
   await page.setViewportSize({ width: 1280, height: 720 });
 
   await page.locator('[name="carName"]').fill("テスト車両");
   await page.locator('[name="chassisNumber"]').fill("TEST-1234567");
   await page.locator('[name="purchaseAmount"]').fill("1100001");
+  const remoteShortcutPrecedesSeller = await page.evaluate(() => {
+    const shortcut = document.querySelector("#save-draft-and-open-remote");
+    const sellerFields = document.querySelector("#seller-fields");
+    return Boolean(shortcut && sellerFields && shortcut.compareDocumentPosition(sellerFields) & Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+  assert.equal(remoteShortcutPrecedesSeller, true);
+  await page.locator("#save-draft-and-open-remote").click();
+  await page.waitForURL(/#remote$/);
+  try {
+    await page.waitForFunction(() => document.querySelector("#email-url")?.value, null, { timeout: 10000 });
+  } catch (error) {
+    const remoteState = await page.evaluate(() => ({
+      actionStatus: document.querySelector("#remote-action-status")?.textContent,
+      saveStatus: document.querySelector("#cloud-save-status")?.textContent,
+      url: document.querySelector("#email-url")?.value,
+    }));
+    throw new Error(`確認URLの自動準備に失敗: ${JSON.stringify(remoteState)}`, { cause: error });
+  }
+  const shortcutDraft = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("orderAutoContracts") || "[]")
+      .find((contract) => contract.data?.carName === "テスト車両"),
+  );
+  assert.equal(shortcutDraft.status, "下書き");
+  assert.equal(shortcutDraft.data.sellerName || "", "");
+  assert.equal(await page.locator('[data-app-view="remote"]').isVisible(), true);
+  logPass("売主情報の入力前に下書き保存してメール・LINE送信画面へ移動");
+
+  await page.locator('[aria-label="メインナビゲーション"] a[href="#list"]').click();
+  await page
+    .locator("article.contract-list-item")
+    .filter({ hasText: "テスト車両" })
+    .getByRole("button", { name: "編集" })
+    .click();
   await page.locator('[name="sellerLastName"]').fill("山田");
   await page.locator('[name="sellerFirstName"]').fill("太郎");
   await page.locator('[name="sellerPostalCode"]').fill("7300000");

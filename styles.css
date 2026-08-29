@@ -1005,6 +1005,29 @@ textarea {
   font-weight: 900;
 }
 
+.remote-draft-shortcut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid rgba(15, 122, 77, 0.28);
+  border-radius: 8px;
+  background: #f7fbf8;
+}
+
+.remote-draft-shortcut p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.65;
+}
+
+.remote-draft-shortcut .button {
+  flex: 0 1 360px;
+}
+
 .form-grid {
   display: grid;
   gap: 12px;
@@ -1992,6 +2015,11 @@ textarea {
 
   .contract-top-panel {
     padding: 16px;
+  }
+
+  .remote-draft-shortcut {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .top-action-card {
