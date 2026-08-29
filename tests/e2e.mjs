@@ -393,7 +393,6 @@ try {
   await testContractItem.getByRole("button", { name: "メール・LINEで送る" }).click();
   assert.match(page.url(), /#remote$/);
   assert.equal(await page.locator(".remote-progress li").count(), 6);
-  await page.locator("#generate-consent-url").click();
   await page.waitForFunction(() => document.querySelector("#email-url")?.value);
   const shortUrl = await page.locator("#email-url").inputValue();
   assert.match(shortUrl, /\/consent\.html#r=[A-Za-z0-9_-]{32}$/);
@@ -402,7 +401,43 @@ try {
   assert.match(await page.locator("#email-body").inputValue(), new RegExp(shortUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(await page.locator("#email-body").inputValue(), /契約番号：26081101/);
   logPass("メール・LINE契約は一覧の契約情報を送信画面へ反映");
-  logPass("クラウド契約で短い確認URLと別送パスコードを生成");
+  logPass("クラウド契約で短い確認URLと別送パスコードを自動準備");
+
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async (text) => {
+          window.__copiedRemoteText = text;
+        },
+      },
+    });
+  });
+  await page.locator("#copy-line-message").click();
+  const copiedRemoteText = await page.evaluate(() => window.__copiedRemoteText || "");
+  assert.match(copiedRemoteText, /車両売買契約の内容確認/);
+  assert.match(copiedRemoteText, new RegExp(shortUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(await page.locator("#remote-action-status").textContent(), /LINE文面をコピーしました/);
+  logPass("LINE文面コピーが送信文面と確認URLをコピー");
+
+  await page.evaluate(() => {
+    const originalClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function captureMailLink() {
+      const href = this.getAttribute("href") || "";
+      if (href.startsWith("mailto:")) {
+        window.__openedMailLink = href;
+        return;
+      }
+      originalClick.call(this);
+    };
+  });
+  await page.locator("#open-email").click();
+  const openedMailLink = await page.evaluate(() => window.__openedMailLink || "");
+  assert.match(openedMailLink, /^mailto:/);
+  assert.match(openedMailLink, /subject=/);
+  assert.match(openedMailLink, /body=/);
+  assert.match(await page.locator("#remote-action-status").textContent(), /メールアプリを開きます/);
+  logPass("メール作成が宛先・件名・本文付きのメールアプリを起動");
 
   await page.evaluate(() => localStorage.removeItem("orderAutoSupabaseSession"));
   await page.locator("#generate-consent-url").click();

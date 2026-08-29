@@ -9,14 +9,14 @@
       content="オーダーオートの車両売買契約書を作成、印刷、タブレット署名、メール送信できる契約作成システムです。"
     />
     <meta name="robots" content="noindex,nofollow" />
-    <link rel="stylesheet" href="styles.css?v=20260828-header-cleanup" />
+    <link rel="stylesheet" href="styles.css?v=20260829-remote-actions" />
     <script src="supabase-config.js"></script>
     <script src="supabase-api.js?v=20260828-notification-management"></script>
     <script src="admin-auth.js?v=20260717-production"></script>
     <script>
       window.OrderAutoAdminAuth.requireAuth();
     </script>
-    <script src="contract.js?v=20260828-page-scroll-v2" defer></script>
+    <script src="contract.js?v=20260829-remote-actions" defer></script>
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -558,6 +558,9 @@
                     <button class="button button-outline" type="button" id="copy-line-message">LINE文面コピー</button>
                     <button class="button button-primary" type="button" id="open-email">メール作成</button>
                   </div>
+                  <p id="remote-action-status" class="save-status remote-action-status" role="status" aria-live="polite">
+                    確認URLの準備後に送信方法を選んでください。
+                  </p>
                   <div class="remote-step-head">
                     <strong>メール文面</strong>
                     <span>必要に応じて本文を確認してから送信してください。</span>

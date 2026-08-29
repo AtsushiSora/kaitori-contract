@@ -317,6 +317,61 @@ function setSaveStatus(message, tone = "neutral") {
   status.dataset.tone = tone;
 }
 
+function setRemoteActionStatus(message, tone = "neutral") {
+  const status = document.querySelector("#remote-action-status");
+  if (!status) return;
+  status.textContent = message;
+  status.dataset.tone = tone;
+}
+
+function setRemoteActionsBusy(busy) {
+  [
+    "#generate-consent-url",
+    "#copy-consent-url",
+    "#copy-consent-passcode",
+    "#copy-line-message",
+    "#open-email",
+  ].forEach((selector) => {
+    const button = document.querySelector(selector);
+    if (!button) return;
+    button.disabled = busy;
+    button.setAttribute("aria-busy", String(busy));
+  });
+}
+
+function legacyCopyText(text) {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.top = "0";
+  textarea.style.left = "-9999px";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+
+  let copied = false;
+  try {
+    copied = Boolean(document.execCommand?.("copy"));
+  } catch (error) {
+    copied = false;
+  }
+  textarea.remove();
+  return copied;
+}
+
+async function copyText(text) {
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error("Clipboard API unavailable");
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (error) {
+    return legacyCopyText(text);
+  }
+}
+
 function dataUrlSize(dataUrl) {
   const base64 = String(dataUrl || "").split(",")[1] || "";
   return Math.round((base64.length * 3) / 4);
@@ -2285,6 +2340,7 @@ function clearRemoteSendFields() {
   if (emailUrl) emailUrl.value = "";
   if (passcodeField) passcodeField.value = "";
   buildEmailBody();
+  setRemoteActionStatus("確認URLを準備しています。", "pending");
 }
 
 function selectRemoteContract(id) {
@@ -2296,7 +2352,7 @@ function selectRemoteContract(id) {
   renderList();
   renderRemoteSelectedContract();
   clearRemoteSendFields();
-  setSaveStatus("送信する契約書を選択しました。確認URL生成へ進んでください。", "success");
+  setSaveStatus("送信する契約書を選択しました。確認URLを準備します。", "pending");
 }
 
 function printContractFromList(id) {
@@ -2577,25 +2633,33 @@ function buildConsentPayload(contract = currentContract(), accessToken = "", exp
   };
 }
 
-async function generateConsentUrl() {
+async function generateConsentUrlRequest() {
   const emailUrl = document.querySelector("#email-url");
   const passcodeField = document.querySelector("#consent-passcode");
-  if (!emailUrl || !passcodeField) return;
+  if (!emailUrl || !passcodeField) return false;
+  setRemoteActionsBusy(true);
+  setRemoteActionStatus("確認URLを生成しています。", "pending");
   const selectedContract = currentContract();
   if (!selectedContract) {
     setSaveStatus("契約一覧から送信する契約を選択してください。", "warning");
-    return;
+    setRemoteActionStatus("契約一覧から送信する契約を選択してください。", "warning");
+    setRemoteActionsBusy(false);
+    return false;
   }
   if (selectedContract.status === "完了" || selectedContract.consentStatus === "完了") {
     setSaveStatus("完了済みの契約は確認URLを再発行できません。", "warning");
-    return;
+    setRemoteActionStatus("完了済みの契約は確認URLを再発行できません。", "warning");
+    setRemoteActionsBusy(false);
+    return false;
   }
   if (window.OrderAutoCloud?.isConfigured() && !cloudEnabled()) {
     setSaveStatus(
       "管理者ログインの有効期限が切れています。再ログインしてから確認URLを生成してください。",
       "warning",
     );
-    return;
+    setRemoteActionStatus("ログイン期限が切れています。再ログインしてください。", "warning");
+    setRemoteActionsBusy(false);
+    return false;
   }
   saveActiveContract("送信済み");
   const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
@@ -2604,7 +2668,11 @@ async function generateConsentUrl() {
 
   if (cloudEnabled()) {
     const synced = await syncActiveContractToCloud();
-    if (!synced) return;
+    if (!synced) {
+      setRemoteActionStatus("契約のクラウド保存に失敗しました。通信状況を確認してください。", "warning");
+      setRemoteActionsBusy(false);
+      return false;
+    }
     const accessToken = bytesToBase64Url(crypto.getRandomValues(new Uint8Array(24)));
     const accessCredential = `${accessToken}.${passcode}`;
     try {
@@ -2616,7 +2684,9 @@ async function generateConsentUrl() {
       );
     } catch (error) {
       setSaveStatus("お客様確認URLの安全な公開設定に失敗しました。再度お試しください。", "warning");
-      return;
+      setRemoteActionStatus("確認URLの生成に失敗しました。もう一度お試しください。", "warning");
+      setRemoteActionsBusy(false);
+      return false;
     }
     url.hash = `r=${accessToken}`;
   } else {
@@ -2635,18 +2705,38 @@ async function generateConsentUrl() {
       : "暗号化した確認URLと開封パスコードを生成しました。パスコードは別送してください。",
     "success",
   );
+  setRemoteActionStatus("準備完了。LINE文面コピーまたはメール作成を押してください。", "success");
+  setRemoteActionsBusy(false);
+  return true;
+}
+
+async function generateConsentUrl() {
+  try {
+    return await generateConsentUrlRequest();
+  } catch (error) {
+    console.error(error);
+    setSaveStatus("確認URLの生成中にエラーが発生しました。通信状況を確認してもう一度お試しください。", "warning");
+    setRemoteActionStatus("確認URLを生成できませんでした。もう一度お試しください。", "warning");
+    return false;
+  } finally {
+    setRemoteActionsBusy(false);
+  }
 }
 
 async function copyConsentUrl() {
   const field = document.querySelector("#email-url");
   if (!field) return;
   if (!field.value.trim()) {
-    await generateConsentUrl();
+    const generated = await generateConsentUrl();
+    if (generated) {
+      setRemoteActionStatus("確認URLを準備しました。もう一度「URLコピー」を押してください。", "success");
+    }
+    return;
   }
-  if (!field.value.trim()) return;
 
   try {
-    await navigator.clipboard.writeText(field.value);
+    const copied = await copyText(field.value);
+    if (!copied) throw new Error("Copy failed");
     setSaveStatus("お客様確認URLをコピーしました。", "success");
   } catch (error) {
     field.select();
@@ -2658,12 +2748,16 @@ async function copyConsentPasscode() {
   const field = document.querySelector("#consent-passcode");
   if (!field) return;
   if (!field.value.trim()) {
-    await generateConsentUrl();
+    const generated = await generateConsentUrl();
+    if (generated) {
+      setRemoteActionStatus("パスコードを準備しました。もう一度「パスコード文面コピー」を押してください。", "success");
+    }
+    return;
   }
-  if (!field.value.trim()) return;
 
   try {
-    await navigator.clipboard.writeText(buildPasscodeMessage());
+    const copied = await copyText(buildPasscodeMessage());
+    if (!copied) throw new Error("Copy failed");
     setSaveStatus("別送用のパスコード文面をコピーしました。", "success");
   } catch (error) {
     field.select();
@@ -2675,18 +2769,24 @@ async function copyLineMessage() {
   const emailUrl = document.querySelector("#email-url");
   if (!emailUrl) return;
   if (!emailUrl.value.trim()) {
-    await generateConsentUrl();
+    const generated = await generateConsentUrl();
+    if (generated) {
+      setRemoteActionStatus("確認URLを準備しました。もう一度「LINE文面コピー」を押してください。", "success");
+    }
+    return;
   }
-  if (!emailUrl.value.trim()) return;
 
   const message = buildLineMessage();
 
   try {
-    await navigator.clipboard.writeText(message);
+    const copied = await copyText(message);
+    if (!copied) throw new Error("Copy failed");
     saveActiveContract("送信済み");
     setSaveStatus("LINE送信用の文面をコピーしました。パスコードは別送してください。", "success");
+    setRemoteActionStatus("LINE文面をコピーしました。LINEに貼り付けて送信してください。", "success");
   } catch (error) {
     setSaveStatus("LINE文面をコピーできませんでした。URLコピーを使って手動で送ってください。", "warning");
+    setRemoteActionStatus("コピーできませんでした。Safariのメニューから手動でコピーしてください。", "warning");
   }
 }
 
@@ -2857,14 +2957,23 @@ async function openEmail() {
   const emailBody = document.querySelector("#email-body");
   if (!emailUrl || !emailBody) return;
   if (!emailUrl.value.trim()) {
-    await generateConsentUrl();
+    const generated = await generateConsentUrl();
+    if (generated) {
+      setRemoteActionStatus("確認URLの準備が完了しました。もう一度「メール作成」を押してください。", "success");
+    }
+    return;
   }
-  if (!emailUrl.value.trim()) return;
   saveActiveContract("送信済み");
   const data = getFormData();
   const subject = "【オーダーオート】車両売買契約のご確認と電子署名のお願い";
   const query = `subject=${encodeMailtoValue(subject)}&body=${encodeMailtoValue(emailBody.value)}`;
-  window.location.href = `mailto:${encodeURIComponent(data.sellerEmail || "")}?${query}`;
+  const mailLink = document.createElement("a");
+  mailLink.href = `mailto:${encodeURIComponent(data.sellerEmail || "")}?${query}`;
+  mailLink.hidden = true;
+  document.body.appendChild(mailLink);
+  setRemoteActionStatus("メールアプリを開きます。", "success");
+  mailLink.click();
+  mailLink.remove();
 }
 
 function setupSignatureCanvas() {
@@ -3193,6 +3302,9 @@ function setupEvents() {
     if (remoteButton) {
       selectRemoteContract(remoteButton.dataset.sendRemoteContract);
       setAppPage("remote");
+      window.requestAnimationFrame(() => {
+        generateConsentUrl();
+      });
       return;
     }
 
