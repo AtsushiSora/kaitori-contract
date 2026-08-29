@@ -98,7 +98,10 @@
                 <label>名前<input id="remote-seller-first-name" autocomplete="given-name" /></label>
                 <label>フリガナ（名字）<input id="remote-seller-last-kana" /></label>
                 <label>フリガナ（名前）<input id="remote-seller-first-kana" /></label>
-                <label>郵便番号<input id="remote-seller-postal" inputmode="numeric" autocomplete="postal-code" /></label>
+                <label>郵便番号
+                  <input id="remote-seller-postal" inputmode="numeric" autocomplete="postal-code" placeholder="例：7315124" />
+                  <small id="remote-seller-postal-status" aria-live="polite"></small>
+                </label>
                 <label class="full">住所<input id="remote-seller-address" autocomplete="street-address" /></label>
                 <label>自宅電話<input id="remote-seller-home-phone" inputmode="tel" autocomplete="tel" /></label>
                 <label>携帯電話<input id="remote-seller-mobile" inputmode="tel" autocomplete="tel" /></label>
@@ -107,7 +110,10 @@
               <div class="remote-seller-fields full" data-seller-kind="corporate" hidden>
                 <label class="full">法人名<input id="remote-corporate-name" autocomplete="organization" /></label>
                 <label>法人番号<input id="remote-corporate-number" inputmode="numeric" /></label>
-                <label>郵便番号<input id="remote-corporate-postal" inputmode="numeric" autocomplete="postal-code" /></label>
+                <label>郵便番号
+                  <input id="remote-corporate-postal" inputmode="numeric" autocomplete="postal-code" placeholder="例：7315124" />
+                  <small id="remote-corporate-postal-status" aria-live="polite"></small>
+                </label>
                 <label class="full">法人所在地<input id="remote-corporate-address" autocomplete="street-address" /></label>
                 <label>法人電話番号<input id="remote-corporate-phone" inputmode="tel" autocomplete="tel" /></label>
                 <label>代表者役職<input id="remote-representative-title" placeholder="例：代表取締役" /></label>

@@ -60,6 +60,16 @@ test("お客様同意画面のチェックボックスはタップしやすい�
   assert.match(source, /\.consent-list input\s*\{[\s\S]*?width:\s*26px;[\s\S]*?height:\s*26px;/);
 });
 
+test("お客様の個人・法人郵便番号から住所を自動入力する", async () => {
+  const [html, source] = await Promise.all([text("consent.html"), text("consent.js")]);
+  assert.match(html, /id="remote-seller-postal-status"/);
+  assert.match(html, /id="remote-corporate-postal-status"/);
+  assert.match(source, /https:\/\/zipcloud\.ibsnet\.co\.jp\/api\/search/);
+  assert.match(source, /setupRemotePostalLookup\("remote-seller-postal", "remote-seller-address"/);
+  assert.match(source, /setupRemotePostalLookup\("remote-corporate-postal", "remote-corporate-address"/);
+  assert.match(source, /住所を自動入力できませんでした。住所を手入力してください。/);
+});
+
 test("管理画面内通知は個別削除と確認済み一括削除ができる", async () => {
   const [html, contractSource, apiSource] = await Promise.all([
     text("contract.html"),

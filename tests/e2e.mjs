@@ -179,6 +179,17 @@ try {
     }
     await route.fulfill({ status: 404, contentType: "application/json", body: "{}" });
   });
+  await context.route("https://zipcloud.ibsnet.co.jp/api/search**", async (route) => {
+    const zipcode = new URL(route.request().url()).searchParams.get("zipcode");
+    const address = zipcode === "1000001"
+      ? { address1: "東京都", address2: "千代田区", address3: "千代田" }
+      : { address1: "広島県", address2: "広島市佐伯区", address3: "皆賀" };
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ status: 200, results: [address] }),
+    });
+  });
   await page.goto(`${baseUrl}/admin.html`);
   await page.locator("#admin-email").fill("admin@example.test");
   await page.locator("#admin-passcode").fill("e2e-password");
@@ -623,6 +634,7 @@ try {
   assert.equal(await page.locator("#consent-progress li").count(), 4);
   logPass("お客様向けに7手順と4段階の進行表示を用意");
   await page.evaluate(() => {
+    document.querySelector("#seller-input-section").hidden = false;
     document.querySelector("#consent-check-section").hidden = false;
     document.querySelector("#customer-consents").innerHTML =
       '<label><input type="checkbox" name="customerConsent" />重要事項を確認しました</label>';
@@ -630,6 +642,16 @@ try {
   const consentCheckboxBox = await page.locator('[name="customerConsent"]').boundingBox();
   assert.ok(consentCheckboxBox?.width >= 26 && consentCheckboxBox?.height >= 26);
   logPass("同意チェックボックスを押しやすい大きさで表示");
+
+  await page.locator("#remote-seller-postal").fill("7315124");
+  await page.waitForFunction(() => document.querySelector("#remote-seller-address")?.value === "広島県広島市佐伯区皆賀");
+  assert.equal(await page.locator("#remote-seller-postal").inputValue(), "731-5124");
+  assert.match(await page.locator("#remote-seller-postal-status").textContent(), /住所を自動入力しました/);
+  await page.locator("#remote-seller-type").selectOption("corporate");
+  await page.locator("#remote-corporate-postal").fill("1000001");
+  await page.waitForFunction(() => document.querySelector("#remote-corporate-address")?.value === "東京都千代田区千代田");
+  assert.equal(await page.locator("#remote-corporate-postal").inputValue(), "100-0001");
+  logPass("お客様の個人・法人郵便番号から住所を自動入力");
 
   const customerCopyPdfDataUrl = await page.evaluate(async () => {
     const signatureCanvas = document.createElement("canvas");

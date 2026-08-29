@@ -28,6 +28,8 @@ let hasCustomerSignature = false;
 let completionEmail = null;
 let preparedIdentityDocuments = [];
 const DEFAULT_CRYPTO_ITERATIONS = 200000;
+const POSTAL_CODE_API_URL = "https://zipcloud.ibsnet.co.jp/api/search";
+const remotePostalTimers = new Map();
 
 function base64UrlToBytes(value) {
   const base64 = value.replaceAll("-", "+").replaceAll("_", "/");
@@ -198,6 +200,64 @@ function setRemoteSellerType(type) {
 
 function sellerInputValue(id) {
   return String(remoteField(id)?.value || "").trim();
+}
+
+function postalCodeDigits(value) {
+  return String(value || "").replace(/\D/g, "").slice(0, 7);
+}
+
+function formatPostalCode(value) {
+  const digits = postalCodeDigits(value);
+  return digits.length === 7 ? `${digits.slice(0, 3)}-${digits.slice(3)}` : value;
+}
+
+async function fillRemoteAddress(postalId, addressId, statusId) {
+  const postalField = remoteField(postalId);
+  const addressField = remoteField(addressId);
+  const status = remoteField(statusId);
+  const digits = postalCodeDigits(postalField?.value);
+  if (!postalField || !addressField || digits.length !== 7) {
+    if (status) status.textContent = "";
+    return;
+  }
+
+  if (status) status.textContent = "住所を検索中です。";
+  try {
+    const response = await fetch(`${POSTAL_CODE_API_URL}?zipcode=${encodeURIComponent(digits)}`);
+    if (!response.ok) throw new Error("postal lookup failed");
+    const record = (await response.json())?.results?.[0];
+    if (!record) {
+      if (status) status.textContent = "住所が見つかりません。住所を手入力してください。";
+      return;
+    }
+    if (postalCodeDigits(postalField.value) !== digits) return;
+    postalField.value = formatPostalCode(digits);
+    addressField.value = `${record.address1 || ""}${record.address2 || ""}${record.address3 || ""}`;
+    addressField.classList.remove("field-error");
+    addressField.removeAttribute("aria-invalid");
+    if (status) status.textContent = "住所を自動入力しました。番地以降をご確認ください。";
+  } catch (error) {
+    if (status) status.textContent = "住所を自動入力できませんでした。住所を手入力してください。";
+  }
+}
+
+function setupRemotePostalLookup(postalId, addressId, statusId) {
+  const field = remoteField(postalId);
+  if (!field) return;
+  field.addEventListener("input", () => {
+    window.clearTimeout(remotePostalTimers.get(postalId));
+    if (postalCodeDigits(field.value).length !== 7) {
+      remoteField(statusId).textContent = "";
+      return;
+    }
+    remotePostalTimers.set(postalId, window.setTimeout(() => {
+      fillRemoteAddress(postalId, addressId, statusId);
+    }, 350));
+  });
+  field.addEventListener("change", () => {
+    window.clearTimeout(remotePostalTimers.get(postalId));
+    fillRemoteAddress(postalId, addressId, statusId);
+  });
 }
 
 function collectRemoteSeller() {
@@ -911,6 +971,8 @@ async function completeConsent() {
 
 document.addEventListener("DOMContentLoaded", () => {
   setupSignature();
+  setupRemotePostalLookup("remote-seller-postal", "remote-seller-address", "remote-seller-postal-status");
+  setupRemotePostalLookup("remote-corporate-postal", "remote-corporate-address", "remote-corporate-postal-status");
   document.querySelector("#unlock-consent").addEventListener("click", unlockConsent);
   document.querySelector("#consent-passcode-input").addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
