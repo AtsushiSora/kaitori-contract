@@ -74,9 +74,14 @@ test("管理画面内通知は個別削除と確認済み一括削除ができ�
 });
 
 test("メール・LINE契約は案内から完了通知まで同じ手順で表示する", async () => {
+  const contractHtml = await text("contract.html");
   const contractSource = await text("contract.js");
   const consentHtml = await text("consent.html");
   const consentSource = await text("consent.js");
+  assert.match(contractHtml, /<legend>お客様名<\/legend>[\s\S]*name="customerName"[\s\S]*<legend>車両情報<\/legend>/);
+  assert.match(contractSource, /function customerGreeting/);
+  assert.match(contractSource, /if \(!name \|\| name === "お客様"\) return "お客様"/);
+  assert.match(contractSource, /customerNameValue\(data\)/);
   assert.match(contractSource, /【ご契約の手順】/);
   assert.match(contractSource, /function buildLineMessage/);
   assert.match(contractSource, /function buildPasscodeMessage/);

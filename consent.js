@@ -376,12 +376,13 @@ function renderContract() {
   const signatureCanvas = document.querySelector("#customer-signature");
   signatureCanvas.getContext("2d").clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
   hasCustomerSignature = false;
-  document.querySelector("#customer-name").value = data.sellerName || "";
+  const displayedCustomerName = data.sellerName || data.customerName || "";
+  document.querySelector("#customer-name").value = displayedCustomerName;
   populateRemoteSeller(data);
   document.querySelector("#summary-list").innerHTML = [
     summaryRow("契約番号", contractNumber),
     summaryRow("契約内容", contractTypeLabel(data)),
-    summaryRow("売主氏名", data.sellerName),
+    summaryRow("売主氏名", displayedCustomerName),
     summaryRow("電話番号", data.sellerPhone),
     summaryRow("メール", data.sellerEmail),
     summaryRow("車名", data.carName),
@@ -704,6 +705,7 @@ function completedCustomerContract(contract, result) {
       ...contract.data,
       ...seller,
       completionMethod: "remote",
+      customerName: sellerName,
       sellerName,
       sellerKana,
       sellerPostalCode: isCorporate ? seller.corporatePostalCode : seller.sellerPostalCode,

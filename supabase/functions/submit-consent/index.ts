@@ -296,6 +296,7 @@ Deno.serve(async (request) => {
     const mergedData = {
       ...(contract.data || {}),
       ...seller,
+      customerName: sellerName,
       sellerName,
       sellerPhone: seller.sellerType === "corporate"
         ? seller.corporatePhone

@@ -120,7 +120,18 @@ function normalizeSellerNameFields(data) {
 
   data.sellerName = joinName(data.sellerLastName, data.sellerFirstName) || String(data.sellerName ?? "").trim();
   data.sellerKana = joinName(data.sellerLastKana, data.sellerFirstKana) || String(data.sellerKana ?? "").trim();
+  data.customerName = data.sellerName || String(data.customerName ?? "").trim();
   return data;
+}
+
+function customerNameValue(data) {
+  return String(data?.sellerName || data?.customerName || "").trim();
+}
+
+function customerGreeting(data) {
+  const name = customerNameValue(data).replace(/(?:[\s　]*様)+$/, "").trim();
+  if (!name || name === "お客様") return "お客様";
+  return `${name} 様`;
 }
 
 function joinPlateNumber(area, classification, kana, digits) {
@@ -948,7 +959,7 @@ async function deleteContract(id) {
   const target = contracts.find((contract) => contract.id === id);
   if (!target) return;
 
-  const label = target.data?.sellerName || target.data?.carName || `契約番号${contractNumberValue(target) || target.id}`;
+  const label = customerNameValue(target.data) || target.data?.carName || `契約番号${contractNumberValue(target) || target.id}`;
   const confirmed = window.confirm(`${label} を削除します。よろしいですか？`);
   if (!confirmed) return;
 
@@ -2084,7 +2095,7 @@ function renderList() {
 
   const filtered = contracts.filter((contract) => {
     const data = contract.data || {};
-    const text = [contract.id, contractNumberValue(contract), data.sellerName, data.sellerPhone, data.sellerHomePhone, data.sellerMobile, data.carName, data.plateNumber]
+    const text = [contract.id, contractNumberValue(contract), customerNameValue(data), data.sellerPhone, data.sellerHomePhone, data.sellerMobile, data.carName, data.plateNumber]
       .join(" ")
       .toLowerCase();
     const statusOk = activeFilter === "all" || contract.status === activeFilter;
@@ -2128,7 +2139,7 @@ function renderList() {
         <article class="contract-list-item ${active}" data-id="${contract.id}">
           <div class="contract-list-main">
             <span>
-              <strong>${safeValue(data.sellerName, "氏名未入力")}</strong>
+              <strong>${safeValue(customerNameValue(data), "氏名未入力")}</strong>
               <small>契約番号 ${escapeHtml(displayContractNumber(contract))} / 第${Number(contract.versionNumber || 1)}版 / ${safeValue(data.carName, "車名未入力")} / ${escapeHtml(contractTypeLabel(data))}</small>
             </span>
           </div>
@@ -2152,14 +2163,14 @@ function customerGroups() {
     const data = contract.data || {};
     normalizeSellerNameFields(data);
     const phone = normalizedDigits(data.sellerMobile || data.sellerHomePhone || data.sellerPhone);
-    const fallback = [data.sellerName, data.sellerBirthdate].filter(Boolean).join("|");
+    const fallback = [customerNameValue(data), data.sellerBirthdate].filter(Boolean).join("|");
     const key = phone ? `phone:${phone}` : fallback ? `person:${fallback}` : `contract:${contract.id}`;
     if (!groups.has(key)) {
       groups.set(key, { key, data, contracts: [] });
     }
     const group = groups.get(key);
     group.contracts.push(contract);
-    if (!group.data.sellerName && data.sellerName) group.data = data;
+    if (!customerNameValue(group.data) && customerNameValue(data)) group.data = data;
   });
   return [...groups.values()];
 }
@@ -2236,7 +2247,7 @@ function renderCustomerList() {
   const query = String(document.querySelector("#customer-search")?.value || "").trim().toLowerCase();
   const groups = customerGroups().filter((group) => {
     const data = group.data || {};
-    return !query || [data.sellerName, data.sellerMobile, data.sellerHomePhone, data.sellerAddress]
+    return !query || [customerNameValue(data), data.sellerMobile, data.sellerHomePhone, data.sellerAddress]
       .join(" ")
       .toLowerCase()
       .includes(query);
@@ -2254,7 +2265,7 @@ function renderCustomerList() {
       <details class="management-card">
         <summary>
           <span>
-            <strong>${safeValue(data.sellerName, "氏名未入力")}</strong>
+            <strong>${safeValue(customerNameValue(data), "氏名未入力")}</strong>
             <small>${escapeHtml(phone)} / 契約 ${group.contracts.length}件</small>
           </span>
           <em>${safeValue(data.sellerAddress, "住所未入力")}</em>
@@ -2280,7 +2291,7 @@ function renderVehicleList() {
   const query = String(document.querySelector("#vehicle-search")?.value || "").trim().toLowerCase();
   const groups = vehicleGroups().filter((group) => {
     const data = group.data || {};
-    return !query || [data.carName, data.plateNumber, data.chassisNumber, data.sellerName]
+    return !query || [data.carName, data.plateNumber, data.chassisNumber, customerNameValue(data)]
       .join(" ")
       .toLowerCase()
       .includes(query);
@@ -2300,7 +2311,7 @@ function renderVehicleList() {
             <strong>${safeValue(data.carName, "車名未入力")}</strong>
             <small>${safeValue(data.plateNumber, "登録番号未入力")} / 契約 ${group.contracts.length}件</small>
           </span>
-          <em>${safeValue(data.sellerName, "売主未入力")}</em>
+          <em>${safeValue(customerNameValue(data), "売主未入力")}</em>
         </summary>
         <div class="management-card-body">
           <dl class="management-facts">
@@ -2309,7 +2320,7 @@ function renderVehicleList() {
             <div><dt>色</dt><dd>${safeValue(data.carColor)}</dd></div>
             <div><dt>走行距離</dt><dd>${safeValue(data.mileage)}</dd></div>
             <div><dt>買取金額</dt><dd>${escapeHtml(amountLabel(data) || "未入力")}</dd></div>
-            <div><dt>売主</dt><dd>${safeValue(data.sellerName)}</dd></div>
+            <div><dt>売主</dt><dd>${safeValue(customerNameValue(data))}</dd></div>
           </dl>
           <section><h3>契約履歴</h3>${managementContractHistory(group)}</section>
           <section><h3>車両書類</h3>${managementAttachments(group, "vehicle")}</section>
@@ -2435,7 +2446,7 @@ function renderRemoteSelectedContract() {
     <article class="remote-contract-item active">
       <div>
         <span>契約番号 ${escapeHtml(contractNumberValue(contract) || "-")}</span>
-        <strong>${safeValue(data.sellerName, "氏名未入力")}</strong>
+        <strong>${safeValue(customerNameValue(data), "氏名未入力")}</strong>
         <small>${safeValue(data.carName, "車名未入力")} / ${escapeHtml(contract.status || "下書き")}</small>
       </div>
       <button class="mini-button" type="button" data-app-page="list" data-list-mode="remote">契約を変更</button>
@@ -2494,7 +2505,7 @@ function buildEmailBody() {
   const url = emailUrl.value.trim() || "【確認URLをここに入力】";
   const passcode = passcodeField.value.trim();
   const body = [
-    `${safePlain(data.sellerName, "お客様")} 様`,
+    customerGreeting(data),
     "",
     "オーダーオートです。",
     "車両売買契約の内容確認と電子署名をお願いいたします。",
@@ -2534,7 +2545,7 @@ function buildLineMessage() {
   const url = document.querySelector("#email-url")?.value.trim() || "【確認URL】";
 
   return [
-    `${safePlain(data.sellerName, "お客様")} 様`,
+    customerGreeting(data),
     "",
     "オーダーオートです。",
     "車両売買契約の内容確認と電子署名をお願いします。",

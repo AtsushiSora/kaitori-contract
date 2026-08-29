@@ -16,7 +16,7 @@
     <script>
       window.OrderAutoAdminAuth.requireAuth();
     </script>
-    <script src="contract.js?v=20260829-remote-draft-shortcut" defer></script>
+    <script src="contract.js?v=20260829-customer-name" defer></script>
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -192,6 +192,15 @@
             <div class="contract-grid">
               <form id="contract-form" class="contract-form-panel">
                 <input type="hidden" name="contractType" value="unified" />
+
+                <fieldset id="customer-name-fields">
+                  <legend>お客様名</legend>
+                  <div class="form-grid">
+                    <label class="full">氏名・法人名
+                      <input name="customerName" autocomplete="name" placeholder="例：山田 太郎" />
+                    </label>
+                  </div>
+                </fieldset>
 
                 <fieldset id="vehicle-fields">
                   <legend>車両情報</legend>

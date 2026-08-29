@@ -29,6 +29,7 @@ const CONTRACT_SELECT = [
 ].join(",");
 
 const PUBLIC_DATA_FIELDS = [
+  "customerName",
   "sellerName",
   "sellerType",
   "sellerLastName",

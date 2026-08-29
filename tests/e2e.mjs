@@ -235,7 +235,7 @@ try {
   logPass("トップの契約書作成から新規入力へ移動");
 
   const legends = await page.locator("#contract-form fieldset > legend").allTextContents();
-  assert.deepEqual(legends, ["車両情報", "金額・引取情報", "車両名義人", "売主情報", "契約方法"]);
+  assert.deepEqual(legends, ["お客様名", "車両情報", "金額・引取情報", "車両名義人", "売主情報", "契約方法"]);
   logPass("入力項目がPDFの上から順に表示");
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -292,6 +292,26 @@ try {
   logPass("スマホ縦向きで下書き保存からメール・LINE契約へ進むボタンを枠内に表示");
   await page.setViewportSize({ width: 1280, height: 720 });
 
+  await page.locator('[name="customerName"]').fill("佐藤 花子");
+  await page.locator("#save-contract").click();
+  await page.waitForFunction(() =>
+    JSON.parse(localStorage.getItem("orderAutoContracts") || "[]")
+      .some((contract) => contract.data?.customerName === "佐藤 花子"),
+  );
+  const nameOnlyDraft = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("orderAutoContracts") || "[]")
+      .find((contract) => contract.data?.customerName === "佐藤 花子"),
+  );
+  assert.equal(nameOnlyDraft.status, "下書き");
+  assert.equal(nameOnlyDraft.data.carName || "", "");
+  await page.locator('[aria-label="メインナビゲーション"] a[href="#list"]').click();
+  assert.equal(await page.locator("#contract-list").getByText("佐藤 花子").count() > 0, true);
+  await page.locator("#contract-search").fill("佐藤 花子");
+  assert.equal(await page.locator("#contract-list article.contract-list-item").count(), 1);
+  await page.locator("#contract-search").fill("");
+  await page.locator("#contract-list").getByRole("button", { name: "編集" }).click();
+  logPass("車両情報の入力前にお客様名だけで下書き保存して一覧表示");
+
   await page.locator('[name="carName"]').fill("テスト車両");
   await page.locator('[name="chassisNumber"]').fill("TEST-1234567");
   await page.locator('[name="purchaseAmount"]').fill("1100001");
@@ -319,8 +339,11 @@ try {
   );
   assert.equal(shortcutDraft.status, "下書き");
   assert.equal(shortcutDraft.data.sellerName || "", "");
+  assert.equal(shortcutDraft.data.customerName, "佐藤 花子");
+  assert.match(await page.locator("#email-body").inputValue(), /^佐藤 花子 様\n/);
+  assert.doesNotMatch(await page.locator("#email-body").inputValue(), /お客様\s+様/);
   assert.equal(await page.locator('[data-app-view="remote"]').isVisible(), true);
-  logPass("売主情報の入力前に下書き保存してメール・LINE送信画面へ移動");
+  logPass("お客様名だけ先に反映して売主情報の入力前に下書き保存");
 
   await page.locator('[aria-label="メインナビゲーション"] a[href="#list"]').click();
   await page
