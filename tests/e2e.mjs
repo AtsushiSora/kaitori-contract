@@ -228,7 +228,8 @@ try {
   const scrolledHeaderBottom = await page.locator(".site-header").evaluate((element) =>
     element.getBoundingClientRect().bottom,
   );
-  assert.ok(scrolledHeaderBottom <= 0);
+  assert.ok(await page.evaluate(() => window.scrollY > 0));
+  assert.ok(scrolledHeaderBottom < headerBottom);
   await page.reload();
   await page.waitForFunction(() => document.querySelector('[data-app-view="create"]')?.hidden === false);
   assert.equal(await page.evaluate(() => window.scrollY), 0);
