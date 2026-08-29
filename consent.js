@@ -1,4 +1,4 @@
-const ORDER_AUTO_EMAIL = "sora29128616@gmail.com";
+const ORDER_AUTO_EMAIL = "info@order-auto.com";
 const ORDER_AUTO = {
   name: "オーダーオート",
   representative: "空 篤志",

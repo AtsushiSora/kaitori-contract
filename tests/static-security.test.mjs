@@ -90,6 +90,8 @@ test("メール・LINE契約は案内から完了通知まで同じ手順で表�
   assert.match(consentHtml, /id="consent-complete-section"/);
   assert.match(consentSource, /function showCompletionScreen/);
   assert.match(consentSource, /【契約完了】車両売買契約の電子署名が完了しました/);
+  assert.match(consentSource, /const ORDER_AUTO_EMAIL = "info@order-auto\.com"/);
+  assert.doesNotMatch(consentSource, /sora29128616@gmail\.com/);
 });
 
 test("契約番号は日本時間の日付6桁と日別連番2桁で重複なく採番する", async () => {
