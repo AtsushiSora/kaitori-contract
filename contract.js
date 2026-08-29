@@ -67,11 +67,13 @@ function formatDateTime(date = new Date()) {
 }
 
 function createContractId() {
-  const stamp = new Date()
-    .toISOString()
-    .replace(/\D/g, "")
-    .slice(0, 14);
-  return `ORD-${stamp}`;
+  if (typeof crypto.randomUUID === "function") {
+    return `ORD-${crypto.randomUUID()}`;
+  }
+
+  const random = crypto.getRandomValues(new Uint8Array(16));
+  const suffix = Array.from(random, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `ORD-${suffix}`;
 }
 
 function escapeHtml(value) {
@@ -921,6 +923,13 @@ function reviseCompletedContract(id) {
   }
   revised.parentContractId = source.parentContractId || source.id;
   revised.versionNumber = Number(source.versionNumber || 1) + 1;
+  revised.status = "下書き";
+  revised.completedAt = "";
+  revised.signedAt = "";
+  revised.signatureData = "";
+  revised.consentStatus = "";
+  revised.consentResult = null;
+  revised.lockedAt = "";
   revised.data.contractDate = "";
   revised.data.completionMethod = "paper";
   contracts.unshift(revised);

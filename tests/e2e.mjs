@@ -316,6 +316,15 @@ try {
     document.querySelector("#cloud-save-status")?.textContent.includes("Supabaseへ保存しました"),
   );
   await page.locator('[aria-label="メインナビゲーション"] a[href="#list"]').click();
+  const revisedContractItem = page
+    .locator("article.contract-list-item")
+    .filter({ hasText: "第2版" });
+  assert.equal(await revisedContractItem.locator("em").textContent(), "下書き");
+  const contractIds = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("orderAutoContracts") || "[]").map((contract) => contract.id),
+  );
+  assert.equal(new Set(contractIds).size, contractIds.length);
+  logPass("完了済み契約の複製は一意なIDの下書きとして保存");
   assert.equal(await page.locator("#contract-list").getByText("テスト車両").count() > 0, true);
   await page.locator("#contract-search").fill("テスト車両");
   assert.equal(await page.locator("#contract-list").getByText("テスト車両").count() > 0, true);
