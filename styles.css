@@ -2022,6 +2022,10 @@ textarea {
     flex-direction: column;
   }
 
+  .remote-draft-shortcut .button {
+    flex: 0 0 auto;
+  }
+
   .top-action-card {
     min-height: 108px;
     padding: 18px;

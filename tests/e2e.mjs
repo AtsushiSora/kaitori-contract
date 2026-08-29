@@ -283,11 +283,13 @@ try {
     return {
       buttonFits: buttonRect.left >= shortcutRect.left && buttonRect.right <= shortcutRect.right,
       buttonIsWide: buttonRect.width >= shortcutRect.width - 34,
+      buttonHeight: buttonRect.height,
       hasHorizontalOverflow: shortcut.scrollWidth > shortcut.clientWidth,
     };
   });
   assert.equal(mobileRemoteShortcutLayout.buttonFits, true);
   assert.equal(mobileRemoteShortcutLayout.buttonIsWide, true);
+  assert.ok(mobileRemoteShortcutLayout.buttonHeight >= 52 && mobileRemoteShortcutLayout.buttonHeight <= 72);
   assert.equal(mobileRemoteShortcutLayout.hasHorizontalOverflow, false);
   logPass("スマホ縦向きで下書き保存からメール・LINE契約へ進むボタンを枠内に表示");
   await page.setViewportSize({ width: 1280, height: 720 });
