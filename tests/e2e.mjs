@@ -568,6 +568,77 @@ try {
   assert.ok(consentCheckboxBox?.width >= 26 && consentCheckboxBox?.height >= 26);
   logPass("同意チェックボックスを押しやすい大きさで表示");
 
+  const customerCopyPdfDataUrl = await page.evaluate(async () => {
+    const signatureCanvas = document.createElement("canvas");
+    signatureCanvas.width = 320;
+    signatureCanvas.height = 100;
+    const context = signatureCanvas.getContext("2d");
+    context.strokeStyle = "#111";
+    context.lineWidth = 4;
+    context.beginPath();
+    context.moveTo(20, 70);
+    context.lineTo(120, 25);
+    context.lineTo(220, 72);
+    context.stroke();
+    const signature = signatureCanvas.toDataURL("image/png");
+    const contract = {
+      id: "ORD-CUSTOMER-COPY-TEST",
+      contractNumber: 26082901,
+      data: {
+        completionMethod: "remote",
+        carName: "テスト車両",
+        carGrade: "標準",
+        carYear: "2022",
+        carColor: "白",
+        chassisNumber: "TEST-123456",
+        plateNumber: "広島 500 あ 12-34",
+        mileage: "120000",
+        purchaseAmount: "120000",
+        pickupDate: "2026-08-29",
+        documentDeliveryDate: "2026-08-29",
+        paymentDate: "2026-08-29",
+      },
+    };
+    const result = {
+      contractNumber: "26082901",
+      completedAt: "2026/08/29 11:05",
+      customerName: "山田 太郎",
+      amount: "120,000円",
+      customerSignature: signature,
+      checkedConsents: [
+        "契約内容を確認しました",
+        "車両情報に間違いありません",
+        "買取金額に同意します",
+        "還付金等は買取金額に含まれることに同意します",
+      ],
+      seller: {
+        sellerType: "individual",
+        sellerLastName: "山田",
+        sellerFirstName: "太郎",
+        sellerLastKana: "ヤマダ",
+        sellerFirstKana: "タロウ",
+        sellerPostalCode: "731-5124",
+        sellerAddress: "広島県広島市佐伯区皆賀1-10-20",
+        sellerMobile: "090-1234-5678",
+        sellerBirthdate: "1980-01-01",
+        identityNumber: "123456789012",
+      },
+    };
+    const pdf = await buildCustomerCopyPdf(contract, result);
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(pdf);
+    });
+  });
+  const customerCopyPdf = Buffer.from(customerCopyPdfDataUrl.split(",")[1], "base64");
+  const customerCopyPdfSource = customerCopyPdf.toString("latin1");
+  assert.equal((customerCopyPdfSource.match(/\/Type\s*\/Page\b/g) || []).length, 3);
+  assert.equal((customerCopyPdfSource.match(/\/MediaBox \[0 0 595\.28 841\.89\]/g) || []).length, 3);
+  assert.equal((customerCopyPdfSource.match(/595\.28 0 0 841\.89 0 0 cm/g) || []).length, 3);
+  logPass("お客様控えPDFを契約書・契約条項・電子契約完了記録のA4 3ページで生成");
+
   await context.close();
 } finally {
   if (browser) await browser.close();

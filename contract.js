@@ -1919,6 +1919,13 @@ async function downloadCustomerPdf(contract) {
   setTimeout(() => URL.revokeObjectURL(pdfUrl), 1500);
 }
 
+window.OrderAutoContractPdf = Object.freeze({
+  buildImagePdf,
+  contractTemplateSvg,
+  contractTermsSvg,
+  svgToPdfImagePage,
+});
+
 function updatePreview() {
   const preview = document.querySelector("#contract-preview");
   const status = document.querySelector("#preview-status");
@@ -3370,6 +3377,8 @@ function setupEvents() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  if (!document.querySelector("#contract-form")) return;
+
   loadContracts();
   populateBirthdateSelects();
   setupEvents();

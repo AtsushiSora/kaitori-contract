@@ -675,54 +675,176 @@ function showCompletionScreen(result, data) {
   document.querySelector("#consent-complete-section").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function printCustomerCopy() {
+function completedCustomerContract(contract, result) {
+  const seller = result.seller || {};
+  const isCorporate = seller.sellerType === "corporate";
+  const sellerName = isCorporate
+    ? seller.corporateName
+    : [seller.sellerLastName, seller.sellerFirstName].filter(Boolean).join(" ");
+  const sellerKana = isCorporate
+    ? ""
+    : [seller.sellerLastKana, seller.sellerFirstKana].filter(Boolean).join(" ");
+
+  return {
+    ...contract,
+    contractNumber: result.contractNumber || contract.contractNumber,
+    signatureData: result.customerSignature,
+    data: {
+      ...contract.data,
+      ...seller,
+      completionMethod: "remote",
+      sellerName,
+      sellerKana,
+      sellerPostalCode: isCorporate ? seller.corporatePostalCode : seller.sellerPostalCode,
+      sellerAddress: isCorporate ? seller.corporateAddress : seller.sellerAddress,
+      sellerHomePhone: isCorporate ? seller.corporatePhone : seller.sellerHomePhone,
+      sellerMobile: isCorporate ? "" : seller.sellerMobile,
+      sellerPhone: isCorporate
+        ? seller.corporatePhone
+        : seller.sellerMobile || seller.sellerHomePhone,
+      identityConfirmed: true,
+    },
+  };
+}
+
+function customerCopyRecordSvg(contract, result) {
+  const data = contract.data || {};
+  const rows = [
+    ["契約番号", result.contractNumber],
+    ["契約内容", contractTypeLabel(data)],
+    ["車名", text(data.carName)],
+    ["登録番号", text(data.plateNumber)],
+    ["車台番号", text(data.chassisNumber)],
+    ["買取金額", result.amount],
+    ["署名者", result.customerName],
+    ["完了日時", result.completedAt],
+  ];
+  const tableX = 94;
+  const tableY = 246;
+  const tableWidth = 1003;
+  const labelWidth = 218;
+  const rowHeight = 66;
+  const tableRows = rows.map(([label, value], index) => {
+    const y = tableY + index * rowHeight;
+    return `
+      <rect x="${tableX}" y="${y}" width="${labelWidth}" height="${rowHeight}" fill="#f3f4f3" />
+      <rect x="${tableX}" y="${y}" width="${tableWidth}" height="${rowHeight}" fill="none" stroke="#333" stroke-width="1.3" />
+      <line x1="${tableX + labelWidth}" y1="${y}" x2="${tableX + labelWidth}" y2="${y + rowHeight}" stroke="#333" stroke-width="1.3" />
+      <text x="${tableX + 22}" y="${y + 42}" font-size="22" font-weight="600">${escapeHtml(label)}</text>
+      <text x="${tableX + labelWidth + 22}" y="${y + 42}" font-size="22">${escapeHtml(text(value))}</text>
+    `;
+  }).join("");
+  const signatureY = tableY + rows.length * rowHeight;
+  const consentLines = (Array.isArray(result.checkedConsents) ? result.checkedConsents : []).flatMap((item) => {
+    const chars = Array.from(String(item || ""));
+    const lines = [];
+    while (chars.length) lines.push(chars.splice(0, 42).join(""));
+    return (lines.length ? lines : [""]).map((line, index) => ({
+      line,
+      isFirstLine: index === 0,
+    }));
+  });
+  const consentMarkup = consentLines.map((item, index) => (
+    `<text x="132" y="${1065 + index * 39}" font-size="21">${item.isFirstLine ? "・" : "　"}${escapeHtml(item.line)}</text>`
+  )).join("");
+
+  return `
+    <svg viewBox="0 0 1191 1684" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="電子契約完了記録">
+      <rect width="1191" height="1684" fill="#fff" />
+      <g fill="#111" font-family="Hiragino Kaku Gothic ProN, Yu Gothic, Meiryo, sans-serif">
+        <text x="1097" y="76" font-size="18" font-weight="700" text-anchor="end">お客様控え</text>
+        <text x="595.5" y="132" font-size="34" font-weight="700" text-anchor="middle">車両売買契約 電子契約完了記録</text>
+        <text x="595.5" y="184" font-size="19" text-anchor="middle">電子署名と同意操作が完了したことを記録する書面です。</text>
+        ${tableRows}
+        <rect x="${tableX}" y="${signatureY}" width="${tableWidth}" height="180" fill="none" stroke="#333" stroke-width="1.3" />
+        <rect x="${tableX}" y="${signatureY}" width="${labelWidth}" height="180" fill="#f3f4f3" />
+        <line x1="${tableX + labelWidth}" y1="${signatureY}" x2="${tableX + labelWidth}" y2="${signatureY + 180}" stroke="#333" stroke-width="1.3" />
+        <text x="${tableX + 22}" y="${signatureY + 48}" font-size="22" font-weight="600">電子署名</text>
+        <image href="${escapeHtml(result.customerSignature)}" x="${tableX + labelWidth + 28}" y="${signatureY + 16}" width="700" height="146" preserveAspectRatio="xMinYMid meet" />
+        <text x="94" y="1010" font-size="25" font-weight="700">確認・同意した事項</text>
+        ${consentMarkup}
+        <line x1="94" y1="1452" x2="1097" y2="1452" stroke="#555" stroke-width="1" />
+        <text x="94" y="1494" font-size="21" font-weight="700">${ORDER_AUTO.name}</text>
+        <text x="94" y="1530" font-size="19">代表 ${ORDER_AUTO.representative}</text>
+        <text x="94" y="1564" font-size="19">${ORDER_AUTO.address}</text>
+        <text x="94" y="1598" font-size="19">TEL ${ORDER_AUTO.phone}</text>
+        <text x="1097" y="1630" font-size="15" text-anchor="end">3 / 3</text>
+      </g>
+    </svg>
+  `;
+}
+
+function loadContractPdfRuntime() {
+  return new Promise((resolve, reject) => {
+    const frame = document.createElement("iframe");
+    frame.hidden = true;
+    frame.setAttribute("aria-hidden", "true");
+    const timeout = window.setTimeout(() => {
+      frame.remove();
+      reject(new Error("PDF runtime timed out."));
+    }, 15000);
+
+    frame.addEventListener("load", () => {
+      window.clearTimeout(timeout);
+      const api = frame.contentWindow?.OrderAutoContractPdf;
+      if (!api) {
+        frame.remove();
+        reject(new Error("PDF runtime is unavailable."));
+        return;
+      }
+      resolve({ api, frame });
+    }, { once: true });
+    frame.src = `pdf-runtime.html?v=20260829-customer-copy`;
+    document.body.append(frame);
+  });
+}
+
+async function buildCustomerCopyPdf(contract, result) {
+  const { api, frame } = await loadContractPdfRuntime();
+  const completedContract = completedCustomerContract(contract, result);
+  try {
+    const pages = await Promise.all([
+      api.svgToPdfImagePage(api.contractTemplateSvg(completedContract, "customer")),
+      api.svgToPdfImagePage(api.contractTermsSvg()),
+      api.svgToPdfImagePage(customerCopyRecordSvg(completedContract, result)),
+    ]);
+    return api.buildImagePdf(pages);
+  } finally {
+    frame.remove();
+  }
+}
+
+async function printCustomerCopy() {
   if (!completedConsentResult || !loadedContract?.data) return;
-  const data = loadedContract.data;
-  const result = completedConsentResult;
-  const signature = escapeHtml(result.customerSignature);
-  const checkedItems = result.checkedConsents.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
   const printWindow = window.open("", "_blank");
   if (!printWindow) {
     alert("お客様控えを開けませんでした。ブラウザのポップアップ設定を確認してください。");
     return;
   }
 
-  printWindow.document.write(`<!doctype html>
-    <html lang="ja"><head><meta charset="UTF-8"><title>車両売買契約 お客様控え</title>
-    <style>
-      @page { size: A4 portrait; margin: 14mm; }
-      * { box-sizing: border-box; }
-      body { margin: 0; color: #111; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; font-size: 12px; line-height: 1.55; }
-      h1 { margin: 0 0 4px; text-align: center; font-size: 22px; }
-      .copy { text-align: right; font-weight: 700; }
-      table { width: 100%; margin-top: 14px; border-collapse: collapse; }
-      th, td { border: 1px solid #333; padding: 7px 9px; text-align: left; vertical-align: top; }
-      th { width: 28%; background: #f5f5f5; }
-      h2 { margin: 18px 0 6px; font-size: 15px; }
-      li { margin: 3px 0; }
-      .signature { height: 86px; object-fit: contain; object-position: left center; }
-      .company { margin-top: 22px; padding-top: 10px; border-top: 1px solid #555; }
-      @media print { button { display: none; } }
-    </style></head><body>
-      <div class="copy">お客様控え</div>
-      <h1>車両売買契約 電子契約完了記録</h1>
-      <table>
-        <tr><th>契約番号</th><td>${escapeHtml(result.contractNumber)}</td></tr>
-        <tr><th>契約内容</th><td>${escapeHtml(contractTypeLabel(data))}</td></tr>
-        <tr><th>車名</th><td>${escapeHtml(text(data.carName))}</td></tr>
-        <tr><th>登録番号</th><td>${escapeHtml(text(data.plateNumber))}</td></tr>
-        <tr><th>車台番号</th><td>${escapeHtml(text(data.chassisNumber))}</td></tr>
-        <tr><th>買取金額</th><td>${escapeHtml(result.amount)}</td></tr>
-        <tr><th>署名者</th><td>${escapeHtml(result.customerName)}</td></tr>
-        <tr><th>完了日時</th><td>${escapeHtml(result.completedAt)}</td></tr>
-        <tr><th>電子署名</th><td><img class="signature" src="${signature}" alt="電子署名"></td></tr>
-      </table>
-      <h2>確認・同意した事項</h2>
-      <ul>${checkedItems}</ul>
-      <p class="company"><strong>${ORDER_AUTO.name}</strong><br>代表 ${ORDER_AUTO.representative}<br>${ORDER_AUTO.address}<br>TEL ${ORDER_AUTO.phone}</p>
-      <script>window.addEventListener("load", () => setTimeout(() => window.print(), 200));<\/script>
-    </body></html>`);
+  printWindow.document.write(`<!doctype html><html lang="ja"><head><meta charset="UTF-8"><title>お客様控えPDFを作成中</title>
+    <style>html,body{margin:0;min-height:100%;display:grid;place-items:center;background:#f2f4f3;color:#17211d;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif}p{padding:24px}</style>
+    </head><body><p>お客様控えのA4 PDF（3ページ）を作成しています。</p></body></html>`);
   printWindow.document.close();
+
+  try {
+    const pdfBlob = await buildCustomerCopyPdf(loadedContract, completedConsentResult);
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    let printRequested = false;
+    const requestPrint = () => {
+      if (printRequested || printWindow.closed) return;
+      printRequested = true;
+      window.setTimeout(() => printWindow.print(), 350);
+    };
+    printWindow.addEventListener("load", requestPrint, { once: true });
+    printWindow.location.replace(pdfUrl);
+    window.setTimeout(requestPrint, 1800);
+    window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 120000);
+  } catch (error) {
+    console.error(error);
+    printWindow.close();
+    alert("お客様控えPDFの作成に失敗しました。もう一度お試しください。");
+  }
 }
 
 async function completeConsent() {
