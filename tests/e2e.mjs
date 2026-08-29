@@ -508,6 +508,13 @@ try {
   assert.match(await page.locator("#remote-action-status").textContent(), /LINE文面をコピーしました/);
   logPass("LINE文面コピーが送信文面と確認URLをコピー");
 
+  await page.locator("#copy-consent-passcode").click();
+  const copiedPasscodeText = await page.evaluate(() => window.__copiedRemoteText || "");
+  assert.match(copiedPasscodeText, /契約確認ページの開封パスコードです。/);
+  assert.match(copiedPasscodeText, /^\D*\d{8}\D*$/s);
+  assert.doesNotMatch(copiedPasscodeText, /https?:\/\//);
+  logPass("パスコード文面コピーはURLを含まず8桁パスコードをコピー");
+
   await page.evaluate(() => {
     const originalClick = HTMLAnchorElement.prototype.click;
     HTMLAnchorElement.prototype.click = function captureMailLink() {
