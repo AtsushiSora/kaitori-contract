@@ -2124,23 +2124,32 @@ function renderList() {
     .map((contract) => {
       const data = contract.data || {};
       const active = contract.id === activeId ? "active" : "";
-      const editAction = contract.status === "完了"
+      const isPendingReview = contract.status === "確認待ち" || contract.consentStatus === "確認待ち";
+      const isComplete = contract.status === "完了" || contract.consentStatus === "完了";
+      const editAction = isComplete
         ? `<button class="mini-button" type="button" data-revise-contract="${contract.id}">複製して修正</button>`
-        : `<button class="mini-button" type="button" data-edit-contract="${contract.id}">編集</button>`;
+        : `<button class="mini-button" type="button" data-edit-contract="${contract.id}">${isPendingReview ? "内容を確認" : "編集"}</button>`;
+      const confirmationAction = isPendingReview
+        ? `<button class="mini-button selection-action" type="button" data-confirm-contract="${contract.id}">確認完了・メール送信</button>`
+        : "";
       const standardActions = `
-        <button class="mini-button" type="button" data-send-remote-contract="${contract.id}">メール・LINE契約</button>
+        ${isPendingReview ? confirmationAction : `<button class="mini-button" type="button" data-send-remote-contract="${contract.id}">メール・LINE契約</button>`}
         ${editAction}
         <button class="mini-button danger" type="button" data-delete-contract="${contract.id}">削除</button>
       `;
       const paperActions = `
         <button class="mini-button selection-action" type="button" data-print-list-contract="${contract.id}">この契約を印刷</button>
       `;
-      const remoteActions = contract.status === "完了"
+      const remoteActions = isComplete
         ? '<span class="completed-contract-label">契約完了済み</span>'
-        : `<button class="mini-button selection-action" type="button" data-send-remote-contract="${contract.id}">メール・LINEで送る</button>`;
-      const tabletActions = contract.status === "完了"
+        : isPendingReview
+          ? '<span class="completed-contract-label">確認待ち</span>'
+          : `<button class="mini-button selection-action" type="button" data-send-remote-contract="${contract.id}">メール・LINEで送る</button>`;
+      const tabletActions = isComplete
         ? '<span class="completed-contract-label">署名完了済み</span>'
-        : `<button class="mini-button selection-action" type="button" data-sign-tablet-contract="${contract.id}">この契約に署名</button>`;
+        : isPendingReview
+          ? '<span class="completed-contract-label">確認待ち</span>'
+          : `<button class="mini-button selection-action" type="button" data-sign-tablet-contract="${contract.id}">この契約に署名</button>`;
       const actions = activeListMode === "paper"
         ? paperActions
         : activeListMode === "remote"
@@ -2534,10 +2543,12 @@ function buildEmailBody() {
     "2. 重要事項・契約条項をご確認ください",
     "3. 必須項目にチェックしてください",
     "4. 画面に電子署名をご記入ください",
-    "5. 「同意して完了メールを作成」を押してください",
-    "   ※この操作で電子署名が確定し、契約が完了します",
-    "6. 作成された完了メールの内容を確認し、「送信」を押してください",
-    "7. 完了画面からお客様控えをPDF保存してください",
+    "5. 「同意して署名完了メールを作成」を押してください",
+    "   ※この操作で電子署名が確定し、オーダーオートの確認待ちになります",
+    "6. 作成された確認依頼メールの内容を確認し、「送信」を押してください",
+    "7. オーダーオートで契約内容と本人確認書類を確認します",
+    "8. 確認完了メールに記載されたURLからお客様控えPDFを保存してください",
+    "9. 契約完了です",
     "",
     `確認URL：${url}`,
     "有効期限：URL作成から7日間",
@@ -2574,9 +2585,11 @@ function buildLineMessage() {
     "2. 重要事項・契約条項を確認",
     "3. 必須項目にチェック",
     "4. 画面に電子署名を記入",
-    "5. 「同意して完了メールを作成」を押す",
-    "6. 完了メールの内容を確認して送信",
-    "7. 完了画面からお客様控えをPDF保存",
+    "5. 「同意して署名完了メールを作成」を押す",
+    "6. 確認依頼メールの内容を確認して送信",
+    "7. オーダーオートで契約内容と本人確認書類を確認",
+    "8. 確認完了メールのURLからお客様控えPDFを保存",
+    "9. 契約完了",
     "",
     `確認URL：${url}`,
     "",
@@ -2675,9 +2688,9 @@ async function generateConsentUrlRequest() {
     setRemoteActionsBusy(false);
     return false;
   }
-  if (selectedContract.status === "完了" || selectedContract.consentStatus === "完了") {
-    setSaveStatus("完了済みの契約は確認URLを再発行できません。", "warning");
-    setRemoteActionStatus("完了済みの契約は確認URLを再発行できません。", "warning");
+  if (["確認待ち", "完了"].includes(selectedContract.status) || ["確認待ち", "完了"].includes(selectedContract.consentStatus)) {
+    setSaveStatus("署名済みの契約は確認URLを再発行できません。", "warning");
+    setRemoteActionStatus("署名済みの契約は確認URLを再発行できません。", "warning");
     setRemoteActionsBusy(false);
     return false;
   }
@@ -3335,6 +3348,28 @@ function setupEvents() {
   });
 
   document.querySelector("#contract-list").addEventListener("click", async (event) => {
+    const confirmButton = event.target.closest("[data-confirm-contract]");
+    if (confirmButton) {
+      const contract = contracts.find((item) => item.id === confirmButton.dataset.confirmContract);
+      if (!contract || !window.OrderAutoCloud?.confirmContract) return;
+      const email = contract.data?.sellerEmail || "お客様のメールアドレス";
+      if (!window.confirm(`契約内容と本人確認書類を確認済みにし、${email}へ契約書URLを送信します。よろしいですか？`)) return;
+      const originalLabel = confirmButton.textContent;
+      confirmButton.disabled = true;
+      confirmButton.textContent = "送信中";
+      try {
+        await window.OrderAutoCloud.confirmContract(contract.id);
+        setSaveStatus("確認完了メールと契約書URLをお客様へ送信しました。", "success");
+        await Promise.all([loadCloudContracts(), loadAdminNotifications()]);
+      } catch (error) {
+        console.error(error);
+        setSaveStatus("確認完了メールを送信できませんでした。入力メールアドレスと通信状態を確認してください。", "warning");
+        confirmButton.disabled = false;
+        confirmButton.textContent = originalLabel;
+      }
+      return;
+    }
+
     const deleteButton = event.target.closest("[data-delete-contract]");
     if (deleteButton) {
       saveActiveContract();

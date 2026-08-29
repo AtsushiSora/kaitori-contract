@@ -5,4 +5,5 @@ window.ORDER_AUTO_SUPABASE = {
   publicContractEndpoint: "https://cumvescylyetumupupmc.supabase.co/functions/v1/public-contract",
   consentSubmitEndpoint: "https://cumvescylyetumupupmc.supabase.co/functions/v1/submit-consent",
   contractDownloadEndpoint: "https://cumvescylyetumupupmc.supabase.co/functions/v1/download-contract",
+  contractConfirmEndpoint: "https://cumvescylyetumupupmc.supabase.co/functions/v1/confirm-contract",
 };

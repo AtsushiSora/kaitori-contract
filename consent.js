@@ -25,7 +25,6 @@ const ZERO_AMOUNT_CONSENT_TEXTS = [
 let loadedContract = null;
 let isDrawing = false;
 let hasCustomerSignature = false;
-let completedConsentResult = null;
 let completionEmail = null;
 let preparedIdentityDocuments = [];
 const DEFAULT_CRYPTO_ITERATIONS = 200000;
@@ -306,6 +305,10 @@ function validateRemoteSellerForm() {
   const identityMissing = !seller.identityNumber;
   markRemoteField("remote-identity-number", identityMissing);
   if (identityMissing) missing.push("remote-identity-number");
+  const emailField = remoteField("remote-seller-email");
+  const emailMissing = !seller.sellerEmail || !emailField.checkValidity();
+  markRemoteField("remote-seller-email", emailMissing);
+  if (emailMissing) missing.push("remote-seller-email");
   const frontMissing = !remoteField("remote-license-front").files?.[0];
   markRemoteField("remote-license-front", frontMissing);
   if (frontMissing) missing.push("remote-license-front");
@@ -620,6 +623,7 @@ function setupSignature() {
 function buildCompletionEmail(result, data) {
   const body = [
     "車両売買契約の内容を確認し、電子署名と同意操作を完了しました。",
+    "契約内容と本人確認書類の確認をお願いします。",
     "",
     `契約番号：${result.contractNumber}`,
     `署名者：${result.customerName}`,
@@ -631,13 +635,7 @@ function buildCompletionEmail(result, data) {
     "確認・同意した事項：",
     ...result.checkedConsents.map((item) => `・${item}`),
     "",
-    ...(result.downloadUrl
-      ? [
-          "契約書PDF（30日間有効）：",
-          result.downloadUrl,
-          "",
-        ]
-      : []),
+    "確認完了後、このメールアドレス宛に契約完了のご連絡とお客様控えPDFのURLをお送りください。",
     "このメールは、お客様が契約確認ページで電子署名と同意操作を行った記録として送信されます。",
     "",
     ORDER_AUTO.name,
@@ -647,7 +645,7 @@ function buildCompletionEmail(result, data) {
   ].join("\n");
 
   return {
-    subject: "【契約完了】車両売買契約の電子署名が完了しました",
+    subject: "【署名完了】車両売買契約の確認をお願いします",
     body,
   };
 }
@@ -663,24 +661,20 @@ function openCompletionEmail() {
 }
 
 function showCompletionScreen(result, data) {
-  completedConsentResult = result;
   completionEmail = buildCompletionEmail(result, data);
   document.querySelector("#consent-summary").hidden = true;
   document.querySelector("#seller-input-section").hidden = true;
   document.querySelector("#consent-check-section").hidden = true;
   document.querySelector("#customer-sign-section").hidden = true;
   document.querySelector("#consent-guide").hidden = true;
-  const downloadRow = result.downloadUrl
-    ? `<div><dt>契約書PDF</dt><dd><a href="${escapeHtml(result.downloadUrl)}" target="_blank" rel="noopener">ダウンロードする</a><br><small>URLは30日間有効です</small></dd></div>`
-    : "";
   document.querySelector("#completion-summary-list").innerHTML = [
     summaryRow("契約番号", result.contractNumber),
     summaryRow("署名者", result.customerName),
     summaryRow("車名", data.carName),
     summaryRow("登録番号", data.plateNumber),
     summaryRow("金額", result.amount),
-    summaryRow("完了日時", result.completedAt),
-    downloadRow,
+    summaryRow("署名日時", result.completedAt),
+    summaryRow("状態", "オーダーオート確認待ち"),
   ].join("");
   document.querySelector("#consent-complete-section").hidden = false;
   setConsentProgress("complete");
@@ -836,39 +830,6 @@ function blobAsDataUrl(blob) {
   });
 }
 
-async function printCustomerCopy() {
-  if (!completedConsentResult || !loadedContract?.data) return;
-  const printWindow = window.open("", "_blank");
-  if (!printWindow) {
-    alert("お客様控えを開けませんでした。ブラウザのポップアップ設定を確認してください。");
-    return;
-  }
-
-  printWindow.document.write(`<!doctype html><html lang="ja"><head><meta charset="UTF-8"><title>お客様控えPDFを作成中</title>
-    <style>html,body{margin:0;min-height:100%;display:grid;place-items:center;background:#f2f4f3;color:#17211d;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif}p{padding:24px}</style>
-    </head><body><p>お客様控えのA4 PDF（3ページ）を作成しています。</p></body></html>`);
-  printWindow.document.close();
-
-  try {
-    const pdfBlob = await buildCustomerCopyPdf(loadedContract, completedConsentResult);
-    const pdfUrl = URL.createObjectURL(pdfBlob);
-    let printRequested = false;
-    const requestPrint = () => {
-      if (printRequested || printWindow.closed) return;
-      printRequested = true;
-      window.setTimeout(() => printWindow.print(), 350);
-    };
-    printWindow.addEventListener("load", requestPrint, { once: true });
-    printWindow.location.replace(pdfUrl);
-    window.setTimeout(requestPrint, 1800);
-    window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 120000);
-  } catch (error) {
-    console.error(error);
-    printWindow.close();
-    alert("お客様控えPDFの作成に失敗しました。もう一度お試しください。");
-  }
-}
-
 async function completeConsent() {
   if (!loadedContract?.data) return;
 
@@ -878,7 +839,7 @@ async function completeConsent() {
 
   const completeButton = document.querySelector("#complete-consent");
   completeButton.disabled = true;
-  completeButton.textContent = "契約を完了しています";
+  completeButton.textContent = "電子署名を保存しています";
 
   const seller = collectRemoteSeller();
   try {
@@ -896,7 +857,7 @@ async function completeConsent() {
   } catch (error) {
     alert(error.message || "本人確認画像を読み込めませんでした。");
     completeButton.disabled = false;
-    completeButton.textContent = "同意して完了メールを作成";
+    completeButton.textContent = "同意して署名完了メールを作成";
     return;
   }
 
@@ -928,20 +889,18 @@ async function completeConsent() {
       const customerPdfDataUrl = await blobAsDataUrl(
         await buildCustomerCopyPdf(loadedContract, result),
       );
-      completeButton.textContent = "契約を完了しています";
+      completeButton.textContent = "電子署名を保存しています";
       const saved = await window.OrderAutoCloud.saveConsentResult(
         loadedContract.id,
         { ...result, customerPdfDataUrl },
         loadedContract.accessToken || "",
       );
       if (saved?.completedAt) result.completedAt = formatDateTime(new Date(saved.completedAt));
-      result.downloadUrl = saved?.downloadUrl || "";
-      result.downloadAccessExpiresAt = saved?.downloadAccessExpiresAt || "";
     } catch (error) {
       console.error(error);
       alert("契約書PDFまたは同意結果をクラウド保存できませんでした。通信状況を確認してください。");
       completeButton.disabled = false;
-      completeButton.textContent = "同意して完了メールを作成";
+      completeButton.textContent = "同意して署名完了メールを作成";
       return;
     }
   }
@@ -960,7 +919,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.querySelector("#complete-consent").addEventListener("click", completeConsent);
   document.querySelector("#reopen-completion-email").addEventListener("click", openCompletionEmail);
-  document.querySelector("#save-customer-copy").addEventListener("click", printCustomerCopy);
   document.querySelector("#customer-name").addEventListener("input", () => {
     setFieldError(
       document.querySelector("#customer-name"),
@@ -1004,6 +962,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.querySelector("#consent-summary").addEventListener("click", () => setConsentProgress("summary"));
   document.querySelector("#customer-sign-section").addEventListener("focusin", () => {
-    if (!completedConsentResult) setConsentProgress("sign");
+    if (!completionEmail) setConsentProgress("sign");
   });
 });

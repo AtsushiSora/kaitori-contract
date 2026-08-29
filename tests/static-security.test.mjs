@@ -85,11 +85,12 @@ test("メール・LINE契約は案内から完了通知まで同じ手順で表�
   assert.match(contractSource, /【ご契約の手順】/);
   assert.match(contractSource, /function buildLineMessage/);
   assert.match(contractSource, /copyText\(field\.value\.trim\(\)\)/);
-  assert.match(contractSource, /完了画面からお客様控えをPDF保存/);
+  assert.match(contractSource, /確認完了メールに記載されたURLからお客様控えPDFを保存/);
   assert.match(consentHtml, /内容確認[\s\S]*重要事項[\s\S]*同意・署名[\s\S]*契約完了/);
   assert.match(consentHtml, /id="consent-complete-section"/);
   assert.match(consentSource, /function showCompletionScreen/);
-  assert.match(consentSource, /【契約完了】車両売買契約の電子署名が完了しました/);
+  assert.match(consentSource, /【署名完了】車両売買契約の確認をお願いします/);
+  assert.doesNotMatch(consentSource, /result\.downloadUrl/);
   assert.match(consentSource, /const ORDER_AUTO_EMAIL = "info@order-auto\.com"/);
   assert.doesNotMatch(consentSource, /sora29128616@gmail\.com/);
 });
@@ -142,7 +143,7 @@ test("お客様向けURLは期限・ワンタイムトークン・完了済み�
   assert.match(source, /Date\.now\(\) > expiresAt/);
   assert.match(source, /failedAttempts >= 5/);
   assert.match(source, /15 \* 60 \* 1000/);
-  assert.match(source, /contract\.remote_used_at \|\| contract\.consent_status === "完了"/);
+  assert.match(source, /contract\.remote_used_at \|\| \["確認待ち", "完了"\]\.includes\(contract\.consent_status\)/);
   assert.match(source, /PUBLIC_DATA_FIELDS/);
   assert.doesNotMatch(source, /signature_data/);
   assert.doesNotMatch(source, /identity_files/);
@@ -156,19 +157,20 @@ test("クラウド確認URLは契約データを埋め込まず短いトーク�
   assert.match(contractSource, /const accessCredential = `\$\{accessToken\}\.\$\{passcode\}`/);
   assert.match(contractSource, /url\.hash = `r=\$\{accessToken\}`/);
   assert.match(contractSource, /isConfigured\(\) && !cloudEnabled\(\)/);
-  assert.match(contractSource, /完了済みの契約は確認URLを再発行できません/);
+  assert.match(contractSource, /署名済みの契約は確認URLを再発行できません/);
   assert.doesNotMatch(contractSource, /暗号化URL生成/);
   assert.match(consentSource, /decodeShortAccessToken/);
   assert.match(consentSource, /getContract\("", accessCredential\)/);
 });
 
-test("電子同意は氏名・全チェック・画像署名が揃わないと完了しない", async () => {
+test("電子同意は必須情報が揃った時だけ確認待ちとして保存する", async () => {
   const source = await text("supabase/functions/submit-consent/index.ts");
   assert.match(source, /required\.every\(\(item\) => checked\.includes\(item\)\)/);
   assert.match(source, /!customerName[\s\S]*!allChecked[\s\S]*comparableName\(customerName\)[\s\S]*!validSignature/);
   assert.match(source, /value\.startsWith\("data:image\/png;base64,"\)/);
-  assert.match(source, /status: "完了"/);
-  assert.match(source, /consent_status: "完了"/);
+  assert.match(source, /validEmail/);
+  assert.match(source, /status: "確認待ち"/);
+  assert.match(source, /consent_status: "確認待ち"/);
   assert.match(source, /remote_used_at: completedAt/);
 });
 
@@ -198,20 +200,26 @@ test("遠隔契約は個人・法人、免許証条件、完了ロック、管�
   assert.match(contractSource, /parentContractId/);
 });
 
-test("契約完了PDFは非公開保存し期限付きトークンだけで取得する", async () => {
-  const [submitSource, downloadSource, migration, downloadHtml, downloadJs, config] = await Promise.all([
+test("管理者確認後にだけ契約完了PDFの期限付きURLを発行する", async () => {
+  const [submitSource, confirmSource, downloadSource, migration, confirmationMigration, downloadHtml, downloadJs, config] = await Promise.all([
     text("supabase/functions/submit-consent/index.ts"),
+    text("supabase/functions/confirm-contract/index.ts"),
     text("supabase/functions/download-contract/index.ts"),
     text("supabase/migrations/20260829000000_customer_pdf_download.sql"),
+    text("supabase/migrations/20260829010000_admin_contract_confirmation.sql"),
     text("download.html"),
     text("download.js"),
     text("supabase-config.js"),
   ]);
   assert.match(submitSource, /validCustomerPdf/);
   assert.match(submitSource, /customer-copy\.pdf/);
-  assert.match(submitSource, /DOWNLOAD_LINK_DAYS = 30/);
-  assert.match(submitSource, /download_access_hash: downloadAccessHash/);
-  assert.match(submitSource, /契約書PDF（30日間有効）/);
+  assert.doesNotMatch(submitSource, /customerDownloadUrl|downloadToken/);
+  assert.match(confirmSource, /DOWNLOAD_LINK_DAYS = 30/);
+  assert.match(confirmSource, /download_access_hash: downloadAccessHash/);
+  assert.match(confirmSource, /お客様控え契約書PDF（30日間有効）/);
+  assert.match(confirmSource, /authenticatedUser\(request\)/);
+  assert.match(confirmSource, /status: "完了"/);
+  assert.match(confirmSource, /consent_status: "完了"/);
   assert.match(downloadSource, /sha256Hex\(token\)/);
   assert.match(downloadSource, /download_access_expires_at/);
   assert.match(downloadSource, /contract-files/);
@@ -220,9 +228,11 @@ test("契約完了PDFは非公開保存し期限付きトークンだけで取�
   assert.doesNotMatch(downloadSource, /eyJ[A-Za-z0-9_-]{20,}/);
   assert.match(migration, /download_access_hash/);
   assert.match(migration, /customer_pdf_path/);
+  assert.match(confirmationMigration, /reviewed_at/);
   assert.match(downloadHtml, /noindex,nofollow/);
   assert.match(downloadJs, /window\.location\.hash/);
   assert.match(config, /contractDownloadEndpoint/);
+  assert.match(config, /contractConfirmEndpoint/);
 });
 
 test("公開Edge Functionは許可オリジン限定・キャッシュ禁止", async () => {

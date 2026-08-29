@@ -47,9 +47,9 @@
               <li>重要事項・契約条項をご確認ください</li>
               <li>必須項目にチェックしてください</li>
               <li>画面に電子署名をご記入ください</li>
-              <li>「同意して完了メールを作成」を押してください</li>
-              <li>完了メールの内容を確認し、「送信」を押してください</li>
-              <li>完了画面からお客様控えをPDF保存してください</li>
+              <li>「同意して署名完了メールを作成」を押してください</li>
+              <li>確認依頼メールの内容を確認し、「送信」を押してください</li>
+              <li>オーダーオートの確認後、メールで届くURLからお客様控えを保存してください</li>
             </ol>
           </section>
 
@@ -57,7 +57,7 @@
             <li data-consent-step="summary">内容確認</li>
             <li data-consent-step="important">重要事項</li>
             <li data-consent-step="sign">同意・署名</li>
-            <li data-consent-step="complete">契約完了</li>
+            <li data-consent-step="complete">確認待ち</li>
           </ol>
 
           <section class="consent-unlock" id="consent-unlock">
@@ -114,7 +114,7 @@
                 <label>代表者の名字<input id="remote-representative-last-name" autocomplete="family-name" /></label>
                 <label>代表者の名前<input id="remote-representative-first-name" autocomplete="given-name" /></label>
               </div>
-              <label>メールアドレス<input id="remote-seller-email" type="email" autocomplete="email" /></label>
+              <label>メールアドレス<input id="remote-seller-email" type="email" autocomplete="email" required /></label>
               <label>運転免許証番号<input id="remote-identity-number" inputmode="numeric" /></label>
               <div class="full identity-document-fields">
                 <label>運転免許証（表面・必須）<input id="remote-license-front" type="file" accept="image/jpeg,image/png" /></label>
@@ -161,24 +161,23 @@
                 署名クリア
               </button>
               <button class="button button-primary" type="button" id="complete-consent">
-                同意して完了メールを作成
+                同意して署名完了メールを作成
               </button>
             </div>
             <p class="form-note">
-              この操作で電子署名が確定し、契約が完了します。作成された完了メールの内容を確認し、送信してください。
+              この操作で電子署名が確定し、オーダーオートの確認待ちになります。作成された確認依頼メールを送信してください。
             </p>
           </section>
 
           <section class="consent-complete" id="consent-complete-section" hidden>
-            <p class="eyebrow">Completed</p>
-            <h2>契約が完了しました</h2>
-            <p>電子署名と同意結果を保存しました。完了メールを送信した後、お客様控えを保存してください。</p>
+            <p class="eyebrow">Submitted</p>
+            <h2>電子署名を受け付けました</h2>
+            <p>確認依頼メールを送信してください。オーダーオートで確認後、契約完了メールとお客様控えPDFのURLをお送りします。</p>
             <dl class="document-dl" id="completion-summary-list"></dl>
             <div class="toolbar-actions">
-              <button class="button button-outline" type="button" id="reopen-completion-email">完了メールを再作成</button>
-              <button class="button button-primary" type="button" id="save-customer-copy">お客様控えPDFを保存</button>
+              <button class="button button-primary" type="button" id="reopen-completion-email">確認依頼メールを再作成</button>
             </div>
-            <p class="form-note">PDF保存は表示される印刷画面から「PDFとして保存」または共有メニューの「ファイルに保存」を選んでください。</p>
+            <p class="form-note">お客様控えのURLは、オーダーオートの確認完了から30日間有効です。</p>
           </section>
         </div>
       </section>

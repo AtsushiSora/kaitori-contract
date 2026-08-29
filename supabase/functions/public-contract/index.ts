@@ -149,7 +149,7 @@ Deno.serve(async (request) => {
     if (!Number.isFinite(expiresAt) || Date.now() > expiresAt) {
       return jsonResponse({ error: "Link is invalid or expired" }, 403, origin);
     }
-    if (contract.remote_used_at || contract.consent_status === "完了") {
+    if (contract.remote_used_at || ["確認待ち", "完了"].includes(contract.consent_status)) {
       return jsonResponse({ error: "Consent is already completed" }, 409, origin);
     }
 

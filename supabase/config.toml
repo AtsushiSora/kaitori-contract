@@ -6,3 +6,6 @@ verify_jwt = false
 
 [functions.download-contract]
 verify_jwt = false
+
+[functions.confirm-contract]
+verify_jwt = false

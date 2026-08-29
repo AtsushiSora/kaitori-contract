@@ -18,7 +18,7 @@ export function allowedOrigin(request: Request): string | null {
 export function corsHeaders(origin: string): HeadersInit {
   return {
     "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Headers": "content-type",
+    "Access-Control-Allow-Headers": "authorization, apikey, content-type",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Cache-Control": "no-store",
     Vary: "Origin",

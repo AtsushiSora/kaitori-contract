@@ -58,6 +58,7 @@ try {
   const page = await context.newPage();
   let cloudContractRows = [];
   let requestedDownloadToken = "";
+  let confirmedContractId = "";
   let adminNotificationRows = [
     {
       id: 1,
@@ -100,6 +101,20 @@ try {
         status: 200,
         contentType: "application/pdf",
         body: "%PDF-1.4\n%%EOF",
+      });
+      return;
+    }
+    if (request.method() === "POST" && url.pathname === "/functions/v1/confirm-contract") {
+      confirmedContractId = request.postDataJSON()?.contractId || "";
+      cloudContractRows = cloudContractRows.map((contract) =>
+        contract.id === confirmedContractId
+          ? { ...contract, status: "完了", consent_status: "完了", completed_at_text: new Date().toISOString() }
+          : contract,
+      );
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, emailStatus: "sent" }),
       });
       return;
     }
@@ -549,21 +564,22 @@ try {
   cloudContractRows = [{
     id: staleContract.id,
     contract_number: "26081101",
-    status: "完了",
+    status: "確認待ち",
     data: {
       ...staleContract.data,
       sellerLastName: "遠隔",
       sellerFirstName: "完了",
       sellerName: "遠隔 完了",
       sellerMobile: "09000000000",
+      sellerEmail: "customer@example.test",
     },
     signature_data: "",
     identity_files: [],
     created_at_text: staleContract.createdAt,
     updated_at_text: "2026/08/28 09:12",
-    completed_at_text: "2026-08-28T00:12:20.000Z",
+    completed_at_text: null,
     signed_at_text: "2026-08-28T00:12:20.000Z",
-    consent_status: "完了",
+    consent_status: "確認待ち",
     consent_result: { completedAt: "2026-08-28T00:12:20.000Z" },
     version_number: 1,
     updated_at: "2026-08-28T00:12:20.000Z",
@@ -580,8 +596,15 @@ try {
   await page.waitForFunction(() => document.querySelector("#contract-list")?.textContent.includes("遠隔 完了"));
   const syncedContractItem = page.locator("article.contract-list-item").filter({ hasText: "26081101" }).first();
   assert.match(await syncedContractItem.textContent(), /遠隔 完了/);
+  assert.equal(await syncedContractItem.locator("em").textContent(), "確認待ち");
+  await syncedContractItem.getByRole("button", { name: "確認完了・メール送信" }).click();
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll("#contract-list article")]
+      .some((item) => item.textContent.includes("26081101") && item.querySelector("em")?.textContent === "完了"),
+  );
+  assert.equal(confirmedContractId, staleContract.id);
   assert.equal(await syncedContractItem.locator("em").textContent(), "完了");
-  logPass("一覧を開くと遠隔署名後の売主情報と完了状態をクラウドから再同期");
+  logPass("遠隔署名を確認待ちで同期し、管理者確認後に完了メールを送信");
 
   await page.locator('[aria-label="メインナビゲーション"] a[href="#list"]').click();
   await page.locator("#new-contract").click();
@@ -690,9 +713,9 @@ try {
     carName: "テスト車両",
     plateNumber: "広島 500 あ 12-34",
   }).body);
-  assert.match(completionEmailBody, /契約書PDF（30日間有効）/);
-  assert.match(completionEmailBody, /download\.html#d=abcdefghijklmnopqrstuvwxyzABCDEF/);
-  logPass("契約完了メールに期限付き契約書PDF URLを記載");
+  assert.match(completionEmailBody, /契約内容と本人確認書類の確認をお願いします/);
+  assert.doesNotMatch(completionEmailBody, /契約書PDF|download\.html/);
+  logPass("お客様からの署名完了メールには契約書URLを記載しない");
 
   const downloadToken = "abcdefghijklmnopqrstuvwxyzABCDEF";
   await page.goto(`${baseUrl}/download.html#d=${downloadToken}`);

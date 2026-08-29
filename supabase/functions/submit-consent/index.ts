@@ -21,7 +21,6 @@ const ZERO_CONSENTS = [
   "引取後に買取代金を請求しません",
   "重量税・自賠責・リサイクル券・自動車税の還付または返戻金を請求しません",
 ];
-const DOWNLOAD_LINK_DAYS = 30;
 
 function expectedConsents(data: Record<string, unknown>): string[] {
   const rawAmount = String(data.purchaseAmount ?? "").trim();
@@ -118,20 +117,6 @@ function pdfDataUrlBytes(value: string): Uint8Array {
   return bytes;
 }
 
-function randomDownloadToken(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(24));
-  return btoa(String.fromCharCode(...bytes))
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replaceAll("=", "");
-}
-
-function customerDownloadUrl(origin: string, token: string): string {
-  const configured = String(Deno.env.get("PUBLIC_SITE_URL") || "").trim().replace(/\/$/, "");
-  const siteUrl = configured || `${origin}/kaitori-contract`;
-  return `${siteUrl}/download.html#d=${token}`;
-}
-
 async function uploadIdentityDocument(contractId: string, document: IdentityDocument) {
   const extension = document.type === "image/png" ? "png" : "jpg";
   const path = `${contractId}/identity/customer-license-${document.side}-${crypto.randomUUID()}.${extension}`;
@@ -173,7 +158,6 @@ async function sendAdminEmail(
   contractNumber: string,
   customerName: string,
   completedAt: string,
-  downloadUrl: string,
 ) {
   const apiKey = Deno.env.get("RESEND_API_KEY");
   const to = Deno.env.get("ADMIN_NOTIFICATION_EMAIL");
@@ -186,16 +170,14 @@ async function sendAdminEmail(
       body: JSON.stringify({
         from,
         to: [to],
-        subject: `【契約完了】契約番号 ${contractNumber}`,
+        subject: `【要確認】電子署名を受け付けました 契約番号 ${contractNumber}`,
         text: [
-          "車両売買契約の電子署名が完了しました。",
+          "車両売買契約の電子署名を受け付けました。",
           `契約番号：${contractNumber}`,
           `署名者：${customerName}`,
-          `完了日時：${completedAt}`,
+          `署名日時：${completedAt}`,
           "",
-          "契約書PDF（30日間有効）：",
-          downloadUrl,
-          "管理画面で契約内容と本人確認書類をご確認ください。",
+          "管理画面で契約内容と本人確認書類を確認し、「確認完了・メール送信」を押してください。",
           "安全のため、このメールには本人確認書類を添付していません。",
         ].join("\n"),
       }),
@@ -248,7 +230,7 @@ Deno.serve(async (request) => {
     if (!validToken || !Number.isFinite(expiresAt) || Date.now() > expiresAt) {
       return jsonResponse({ error: "Link is invalid or expired" }, 403, origin);
     }
-    if (contract.remote_used_at || contract.consent_status === "完了") {
+    if (contract.remote_used_at || ["確認待ち", "完了"].includes(contract.consent_status)) {
       return jsonResponse({ error: "Consent is already completed" }, 409, origin);
     }
 
@@ -268,7 +250,8 @@ Deno.serve(async (request) => {
     const expectedSigner = seller?.sellerType === "corporate"
       ? `${seller.representativeLastName} ${seller.representativeFirstName}`.trim()
       : `${seller?.sellerLastName || ""} ${seller?.sellerFirstName || ""}`.trim();
-    if (!customerName || customerName.length > 100 || !seller || !frontDocument ||
+    const validEmail = Boolean(seller?.sellerEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(seller.sellerEmail));
+    if (!customerName || customerName.length > 100 || !seller || !validEmail || !frontDocument ||
       (seller.licenseBackStatus === "has_entries" && !backDocument) || !allChecked ||
       comparableName(customerName) !== comparableName(expectedSigner) ||
       !validSignature(result.customerSignature) || !validCustomerPdf(customerPdfDataUrl)) {
@@ -276,12 +259,6 @@ Deno.serve(async (request) => {
     }
 
     const completedAt = new Date().toISOString();
-    const downloadToken = randomDownloadToken();
-    const downloadAccessHash = await sha256Hex(downloadToken);
-    const downloadAccessExpiresAt = new Date(
-      Date.now() + DOWNLOAD_LINK_DAYS * 24 * 60 * 60 * 1000,
-    ).toISOString();
-    const downloadUrl = customerDownloadUrl(origin, downloadToken);
     const sellerName = seller.sellerType === "corporate"
       ? seller.corporateName
       : `${seller.sellerLastName} ${seller.sellerFirstName}`.trim();
@@ -325,7 +302,7 @@ Deno.serve(async (request) => {
 
     const updateQuery = new URLSearchParams({
       id: `eq.${contractId}`,
-      consent_status: "neq.完了",
+      consent_status: "neq.確認待ち",
       remote_used_at: "is.null",
       select: "id",
     });
@@ -333,17 +310,18 @@ Deno.serve(async (request) => {
       method: "PATCH",
       headers: serviceHeaders("return=representation"),
       body: JSON.stringify({
-        status: "完了",
-        consent_status: "完了",
+        status: "確認待ち",
+        consent_status: "確認待ち",
         consent_result: savedResult,
         data: mergedData,
         identity_files: [...existingIdentityFiles, ...storedDocuments],
-        completed_at_text: completedAt,
+        completed_at_text: null,
+        signed_at_text: completedAt,
         remote_used_at: completedAt,
         locked_at: completedAt,
         customer_pdf_path: customerPdfPath,
-        download_access_hash: downloadAccessHash,
-        download_access_expires_at: downloadAccessExpiresAt,
+        download_access_hash: null,
+        download_access_expires_at: null,
         updated_at: completedAt,
       }),
     });
@@ -358,7 +336,7 @@ Deno.serve(async (request) => {
       headers: serviceHeaders("return=minimal"),
       body: JSON.stringify({
         contract_id: contractId,
-        event_type: "customer_consent_completed",
+        event_type: "customer_signature_submitted",
         payload: {
           completedAt,
           customerName,
@@ -373,16 +351,16 @@ Deno.serve(async (request) => {
     }
 
     const contractNumber = clean(contract.contract_number || result.contractNumber, 30);
-    const emailStatus = await sendAdminEmail(contractNumber, customerName, completedAt, downloadUrl);
+    const emailStatus = await sendAdminEmail(contractNumber, customerName, completedAt);
     const notificationResponse = await fetch(supabaseUrl("/rest/v1/admin_notifications"), {
       method: "POST",
       headers: serviceHeaders("return=minimal"),
       body: JSON.stringify({
         contract_id: contractId,
-        notification_type: "contract_completed",
-        title: "電子契約が完了しました",
+        notification_type: "contract_review_required",
+        title: "電子署名の確認が必要です",
         message: `契約番号 ${contractNumber} / ${customerName}`,
-        payload: { contractNumber, customerName, completedAt, emailStatus, downloadUrl, downloadAccessExpiresAt },
+        payload: { contractNumber, customerName, completedAt, emailStatus },
       }),
     });
     if (!notificationResponse.ok) {
@@ -393,8 +371,7 @@ Deno.serve(async (request) => {
       ok: true,
       completedAt,
       emailStatus,
-      downloadUrl,
-      downloadAccessExpiresAt,
+      reviewStatus: "確認待ち",
     }, 200, origin);
   } catch (error) {
     console.error("submit-consent", error);

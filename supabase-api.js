@@ -334,6 +334,26 @@ async function saveConsentResult(contractId, result, accessToken = "") {
   return response.json();
 }
 
+async function confirmContract(contractId) {
+  const endpoint = supabaseConfig().contractConfirmEndpoint;
+  const session = supabaseSession();
+  if (!endpoint) throw new Error("Contract confirmation endpoint is not configured");
+  if (!supabaseIsAuthenticated() || !session?.access_token) {
+    throw new Error("Administrator authentication is required");
+  }
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      apikey: supabaseConfig().anonKey,
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ contractId }),
+  });
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+}
+
 async function downloadCompletedContract(token) {
   const endpoint = supabaseConfig().contractDownloadEndpoint;
   if (!endpoint) throw new Error("Contract download endpoint is not configured");
@@ -392,6 +412,7 @@ window.OrderAutoCloud = {
   getPrivateFileUrl,
   deleteFile: deleteCloudFile,
   saveConsentResult,
+  confirmContract,
   downloadCompletedContract,
   listAdminNotifications,
   markNotificationRead,
