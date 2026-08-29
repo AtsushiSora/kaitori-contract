@@ -191,6 +191,33 @@ test("遠隔契約は個人・法人、免許証条件、完了ロック、管�
   assert.match(contractSource, /parentContractId/);
 });
 
+test("契約完了PDFは非公開保存し期限付きトークンだけで取得する", async () => {
+  const [submitSource, downloadSource, migration, downloadHtml, downloadJs, config] = await Promise.all([
+    text("supabase/functions/submit-consent/index.ts"),
+    text("supabase/functions/download-contract/index.ts"),
+    text("supabase/migrations/20260829000000_customer_pdf_download.sql"),
+    text("download.html"),
+    text("download.js"),
+    text("supabase-config.js"),
+  ]);
+  assert.match(submitSource, /validCustomerPdf/);
+  assert.match(submitSource, /customer-copy\.pdf/);
+  assert.match(submitSource, /DOWNLOAD_LINK_DAYS = 30/);
+  assert.match(submitSource, /download_access_hash: downloadAccessHash/);
+  assert.match(submitSource, /契約書PDF（30日間有効）/);
+  assert.match(downloadSource, /sha256Hex\(token\)/);
+  assert.match(downloadSource, /download_access_expires_at/);
+  assert.match(downloadSource, /contract-files/);
+  assert.match(downloadSource, /Content-Type": "application\/pdf"/);
+  assert.match(downloadSource, /Deno\.env\.get\("SUPABASE_SERVICE_ROLE_KEY"\)/);
+  assert.doesNotMatch(downloadSource, /eyJ[A-Za-z0-9_-]{20,}/);
+  assert.match(migration, /download_access_hash/);
+  assert.match(migration, /customer_pdf_path/);
+  assert.match(downloadHtml, /noindex,nofollow/);
+  assert.match(downloadJs, /window\.location\.hash/);
+  assert.match(config, /contractDownloadEndpoint/);
+});
+
 test("公開Edge Functionは許可オリジン限定・キャッシュ禁止", async () => {
   const source = await text("supabase/functions/_shared/http.ts");
   assert.match(source, /ALLOWED_ORIGINS/);

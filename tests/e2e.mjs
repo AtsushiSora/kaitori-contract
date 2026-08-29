@@ -57,6 +57,7 @@ try {
   const context = await browser.newContext({ acceptDownloads: true });
   const page = await context.newPage();
   let cloudContractRows = [];
+  let requestedDownloadToken = "";
   let adminNotificationRows = [
     {
       id: 1,
@@ -90,6 +91,15 @@ try {
           expires_in: 3600,
           user: { id: "e2e-admin", email: "admin@example.test" },
         }),
+      });
+      return;
+    }
+    if (request.method() === "POST" && url.pathname === "/functions/v1/download-contract") {
+      requestedDownloadToken = request.postDataJSON()?.token || "";
+      await route.fulfill({
+        status: 200,
+        contentType: "application/pdf",
+        body: "%PDF-1.4\n%%EOF",
       });
       return;
     }
@@ -638,6 +648,29 @@ try {
   assert.equal((customerCopyPdfSource.match(/\/MediaBox \[0 0 595\.28 841\.89\]/g) || []).length, 3);
   assert.equal((customerCopyPdfSource.match(/595\.28 0 0 841\.89 0 0 cm/g) || []).length, 3);
   logPass("お客様控えPDFを契約書・契約条項・電子契約完了記録のA4 3ページで生成");
+
+  const completionEmailBody = await page.evaluate(() => buildCompletionEmail({
+    contractNumber: "26082901",
+    customerName: "山田 太郎",
+    amount: "120,000円",
+    completedAt: "2026/08/29 11:05",
+    checkedConsents: ["契約内容を確認しました"],
+    downloadUrl: "https://atsushisora.github.io/kaitori-contract/download.html#d=abcdefghijklmnopqrstuvwxyzABCDEF",
+  }, {
+    carName: "テスト車両",
+    plateNumber: "広島 500 あ 12-34",
+  }).body);
+  assert.match(completionEmailBody, /契約書PDF（30日間有効）/);
+  assert.match(completionEmailBody, /download\.html#d=abcdefghijklmnopqrstuvwxyzABCDEF/);
+  logPass("契約完了メールに期限付き契約書PDF URLを記載");
+
+  const downloadToken = "abcdefghijklmnopqrstuvwxyzABCDEF";
+  await page.goto(`${baseUrl}/download.html#d=${downloadToken}`);
+  await page.locator("#open-contract-pdf").waitFor({ state: "visible" });
+  assert.equal(requestedDownloadToken, downloadToken);
+  assert.match(await page.locator("#open-contract-pdf").getAttribute("href"), /^blob:/);
+  assert.match(await page.locator("#download-status").textContent(), /準備しました/);
+  logPass("期限付きURLから非公開の契約書PDFを取得");
 
   await context.close();
 } finally {

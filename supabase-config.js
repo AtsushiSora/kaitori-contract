@@ -4,4 +4,5 @@ window.ORDER_AUTO_SUPABASE = {
   storageBucket: "contract-files",
   publicContractEndpoint: "https://cumvescylyetumupupmc.supabase.co/functions/v1/public-contract",
   consentSubmitEndpoint: "https://cumvescylyetumupupmc.supabase.co/functions/v1/submit-consent",
+  contractDownloadEndpoint: "https://cumvescylyetumupupmc.supabase.co/functions/v1/download-contract",
 };

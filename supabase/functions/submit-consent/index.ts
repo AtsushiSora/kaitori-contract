@@ -21,6 +21,7 @@ const ZERO_CONSENTS = [
   "引取後に買取代金を請求しません",
   "重量税・自賠責・リサイクル券・自動車税の還付または返戻金を請求しません",
 ];
+const DOWNLOAD_LINK_DAYS = 30;
 
 function expectedConsents(data: Record<string, unknown>): string[] {
   const rawAmount = String(data.purchaseAmount ?? "").trim();
@@ -35,6 +36,12 @@ function validSignature(value: unknown): value is string {
     value.startsWith("data:image/png;base64,") &&
     value.length >= 200 &&
     value.length <= 1_500_000;
+}
+
+function validCustomerPdf(value: unknown): value is string {
+  return typeof value === "string" &&
+    value.startsWith("data:application/pdf;base64,JVBERi0") &&
+    value.length >= 5000 && value.length <= 11_000_000;
 }
 
 type IdentityDocument = {
@@ -104,6 +111,27 @@ function dataUrlBytes(document: IdentityDocument): Uint8Array {
   return bytes;
 }
 
+function pdfDataUrlBytes(value: string): Uint8Array {
+  const binary = atob(value.split(",", 2)[1] || "");
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
+function randomDownloadToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  return btoa(String.fromCharCode(...bytes))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "");
+}
+
+function customerDownloadUrl(origin: string, token: string): string {
+  const configured = String(Deno.env.get("PUBLIC_SITE_URL") || "").trim().replace(/\/$/, "");
+  const siteUrl = configured || `${origin}/kaitori-contract`;
+  return `${siteUrl}/download.html#d=${token}`;
+}
+
 async function uploadIdentityDocument(contractId: string, document: IdentityDocument) {
   const extension = document.type === "image/png" ? "png" : "jpg";
   const path = `${contractId}/identity/customer-license-${document.side}-${crypto.randomUUID()}.${extension}`;
@@ -128,7 +156,25 @@ async function uploadIdentityDocument(contractId: string, document: IdentityDocu
   };
 }
 
-async function sendAdminEmail(contractNumber: string, customerName: string, completedAt: string) {
+async function uploadCustomerPdf(contractId: string, dataUrl: string): Promise<string> {
+  const path = `${contractId}/contract/customer-copy.pdf`;
+  const headers = new Headers(serviceHeaders());
+  headers.set("Content-Type", "application/pdf");
+  headers.set("x-upsert", "true");
+  const response = await fetch(
+    supabaseUrl(`/storage/v1/object/contract-files/${path.split("/").map(encodeURIComponent).join("/")}`),
+    { method: "POST", headers, body: pdfDataUrlBytes(dataUrl) },
+  );
+  if (!response.ok) throw new Error(`Customer PDF upload failed: ${response.status}`);
+  return path;
+}
+
+async function sendAdminEmail(
+  contractNumber: string,
+  customerName: string,
+  completedAt: string,
+  downloadUrl: string,
+) {
   const apiKey = Deno.env.get("RESEND_API_KEY");
   const to = Deno.env.get("ADMIN_NOTIFICATION_EMAIL");
   const from = Deno.env.get("NOTIFICATION_FROM_EMAIL");
@@ -146,6 +192,9 @@ async function sendAdminEmail(contractNumber: string, customerName: string, comp
           `契約番号：${contractNumber}`,
           `署名者：${customerName}`,
           `完了日時：${completedAt}`,
+          "",
+          "契約書PDF（30日間有効）：",
+          downloadUrl,
           "管理画面で契約内容と本人確認書類をご確認ください。",
           "安全のため、このメールには本人確認書類を添付していません。",
         ].join("\n"),
@@ -213,6 +262,7 @@ Deno.serve(async (request) => {
     const checked = Array.isArray(result.checkedConsents)
       ? result.checkedConsents.map(String)
       : [];
+    const customerPdfDataUrl = result.customerPdfDataUrl;
     const required = expectedConsents(contract.data || {});
     const allChecked = required.every((item) => checked.includes(item));
     const expectedSigner = seller?.sellerType === "corporate"
@@ -221,11 +271,17 @@ Deno.serve(async (request) => {
     if (!customerName || customerName.length > 100 || !seller || !frontDocument ||
       (seller.licenseBackStatus === "has_entries" && !backDocument) || !allChecked ||
       comparableName(customerName) !== comparableName(expectedSigner) ||
-      !validSignature(result.customerSignature)) {
+      !validSignature(result.customerSignature) || !validCustomerPdf(customerPdfDataUrl)) {
       return jsonResponse({ error: "Seller details, identity documents, confirmations, and signature are required" }, 422, origin);
     }
 
     const completedAt = new Date().toISOString();
+    const downloadToken = randomDownloadToken();
+    const downloadAccessHash = await sha256Hex(downloadToken);
+    const downloadAccessExpiresAt = new Date(
+      Date.now() + DOWNLOAD_LINK_DAYS * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    const downloadUrl = customerDownloadUrl(origin, downloadToken);
     const sellerName = seller.sellerType === "corporate"
       ? seller.corporateName
       : `${seller.sellerLastName} ${seller.sellerFirstName}`.trim();
@@ -236,6 +292,7 @@ Deno.serve(async (request) => {
         .map((item) => uploadIdentityDocument(contractId, item)),
     );
     const existingIdentityFiles = Array.isArray(contract.identity_files) ? contract.identity_files : [];
+    const customerPdfPath = await uploadCustomerPdf(contractId, customerPdfDataUrl);
     const mergedData = {
       ...(contract.data || {}),
       ...seller,
@@ -283,6 +340,9 @@ Deno.serve(async (request) => {
         completed_at_text: completedAt,
         remote_used_at: completedAt,
         locked_at: completedAt,
+        customer_pdf_path: customerPdfPath,
+        download_access_hash: downloadAccessHash,
+        download_access_expires_at: downloadAccessExpiresAt,
         updated_at: completedAt,
       }),
     });
@@ -312,7 +372,7 @@ Deno.serve(async (request) => {
     }
 
     const contractNumber = clean(contract.contract_number || result.contractNumber, 30);
-    const emailStatus = await sendAdminEmail(contractNumber, customerName, completedAt);
+    const emailStatus = await sendAdminEmail(contractNumber, customerName, completedAt, downloadUrl);
     const notificationResponse = await fetch(supabaseUrl("/rest/v1/admin_notifications"), {
       method: "POST",
       headers: serviceHeaders("return=minimal"),
@@ -321,14 +381,20 @@ Deno.serve(async (request) => {
         notification_type: "contract_completed",
         title: "電子契約が完了しました",
         message: `契約番号 ${contractNumber} / ${customerName}`,
-        payload: { contractNumber, customerName, completedAt, emailStatus },
+        payload: { contractNumber, customerName, completedAt, emailStatus, downloadUrl, downloadAccessExpiresAt },
       }),
     });
     if (!notificationResponse.ok) {
       console.error("admin notification insert failed", await notificationResponse.text());
     }
 
-    return jsonResponse({ ok: true, completedAt, emailStatus }, 200, origin);
+    return jsonResponse({
+      ok: true,
+      completedAt,
+      emailStatus,
+      downloadUrl,
+      downloadAccessExpiresAt,
+    }, 200, origin);
   } catch (error) {
     console.error("submit-consent", error);
     return jsonResponse({ error: "Consent could not be saved" }, 500, origin);

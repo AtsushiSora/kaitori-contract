@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>契約書PDF｜オーダーオート</title>
+    <link rel="stylesheet" href="styles.css?v=20260811-consent-flow" />
+    <script src="supabase-config.js?v=20260829-pdf-download"></script>
+    <script src="supabase-api.js?v=20260829-pdf-download"></script>
+    <script src="download.js?v=20260829-pdf-download" defer></script>
+  </head>
+  <body>
+    <header class="site-header" aria-label="サイトヘッダー">
+      <span class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <img src="assets/logo-mark.png" alt="" />
+        </span>
+        <span>
+          <strong>オーダーオート　契約書</strong>
+          <small>お客様控えPDF</small>
+        </span>
+      </span>
+      <a class="header-call" href="tel:07089966421">070-8996-6421</a>
+    </header>
+
+    <main class="page-main consent-main">
+      <section class="consent-layout">
+        <div class="consent-card">
+          <p class="eyebrow">Customer Copy</p>
+          <h1>契約書PDF</h1>
+          <p id="download-status" class="save-status" data-tone="pending" aria-live="polite">
+            契約書を準備しています。
+          </p>
+          <a
+            class="button button-primary"
+            id="open-contract-pdf"
+            target="_blank"
+            rel="noopener"
+            download="車両売買契約書-お客様控え.pdf"
+            hidden
+          >契約書PDFを開く</a>
+          <p class="form-note">このURLは契約完了から30日間有効です。</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <div>
+          <p><strong>オーダーオート　おまかせ廃車</strong></p>
+          <p>広島県広島市佐伯区皆賀1-10-20。電話：070-8996-6421。</p>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

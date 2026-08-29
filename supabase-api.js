@@ -331,6 +331,19 @@ async function saveConsentResult(contractId, result, accessToken = "") {
   });
 
   if (!response.ok) throw new Error(await response.text());
+  return response.json();
+}
+
+async function downloadCompletedContract(token) {
+  const endpoint = supabaseConfig().contractDownloadEndpoint;
+  if (!endpoint) throw new Error("Contract download endpoint is not configured");
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  if (!response.ok) throw new Error(await response.text());
+  return response.blob();
 }
 
 async function listAdminNotifications() {
@@ -379,6 +392,7 @@ window.OrderAutoCloud = {
   getPrivateFileUrl,
   deleteFile: deleteCloudFile,
   saveConsentResult,
+  downloadCompletedContract,
   listAdminNotifications,
   markNotificationRead,
   deleteAdminNotification,

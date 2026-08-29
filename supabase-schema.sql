@@ -12,6 +12,9 @@ create table if not exists public.contracts (
   remote_used_at timestamptz,
   remote_failed_attempts integer not null default 0,
   remote_locked_until timestamptz,
+  customer_pdf_path text,
+  download_access_hash text,
+  download_access_expires_at timestamptz,
   parent_contract_id text,
   version_number integer not null default 1,
   locked_at timestamptz,
@@ -30,6 +33,9 @@ alter table public.contracts
   add column if not exists remote_used_at timestamptz,
   add column if not exists remote_failed_attempts integer not null default 0,
   add column if not exists remote_locked_until timestamptz,
+  add column if not exists customer_pdf_path text,
+  add column if not exists download_access_hash text,
+  add column if not exists download_access_expires_at timestamptz,
   add column if not exists parent_contract_id text,
   add column if not exists version_number integer not null default 1,
   add column if not exists locked_at timestamptz,
@@ -42,6 +48,10 @@ create index if not exists contracts_remote_link_hash_idx
 create index if not exists contracts_parent_contract_id_idx
   on public.contracts (parent_contract_id)
   where parent_contract_id is not null;
+
+create unique index if not exists contracts_download_access_hash_key
+  on public.contracts (download_access_hash)
+  where download_access_hash is not null;
 
 create unique index if not exists contracts_contract_number_key
   on public.contracts (contract_number)

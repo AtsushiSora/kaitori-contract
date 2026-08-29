@@ -11,6 +11,7 @@ window.ORDER_AUTO_SUPABASE = {
   storageBucket: "contract-files",
   publicContractEndpoint: "https://xxxx.supabase.co/functions/v1/public-contract",
   consentSubmitEndpoint: "https://xxxx.supabase.co/functions/v1/submit-consent",
+  contractDownloadEndpoint: "https://xxxx.supabase.co/functions/v1/download-contract",
 };
 ```
 
@@ -27,6 +28,7 @@ Supabase SQL Editorで `supabase-schema.sql` を実行します。
 
 - `publicContractEndpoint`: 暗号化URLを開いたお客様に契約内容を返す
 - `consentSubmitEndpoint`: お客様の同意結果を保存し、契約ステータスを同意済みにする
+- `contractDownloadEndpoint`: 期限付きトークンを検証して非公開の契約書PDFを返す
 
 Edge Function側では7日間の有効期限と確認URL専用のランダムトークンを検証してからDBを操作します。
 確認URLには32文字のランダムトークンだけを載せ、別送する8桁の開封パスコードと組み合わせて照合します。
@@ -35,10 +37,11 @@ URLとパスコードの両方がそろわない限り、契約内容は取得�
 
 ### Edge Functionsの配置
 
-リポジトリには次の2つを用意しています。
+リポジトリには次の3つを用意しています。
 
 - `supabase/functions/public-contract/index.ts`
 - `supabase/functions/submit-consent/index.ts`
+- `supabase/functions/download-contract/index.ts`
 
 Supabase CLIを使う場合は、プロジェクトをリンクしてから次を実行します。
 
@@ -46,6 +49,7 @@ Supabase CLIを使う場合は、プロジェクトをリンクしてから次�
 supabase db push
 supabase functions deploy public-contract --no-verify-jwt
 supabase functions deploy submit-consent --no-verify-jwt
+supabase functions deploy download-contract --no-verify-jwt
 ```
 
 公開関数はSupabase Authのログインを要求しない代わりに、DBへ保存したトークンのハッシュ、有効期限、使用済み状態を関数内で必ず検証します。`SUPABASE_SERVICE_ROLE_KEY`をHTMLやJavaScriptへ記載しないでください。
@@ -65,6 +69,8 @@ supabase secrets set NOTIFICATION_FROM_EMAIL="オーダーオート <contract@ex
 `NOTIFICATION_FROM_EMAIL`はResendで認証済みのドメインを使います。本人確認書類はメールに添付されません。未設定または送信失敗時は、管理画面内の通知に状態が残ります。
 
 本人確認書類は非公開の `contract-files` Storageに保存され、自動削除は行いません。削除は管理者が運用方針に沿って実施します。
+
+署名完了時には3ページのお客様控えPDFも同じ非公開Storageへ保存します。完了メールには30日間有効なダウンロードURLを記載しますが、期限切れになってもPDFファイル自体は自動削除しません。
 
 ## 4. 本番前に必ずやること
 

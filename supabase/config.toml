@@ -3,3 +3,6 @@ verify_jwt = false
 
 [functions.submit-consent]
 verify_jwt = false
+
+[functions.download-contract]
+verify_jwt = false
