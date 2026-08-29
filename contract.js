@@ -2585,17 +2585,6 @@ function buildLineMessage() {
   ].join("\n");
 }
 
-function buildPasscodeMessage() {
-  const passcode = document.querySelector("#consent-passcode")?.value.trim() || "【8桁のパスコード】";
-  return [
-    "契約確認ページの開封パスコードです。",
-    "",
-    passcode,
-    "",
-    "このパスコードは第三者に知らせないでください。",
-  ].join("\n");
-}
-
 function bytesToBase64Url(bytes) {
   const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
   return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
@@ -2790,15 +2779,15 @@ async function copyConsentPasscode() {
   if (!field.value.trim()) {
     const generated = await generateConsentUrl();
     if (generated) {
-      setRemoteActionStatus("パスコードを準備しました。もう一度「パスコード文面コピー」を押してください。", "success");
+      setRemoteActionStatus("パスコードを準備しました。もう一度「パスコードコピー」を押してください。", "success");
     }
     return;
   }
 
   try {
-    const copied = await copyText(buildPasscodeMessage());
+    const copied = await copyText(field.value.trim());
     if (!copied) throw new Error("Copy failed");
-    setSaveStatus("別送用のパスコード文面をコピーしました。", "success");
+    setSaveStatus("8桁の開封パスコードをコピーしました。", "success");
   } catch (error) {
     field.select();
     setSaveStatus("パスコード欄を選択しました。手動でコピーしてください。", "warning");

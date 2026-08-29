@@ -512,10 +512,9 @@ try {
 
   await page.locator("#copy-consent-passcode").click();
   const copiedPasscodeText = await page.evaluate(() => window.__copiedRemoteText || "");
-  assert.match(copiedPasscodeText, /契約確認ページの開封パスコードです。/);
-  assert.match(copiedPasscodeText, /^\D*\d{8}\D*$/s);
+  assert.match(copiedPasscodeText, /^\d{8}$/);
   assert.doesNotMatch(copiedPasscodeText, /https?:\/\//);
-  logPass("パスコード文面コピーはURLを含まず8桁パスコードをコピー");
+  logPass("パスコードコピーは8桁の数字だけをコピー");
 
   await page.evaluate(() => {
     const originalClick = HTMLAnchorElement.prototype.click;

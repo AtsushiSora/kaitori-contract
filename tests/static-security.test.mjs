@@ -84,7 +84,7 @@ test("メール・LINE契約は案内から完了通知まで同じ手順で表�
   assert.match(contractSource, /customerNameValue\(data\)/);
   assert.match(contractSource, /【ご契約の手順】/);
   assert.match(contractSource, /function buildLineMessage/);
-  assert.match(contractSource, /function buildPasscodeMessage/);
+  assert.match(contractSource, /copyText\(field\.value\.trim\(\)\)/);
   assert.match(contractSource, /完了画面からお客様控えをPDF保存/);
   assert.match(consentHtml, /内容確認[\s\S]*重要事項[\s\S]*同意・署名[\s\S]*契約完了/);
   assert.match(consentHtml, /id="consent-complete-section"/);
