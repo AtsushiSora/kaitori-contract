@@ -660,6 +660,15 @@ try {
   assert.equal(await page.locator("#remote-seller-email-note").isVisible(), false);
   logPass("契約案内の送信先をお客様画面へ自動入力し、必要なら修正可能");
 
+  await page.locator("#remote-seller-workplace").fill("株式会社テスト");
+  await page.locator("#remote-seller-workplace-phone").fill("082-000-0000");
+  const remoteWorkplace = await page.evaluate(() => {
+    const seller = collectRemoteSeller();
+    return [seller.sellerWorkplace, seller.sellerWorkplacePhone];
+  });
+  assert.deepEqual(remoteWorkplace, ["株式会社テスト", "082-000-0000"]);
+  logPass("お客様がお勤め先と電話番号を入力して契約データへ反映");
+
   await page.locator("#remote-seller-postal").fill("7315124");
   await page.waitForFunction(() => document.querySelector("#remote-seller-address")?.value === "広島県広島市佐伯区皆賀");
   assert.equal(await page.locator("#remote-seller-postal").inputValue(), "731-5124");
@@ -723,6 +732,8 @@ try {
         sellerAddress: "広島県広島市佐伯区皆賀1-10-20",
         sellerMobile: "090-1234-5678",
         sellerBirthdate: "1980-01-01",
+        sellerWorkplace: "株式会社テスト",
+        sellerWorkplacePhone: "082-000-0000",
         identityNumber: "123456789012",
       },
     };

@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="styles.css?v=20260811-consent-flow" />
     <script src="supabase-config.js?v=20260829-pdf-download"></script>
     <script src="supabase-api.js?v=20260829-pdf-download"></script>
-    <script src="consent.js?v=20260829-completion-email" defer></script>
+    <script src="consent.js?v=20260829-workplace" defer></script>
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -106,6 +106,8 @@
                 <label>自宅電話<input id="remote-seller-home-phone" inputmode="tel" autocomplete="tel" /></label>
                 <label>携帯電話<input id="remote-seller-mobile" inputmode="tel" autocomplete="tel" /></label>
                 <label class="full">生年月日<input id="remote-seller-birthdate" type="date" /></label>
+                <label>お勤め先<input id="remote-seller-workplace" autocomplete="organization" /></label>
+                <label>お勤め先電話番号<input id="remote-seller-workplace-phone" inputmode="tel" autocomplete="work tel" /></label>
               </div>
               <div class="remote-seller-fields full" data-seller-kind="corporate" hidden>
                 <label class="full">法人名<input id="remote-corporate-name" autocomplete="organization" /></label>

@@ -80,6 +80,8 @@ function validateSeller(raw: unknown): Record<string, string> | null {
     sellerMobile: clean(source.sellerMobile, 30),
     sellerEmail: clean(source.sellerEmail, 200),
     sellerBirthdate: clean(source.sellerBirthdate, 10),
+    sellerWorkplace: clean(source.sellerWorkplace, 120),
+    sellerWorkplacePhone: clean(source.sellerWorkplacePhone, 30),
     corporateName: clean(source.corporateName, 120),
     corporateNumber: clean(source.corporateNumber, 20),
     corporatePostalCode: clean(source.corporatePostalCode, 12),

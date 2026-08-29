@@ -70,6 +70,23 @@ test("お客様の個人・法人郵便番号から住所を自動入力する",
   assert.match(source, /住所を自動入力できませんでした。住所を手入力してください。/);
 });
 
+test("お客様がお勤め先を入力し契約データへ保存できる", async () => {
+  const [html, consentSource, submitSource, contractSource] = await Promise.all([
+    text("consent.html"),
+    text("consent.js"),
+    text("supabase/functions/submit-consent/index.ts"),
+    text("contract.js"),
+  ]);
+  assert.match(html, /お勤め先<input id="remote-seller-workplace"/);
+  assert.match(html, /お勤め先電話番号<input id="remote-seller-workplace-phone"/);
+  assert.match(consentSource, /sellerWorkplace: sellerInputValue\("remote-seller-workplace"\)/);
+  assert.match(consentSource, /sellerWorkplacePhone: sellerInputValue\("remote-seller-workplace-phone"\)/);
+  assert.match(submitSource, /sellerWorkplace: clean\(source\.sellerWorkplace, 120\)/);
+  assert.match(submitSource, /sellerWorkplacePhone: clean\(source\.sellerWorkplacePhone, 30\)/);
+  assert.match(contractSource, /pdfField\(690, 1546, data\.sellerWorkplace, 7\.5\)/);
+  assert.match(contractSource, /pdfField\(704, 1568, data\.sellerWorkplacePhone, 7\.5\)/);
+});
+
 test("管理画面内通知は個別削除と確認済み一括削除ができる", async () => {
   const [html, contractSource, apiSource] = await Promise.all([
     text("contract.html"),
