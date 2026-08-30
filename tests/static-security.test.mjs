@@ -100,6 +100,14 @@ test("管理画面内通知は個別削除と確認済み一括削除ができ�
   assert.match(apiSource, /admin_notifications\?read_at=not\.is\.null[\s\S]*method: "DELETE"/);
 });
 
+test("契約削除はクラウド削除完了後に一度で一覧から消す", async () => {
+  const source = await text("contract.js");
+  assert.match(source, /async function deleteContract\(id, deleteButton = null\)/);
+  assert.match(source, /deleteButton\.textContent = "削除中"/);
+  assert.match(source, /await window\.OrderAutoCloud\.deleteContract\(id\)[\s\S]*contracts = contracts\.filter/);
+  assert.doesNotMatch(source, /if \(deleteButton\) \{[\s\S]{0,120}saveActiveContract\(\)/);
+});
+
 test("メール・LINE契約は案内から完了通知まで同じ手順で表示する", async () => {
   const contractHtml = await text("contract.html");
   const contractSource = await text("contract.js");

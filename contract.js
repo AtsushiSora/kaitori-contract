@@ -969,13 +969,34 @@ function reviseCompletedContract(id) {
   setSaveStatus(`完了済み契約を複製し、第${revised.versionNumber}版の下書きを作成しました。本人確認・車両書類は再確認してください。`, "success");
 }
 
-async function deleteContract(id) {
+async function deleteContract(id, deleteButton = null) {
   const target = contracts.find((contract) => contract.id === id);
-  if (!target) return;
+  if (!target) return false;
 
   const label = customerNameValue(target.data) || target.data?.carName || `契約番号${contractNumberValue(target) || target.id}`;
   const confirmed = window.confirm(`${label} を削除します。よろしいですか？`);
-  if (!confirmed) return;
+  if (!confirmed) return false;
+
+  const originalLabel = deleteButton?.textContent || "削除";
+  if (deleteButton) {
+    deleteButton.disabled = true;
+    deleteButton.textContent = "削除中";
+  }
+
+  if (cloudEnabled() && window.OrderAutoCloud?.deleteContract) {
+    try {
+      setSaveStatus("Supabaseから削除中です。", "pending");
+      await window.OrderAutoCloud.deleteContract(id);
+    } catch (error) {
+      console.error(error);
+      setSaveStatus("契約を削除できませんでした。通信状態を確認して、もう一度お試しください。", "warning");
+      if (deleteButton) {
+        deleteButton.disabled = false;
+        deleteButton.textContent = originalLabel;
+      }
+      return false;
+    }
+  }
 
   contracts = contracts.filter((contract) => contract.id !== id);
   if (activeId === id) {
@@ -999,19 +1020,9 @@ async function deleteContract(id) {
   renderCustomerList();
   renderVehicleList();
   setAppPage("list");
-
-  if (cloudEnabled() && window.OrderAutoCloud?.deleteContract) {
-    try {
-      setSaveStatus("Supabaseから削除中です。", "pending");
-      await window.OrderAutoCloud.deleteContract(id);
-      setSaveStatus("契約を削除しました。", "success");
-    } catch (error) {
-      setSaveStatus("この端末から削除しました。Supabase側の削除は確認してください。", "warning");
-    }
-  } else {
-    setSaveStatus("契約を削除しました。", "success");
-  }
+  setSaveStatus("契約を削除しました。", "success");
   renderRemoteSelectedContract();
+  return true;
 }
 
 function contractTypeLabel(data) {
@@ -3427,8 +3438,7 @@ function setupEvents() {
 
     const deleteButton = event.target.closest("[data-delete-contract]");
     if (deleteButton) {
-      saveActiveContract();
-      await deleteContract(deleteButton.dataset.deleteContract);
+      await deleteContract(deleteButton.dataset.deleteContract, deleteButton);
       return;
     }
 
