@@ -3410,12 +3410,15 @@ function setupEvents() {
       confirmButton.disabled = true;
       confirmButton.textContent = "送信中";
       try {
-        await window.OrderAutoCloud.confirmContract(contract.id);
+        const result = await window.OrderAutoCloud.confirmContract(contract.id);
+        if (result?.emailStatus !== "sent") throw new Error("Confirmation email was not accepted");
         setSaveStatus("確認完了メールと契約書URLをお客様へ送信しました。", "success");
         await Promise.all([loadCloudContracts(), loadAdminNotifications()]);
       } catch (error) {
         console.error(error);
         setSaveStatus("確認完了メールを送信できませんでした。入力メールアドレスと通信状態を確認してください。", "warning");
+        await loadCloudContracts();
+        window.alert("確認完了メールを送信できませんでした。契約は確認待ちのままです。メールアドレスを確認して、もう一度お試しください。");
         confirmButton.disabled = false;
         confirmButton.textContent = originalLabel;
       }

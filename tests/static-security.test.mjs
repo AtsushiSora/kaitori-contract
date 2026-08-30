@@ -233,7 +233,7 @@ test("遠隔契約は個人・法人、免許証条件、完了ロック、管�
 });
 
 test("管理者確認後にだけ契約完了PDFの期限付きURLを発行する", async () => {
-  const [submitSource, confirmSource, downloadSource, migration, confirmationMigration, downloadHtml, downloadJs, config] = await Promise.all([
+  const [submitSource, confirmSource, downloadSource, migration, confirmationMigration, downloadHtml, downloadJs, config, contractSource] = await Promise.all([
     text("supabase/functions/submit-consent/index.ts"),
     text("supabase/functions/confirm-contract/index.ts"),
     text("supabase/functions/download-contract/index.ts"),
@@ -242,6 +242,7 @@ test("管理者確認後にだけ契約完了PDFの期限付きURLを発行す�
     text("download.html"),
     text("download.js"),
     text("supabase-config.js"),
+    text("contract.js"),
   ]);
   assert.match(submitSource, /validCustomerPdf/);
   assert.match(submitSource, /customer-copy\.pdf/);
@@ -250,6 +251,10 @@ test("管理者確認後にだけ契約完了PDFの期限付きURLを発行す�
   assert.match(confirmSource, /download_access_hash: downloadAccessHash/);
   assert.match(confirmSource, /お客様控え契約書PDF（30日間有効）/);
   assert.match(confirmSource, /authenticatedUser\(request\)/);
+  assert.match(confirmSource, /contract\.consent_status !== "確認待ち"/);
+  assert.doesNotMatch(confirmSource, /contract\.consent_status !== "確認待ち" \|\| contract\.status !== "確認待ち"/);
+  assert.match(confirmSource, /emailId = await sendCustomerEmail/);
+  assert.match(confirmSource, /status: "確認待ち"[\s\S]*confirmation_email_status: "sending"[\s\S]*emailId = await sendCustomerEmail[\s\S]*status: "完了"/);
   assert.match(confirmSource, /status: "完了"/);
   assert.match(confirmSource, /consent_status: "完了"/);
   assert.match(downloadSource, /sha256Hex\(token\)/);
@@ -265,6 +270,8 @@ test("管理者確認後にだけ契約完了PDFの期限付きURLを発行す�
   assert.match(downloadJs, /window\.location\.hash/);
   assert.match(config, /contractDownloadEndpoint/);
   assert.match(config, /contractConfirmEndpoint/);
+  assert.match(contractSource, /result\?\.emailStatus !== "sent"/);
+  assert.match(contractSource, /契約は確認待ちのままです/);
 });
 
 test("公開Edge Functionは許可オリジン限定・キャッシュ禁止", async () => {

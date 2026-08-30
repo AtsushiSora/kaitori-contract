@@ -49,7 +49,7 @@ async function sendCustomerEmail(
   amount: string,
   confirmedAt: string,
   downloadUrl: string,
-) {
+): Promise<string> {
   const apiKey = Deno.env.get("RESEND_API_KEY");
   const from = Deno.env.get("NOTIFICATION_FROM_EMAIL");
   if (!apiKey || !from) throw new Error("Email notification is not configured");
@@ -82,7 +82,15 @@ async function sendCustomerEmail(
       ].join("\n"),
     }),
   });
-  if (!response.ok) throw new Error(`Confirmation email failed: ${response.status}`);
+  const responseBody = await response.text();
+  if (!response.ok) {
+    throw new Error(`Confirmation email failed: ${response.status} ${responseBody.slice(0, 500)}`);
+  }
+  try {
+    return clean(JSON.parse(responseBody)?.id, 100);
+  } catch {
+    return "accepted";
+  }
 }
 
 Deno.serve(async (request) => {
@@ -114,7 +122,7 @@ Deno.serve(async (request) => {
     if (!contractResponse.ok) throw new Error(await contractResponse.text());
     const contract = (await contractResponse.json())?.[0];
     if (!contract) return jsonResponse({ error: "Contract not found" }, 404, origin);
-    if (contract.consent_status !== "確認待ち" || contract.status !== "確認待ち") {
+    if (contract.consent_status !== "確認待ち") {
       return jsonResponse({ error: "Contract is not awaiting confirmation" }, 409, origin);
     }
     if (!contract.customer_pdf_path) {
@@ -138,7 +146,6 @@ Deno.serve(async (request) => {
 
     const updateQuery = new URLSearchParams({
       id: `eq.${contractId}`,
-      status: "eq.確認待ち",
       consent_status: "eq.確認待ち",
       select: "id",
     });
@@ -146,10 +153,7 @@ Deno.serve(async (request) => {
       method: "PATCH",
       headers: serviceHeaders("return=representation"),
       body: JSON.stringify({
-        status: "完了",
-        consent_status: "完了",
-        reviewed_at: confirmedAt,
-        completed_at_text: confirmedAt,
+        status: "確認待ち",
         customer_confirmation_sent_at: null,
         confirmation_email_status: "sending",
         download_access_hash: downloadAccessHash,
@@ -162,8 +166,9 @@ Deno.serve(async (request) => {
       return jsonResponse({ error: "Contract is not awaiting confirmation" }, 409, origin);
     }
 
+    let emailId = "";
     try {
-      await sendCustomerEmail(
+      emailId = await sendCustomerEmail(
         email,
         contractNumber,
         customerName,
@@ -179,26 +184,39 @@ Deno.serve(async (request) => {
         body: JSON.stringify({
           status: "確認待ち",
           consent_status: "確認待ち",
-          reviewed_at: null,
-          completed_at_text: null,
           confirmation_email_status: "failed",
           download_access_hash: null,
           download_access_expires_at: null,
           updated_at: new Date().toISOString(),
         }),
       });
-      throw error;
+      console.error("confirm-contract email", error);
+      return jsonResponse({ error: "Confirmation email could not be sent" }, 502, origin);
     }
 
-    await fetch(supabaseUrl(`/rest/v1/contracts?id=eq.${encodeURIComponent(contractId)}`), {
+    const completionQuery = new URLSearchParams({
+      id: `eq.${contractId}`,
+      consent_status: "eq.確認待ち",
+      confirmation_email_status: "eq.sending",
+      select: "id",
+    });
+    const completionResponse = await fetch(supabaseUrl(`/rest/v1/contracts?${completionQuery}`), {
       method: "PATCH",
-      headers: serviceHeaders("return=minimal"),
+      headers: serviceHeaders("return=representation"),
       body: JSON.stringify({
+        status: "完了",
+        consent_status: "完了",
+        reviewed_at: confirmedAt,
+        completed_at_text: confirmedAt,
         customer_confirmation_sent_at: confirmedAt,
         confirmation_email_status: "sent",
         updated_at: confirmedAt,
       }),
     });
+    if (!completionResponse.ok) throw new Error(await completionResponse.text());
+    if (!(await completionResponse.json())?.length) {
+      throw new Error("Contract completion state could not be saved");
+    }
 
     await Promise.allSettled([
       fetch(supabaseUrl("/rest/v1/consent_events"), {
@@ -223,7 +241,7 @@ Deno.serve(async (request) => {
       }),
     ]);
 
-    return jsonResponse({ ok: true, confirmedAt, emailStatus: "sent" }, 200, origin);
+    return jsonResponse({ ok: true, confirmedAt, emailStatus: "sent", emailId }, 200, origin);
   } catch (error) {
     console.error("confirm-contract", error);
     return jsonResponse({ error: "Contract could not be confirmed or emailed" }, 500, origin);
