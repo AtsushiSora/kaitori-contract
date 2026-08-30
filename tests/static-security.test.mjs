@@ -177,6 +177,8 @@ test("お客様向けURLは期限・ワンタイムトークン・完了済み�
   assert.match(source, /15 \* 60 \* 1000/);
   assert.match(source, /contract\.remote_used_at \|\| \["確認待ち", "完了"\]\.includes\(contract\.consent_status\)/);
   assert.match(source, /PUBLIC_DATA_FIELDS/);
+  assert.match(source, /"carName"[\s\S]*"carGrade"[\s\S]*"carYear"[\s\S]*"carColor"/);
+  assert.match(source, /"pickupDate"[\s\S]*"pickupTime"/);
   assert.doesNotMatch(source, /signature_data/);
   assert.doesNotMatch(source, /identity_files/);
   assert.match(source, /status: "署名待ち"/);

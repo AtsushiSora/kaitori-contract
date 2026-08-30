@@ -52,12 +52,16 @@ const PUBLIC_DATA_FIELDS = [
   "sellerPhone",
   "sellerEmail",
   "carName",
+  "carGrade",
+  "carYear",
+  "carColor",
   "plateNumber",
   "chassisNumber",
   "mileage",
   "purchaseAmount",
   "contractType",
   "pickupDate",
+  "pickupTime",
   "pickupPlace",
 ] as const;
 
