@@ -182,7 +182,7 @@ try {
   });
   await context.route("https://wlinebwdmbnbjbyvqrig.supabase.co/**", async (route) => {
     managementCompletionPayload = route.request().postDataJSON();
-    await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true }) });
   });
   await context.route("https://zipcloud.ibsnet.co.jp/api/search**", async (route) => {
     const zipcode = new URL(route.request().url()).searchParams.get("zipcode");
