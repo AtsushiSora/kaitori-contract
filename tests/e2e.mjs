@@ -198,6 +198,34 @@ try {
   assert.equal(await page.locator('[data-app-view="top"]').isVisible(), true);
   logPass("管理者ログインから契約トップへ移動");
 
+  const purchaseHandoffToken = "11111111-1111-4111-8111-111111111111";
+  await page.evaluate(({ token }) => {
+    sessionStorage.setItem(`orderAutoContractHandoff:${token}`, JSON.stringify({
+      version: 1,
+      target: "purchase",
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      payload: {
+        customerName: "山田 太郎",
+        vehicleName: "トヨタ プリウス",
+        chassisNumber: "ZVW30-1234567",
+        amount: 450000,
+        plannedArrivalDate: "2026-09-03",
+        storageLocation: "自宅",
+      },
+    }));
+  }, { token: purchaseHandoffToken });
+  await page.goto(`${baseUrl}/contract.html?handoff=${purchaseHandoffToken}#create`);
+  await page.waitForFunction(() => document.querySelector('[data-app-view="create"]')?.hidden === false);
+  assert.equal(await page.locator('[name="sellerLastName"]').inputValue(), "山田");
+  assert.equal(await page.locator('[name="sellerFirstName"]').inputValue(), "太郎");
+  assert.equal(await page.locator('[name="carName"]').inputValue(), "トヨタ プリウス");
+  assert.equal(await page.locator('[name="chassisNumber"]').inputValue(), "ZVW30-1234567");
+  assert.equal(await page.locator('[name="purchaseAmount"]').inputValue(), "450000");
+  assert.equal(new URL(page.url()).searchParams.has("handoff"), false);
+  assert.equal(await page.evaluate((token) => sessionStorage.getItem(`orderAutoContractHandoff:${token}`), purchaseHandoffToken), null);
+  logPass("管理システムからの買取契約を一度だけ自動入力");
+  await page.locator('[aria-label="メインナビゲーション"] a[href="#top"]').click();
+
   await page.waitForFunction(() => document.querySelectorAll(".admin-notification-item").length === 2);
   assert.equal(await page.locator("#delete-read-notifications").isEnabled(), true);
   await page.locator("#delete-read-notifications").click();

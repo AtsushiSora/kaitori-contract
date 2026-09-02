@@ -1,4 +1,5 @@
 const STORAGE_KEY = "orderAutoContracts";
+const MANAGEMENT_HANDOFF_PREFIX = "orderAutoContractHandoff:";
 const COMPANY = {
   name: "オーダーオート",
   representative: "空 篤志",
@@ -40,6 +41,7 @@ const identityPreviewUrls = new Map();
 let isDrawing = false;
 let adminNotifications = [];
 let cloudContractsLoading = false;
+let managementHandoffLoaded = false;
 
 if ("scrollRestoration" in window.history) {
   window.history.scrollRestoration = "manual";
@@ -720,6 +722,50 @@ function defaultContractData() {
   };
 }
 
+function consumeManagementHandoff() {
+  const url = new URL(window.location.href);
+  const token = url.searchParams.get("handoff") || "";
+  if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(token)) return false;
+
+  const storageKey = `${MANAGEMENT_HANDOFF_PREFIX}${token}`;
+  let envelope;
+  try {
+    envelope = JSON.parse(sessionStorage.getItem(storageKey) || "null");
+  } catch {
+    envelope = null;
+  }
+  sessionStorage.removeItem(storageKey);
+  url.searchParams.delete("handoff");
+  history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+
+  if (envelope?.version !== 1 || envelope?.target !== "purchase" || Date.parse(envelope.expiresAt || "") <= Date.now()) {
+    setSaveStatus("管理システムからの引き継ぎは期限切れです。管理システムからもう一度開いてください。", "warning");
+    return false;
+  }
+
+  const payload = envelope.payload || {};
+  const text = (value, maxLength = 160) => String(value ?? "").trim().slice(0, maxLength);
+  const nameParts = text(payload.customerName).split(/[\s　]+/).filter(Boolean);
+  const amount = Number(payload.amount);
+  const data = {
+    ...defaultContractData(),
+    sellerLastName: nameParts[0] || "",
+    sellerFirstName: nameParts.slice(1).join(" "),
+    sellerName: nameParts.join(" "),
+    customerName: nameParts.join(" "),
+    carName: text(payload.vehicleName),
+    chassisNumber: text(payload.chassisNumber, 80),
+    purchaseAmount: Number.isFinite(amount) && amount >= 0 ? String(Math.trunc(amount)) : "",
+    pickupDate: text(payload.plannedArrivalDate, 10),
+    pickupPlace: text(payload.storageLocation),
+  };
+  activeId = "";
+  populateForm({ data, signatureData: "", identityFiles: [] });
+  managementHandoffLoaded = true;
+  setSaveStatus("管理システムから買取契約の入力を引き継ぎました。内容を確認してから保存・署名へ進んでください。", "success");
+  return true;
+}
+
 function createContractRecord(data = defaultContractData(), status = "下書き") {
   return {
     id: createContractId(),
@@ -787,7 +833,7 @@ async function loadCloudContracts() {
       activeId = activeAppPage === "create" ? "" : contracts[0]?.id || activeId;
       persistContracts();
       if (activeAppPage === "create") {
-        clearContractForm(false);
+        if (!managementHandoffLoaded) clearContractForm(false);
       } else {
         populateForm(currentContract());
       }
@@ -795,7 +841,12 @@ async function loadCloudContracts() {
       renderCustomerList();
       renderVehicleList();
     }
-    setSaveStatus("Supabaseと同期しました。", "success");
+    setSaveStatus(
+      managementHandoffLoaded
+        ? "管理システムから買取契約の入力を引き継ぎました。内容を確認してから保存・署名へ進んでください。"
+        : "Supabaseと同期しました。",
+      "success",
+    );
   } catch (error) {
     setSaveStatus("Supabaseから契約一覧を読み込めませんでした。ローカル保存で続行します。", "warning");
   } finally {
@@ -3515,6 +3566,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (initialPage === "create") {
     clearContractForm(false);
   }
+  consumeManagementHandoff();
   setAppPage(initialPage, false);
   resetAppScroll();
   loadCloudContracts();
