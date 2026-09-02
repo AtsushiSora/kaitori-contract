@@ -291,6 +291,7 @@ test("管理システムの買取連携情報を契約保存後も保持する",
   assert.match(source, /const nextData = \{[\s\S]*\.\.\.getFormData\(\)[\s\S]*\.\.\.\(managementHandoff \|\| \{\}\)/);
   assert.match(source, /createContractRecord\(nextData, status \|\| "下書き"\)/);
   assert.match(source, /existing\.data = nextData/);
+  assert.match(source, /saveActiveContract\("下書き", \{ createIfMissing: true \}\)[\s\S]*submitCloudRecord\("完了"\)/);
 });
 
 test("公開Edge Functionは許可オリジン限定・キャッシュ禁止", async () => {

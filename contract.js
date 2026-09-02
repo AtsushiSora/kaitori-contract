@@ -3381,7 +3381,7 @@ function setupEvents() {
   document.querySelector("#complete-contract").addEventListener("click", async () => {
     let contract = currentContract();
     if (!contract) {
-      const savedLocally = saveActiveContract("完了", { createIfMissing: true });
+      const savedLocally = saveActiveContract("下書き", { createIfMissing: true });
       if (!savedLocally) return;
       contract = currentContract();
     }
