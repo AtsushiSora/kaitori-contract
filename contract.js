@@ -44,6 +44,7 @@ let isDrawing = false;
 let adminNotifications = [];
 let cloudContractsLoading = false;
 let managementHandoffLoaded = false;
+let pendingManagementHandoff = null;
 
 if ("scrollRestoration" in window.history) {
   window.history.scrollRestoration = "manual";
@@ -763,6 +764,10 @@ function consumeManagementHandoff() {
     __managementAssignmentId: text(payload.assignmentId, 80),
     __managementCompletionToken: /^[0-9a-f]{64}$/.test(payload.completionToken || "") ? payload.completionToken : "",
   };
+  pendingManagementHandoff = {
+    __managementAssignmentId: data.__managementAssignmentId,
+    __managementCompletionToken: data.__managementCompletionToken,
+  };
   activeId = "";
   populateForm({ data, signatureData: "", identityFiles: [] });
   managementHandoffLoaded = true;
@@ -789,6 +794,8 @@ function createContractRecord(data = defaultContractData(), status = "下書き"
 }
 
 function createBlankContract() {
+  managementHandoffLoaded = false;
+  pendingManagementHandoff = null;
   let contract;
   try {
     contract = createContractRecord();
@@ -806,6 +813,8 @@ function createBlankContract() {
 }
 
 function clearContractForm(showStatus = true) {
+  managementHandoffLoaded = false;
+  pendingManagementHandoff = null;
   activeId = "";
   signatureData = "";
   identityFiles = [];
@@ -983,10 +992,21 @@ function saveActiveContract(status, options = {}) {
     return false;
   }
 
+  const managementHandoff = existing?.data?.__managementCompletionToken
+    ? {
+        __managementAssignmentId: existing.data.__managementAssignmentId || "",
+        __managementCompletionToken: existing.data.__managementCompletionToken,
+      }
+    : pendingManagementHandoff;
+  const nextData = {
+    ...getFormData(),
+    ...(managementHandoff || {}),
+  };
+
   if (!existing) {
     if (!createIfMissing) return false;
     try {
-      existing = createContractRecord(getFormData(), status || "下書き");
+      existing = createContractRecord(nextData, status || "下書き");
     } catch (error) {
       setSaveStatus(error.message, "warning");
       return false;
@@ -997,7 +1017,7 @@ function saveActiveContract(status, options = {}) {
     activeId = existing.id;
   }
 
-  existing.data = getFormData();
+  existing.data = nextData;
   existing.signatureData = signatureData;
   existing.identityFiles = combinedContractFiles();
   existing.status = status || existing.status || "下書き";

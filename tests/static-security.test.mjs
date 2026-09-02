@@ -284,6 +284,15 @@ test("管理者確認後にだけ契約完了PDFの期限付きURLを発行す�
   assert.match(contractSource, /契約は確認待ちのままです/);
 });
 
+test("管理システムの買取連携情報を契約保存後も保持する", async () => {
+  const source = await text("contract.js");
+  assert.match(source, /let pendingManagementHandoff = null/);
+  assert.match(source, /pendingManagementHandoff = \{/);
+  assert.match(source, /const nextData = \{[\s\S]*\.\.\.getFormData\(\)[\s\S]*\.\.\.\(managementHandoff \|\| \{\}\)/);
+  assert.match(source, /createContractRecord\(nextData, status \|\| "下書き"\)/);
+  assert.match(source, /existing\.data = nextData/);
+});
+
 test("公開Edge Functionは許可オリジン限定・キャッシュ禁止", async () => {
   const source = await text("supabase/functions/_shared/http.ts");
   assert.match(source, /ALLOWED_ORIGINS/);
