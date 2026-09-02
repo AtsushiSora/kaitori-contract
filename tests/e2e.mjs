@@ -59,6 +59,7 @@ try {
   let cloudContractRows = [];
   let requestedDownloadToken = "";
   let confirmedContractId = "";
+  let managementCompletionPayload = null;
   let adminNotificationRows = [
     {
       id: 1,
@@ -179,6 +180,10 @@ try {
     }
     await route.fulfill({ status: 404, contentType: "application/json", body: "{}" });
   });
+  await context.route("https://wlinebwdmbnbjbyvqrig.supabase.co/**", async (route) => {
+    managementCompletionPayload = route.request().postDataJSON();
+    await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+  });
   await context.route("https://zipcloud.ibsnet.co.jp/api/search**", async (route) => {
     const zipcode = new URL(route.request().url()).searchParams.get("zipcode");
     const address = zipcode === "1000001"
@@ -206,6 +211,8 @@ try {
       expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
       payload: {
         customerName: "山田 太郎",
+        assignmentId: "assignment-1",
+        completionToken: "a".repeat(64),
         vehicleName: "トヨタ プリウス",
         chassisNumber: "ZVW30-1234567",
         amount: 450000,
@@ -224,6 +231,18 @@ try {
   assert.equal(new URL(page.url()).searchParams.has("handoff"), false);
   assert.equal(await page.evaluate((token) => sessionStorage.getItem(`orderAutoContractHandoff:${token}`), purchaseHandoffToken), null);
   logPass("管理システムからの買取契約を一度だけ自動入力");
+  await page.evaluate(async () => {
+    await notifyManagementOfContractCompletion({
+      id: "external-contract-1",
+      status: "完了",
+      data: { __managementCompletionToken: "a".repeat(64) },
+    });
+  });
+  assert.deepEqual(managementCompletionPayload, {
+    p_completion_token: "a".repeat(64),
+    p_external_contract_id: "external-contract-1",
+  });
+  logPass("買取契約の完了結果を管理システムへ通知");
   await page.locator('[aria-label="メインナビゲーション"] a[href="#top"]').click();
 
   await page.waitForFunction(() => document.querySelectorAll(".admin-notification-item").length === 2);

@@ -1,5 +1,7 @@
 const STORAGE_KEY = "orderAutoContracts";
 const MANAGEMENT_HANDOFF_PREFIX = "orderAutoContractHandoff:";
+const MANAGEMENT_COMPLETION_ENDPOINT = "https://wlinebwdmbnbjbyvqrig.supabase.co/rest/v1/rpc/complete_contract_handoff";
+const MANAGEMENT_PUBLISHABLE_KEY = "sb_publishable_298gkO4cyTqi21SwRtLnWQ_1-c5FTJe";
 const COMPANY = {
   name: "オーダーオート",
   representative: "空 篤志",
@@ -758,6 +760,8 @@ function consumeManagementHandoff() {
     purchaseAmount: Number.isFinite(amount) && amount >= 0 ? String(Math.trunc(amount)) : "",
     pickupDate: text(payload.plannedArrivalDate, 10),
     pickupPlace: text(payload.storageLocation),
+    __managementAssignmentId: text(payload.assignmentId, 80),
+    __managementCompletionToken: /^[0-9a-f]{64}$/.test(payload.completionToken || "") ? payload.completionToken : "",
   };
   activeId = "";
   populateForm({ data, signatureData: "", identityFiles: [] });
@@ -829,6 +833,7 @@ async function loadCloudContracts() {
         ...(localById.get(cloudContract.id) || {}),
         ...cloudContract,
       }));
+      void Promise.allSettled(contracts.map(notifyManagementOfContractCompletion));
       ensureContractNumbers();
       activeId = activeAppPage === "create" ? "" : contracts[0]?.id || activeId;
       persistContracts();
@@ -852,6 +857,24 @@ async function loadCloudContracts() {
   } finally {
     cloudContractsLoading = false;
   }
+}
+
+async function notifyManagementOfContractCompletion(contract) {
+  const token = contract?.data?.__managementCompletionToken || "";
+  if (contract?.status !== "完了" || !/^[0-9a-f]{64}$/.test(token)) return;
+  const response = await fetch(MANAGEMENT_COMPLETION_ENDPOINT, {
+    method: "POST",
+    headers: {
+      apikey: MANAGEMENT_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${MANAGEMENT_PUBLISHABLE_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      p_completion_token: token,
+      p_external_contract_id: contract.id,
+    }),
+  });
+  if (!response.ok) throw new Error(await response.text());
 }
 
 function renderAdminNotifications() {
@@ -938,6 +961,7 @@ async function syncActiveContractToCloud() {
       renderVehicleFiles();
       renderCustomerList();
       renderVehicleList();
+      void notifyManagementOfContractCompletion(contract);
     }
     setSaveStatus("Supabaseへ保存しました。", "success");
     return true;
