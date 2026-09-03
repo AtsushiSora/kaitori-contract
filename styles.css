@@ -1099,6 +1099,13 @@ textarea {
   grid-column: 1 / -1;
 }
 
+.form-grid input.management-locked-field {
+  color: var(--ink);
+  border-color: #c8d8e8;
+  background: #eef5fb;
+  cursor: not-allowed;
+}
+
 .conditional-fields {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

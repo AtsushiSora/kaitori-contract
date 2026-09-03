@@ -228,6 +228,7 @@ try {
   assert.equal(await page.locator('[name="carName"]').inputValue(), "トヨタ プリウス");
   assert.equal(await page.locator('[name="chassisNumber"]').inputValue(), "ZVW30-1234567");
   assert.equal(await page.locator('[name="purchaseAmount"]').inputValue(), "450000");
+  assert.equal(await page.locator('[name="purchaseAmount"]').isEditable(), false);
   assert.equal(new URL(page.url()).searchParams.has("handoff"), false);
   assert.equal(await page.evaluate((token) => sessionStorage.getItem(`orderAutoContractHandoff:${token}`), purchaseHandoffToken), null);
   logPass("管理システムからの買取契約を一度だけ自動入力");

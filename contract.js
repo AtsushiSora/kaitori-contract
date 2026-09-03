@@ -698,6 +698,14 @@ function populateForm(contract) {
   vehicleFiles = attachments.vehicle;
   renderIdentityFiles();
   renderVehicleFiles();
+  const purchaseAmountField = form.elements.purchaseAmount;
+  const amountLockedByManagement = Boolean(data.__managementCompletionToken);
+  if (purchaseAmountField) {
+    purchaseAmountField.readOnly = amountLockedByManagement;
+    purchaseAmountField.classList.toggle("management-locked-field", amountLockedByManagement);
+    purchaseAmountField.title = amountLockedByManagement ? "事業主が設定した買取金額です。" : "";
+    purchaseAmountField.setAttribute("aria-readonly", String(amountLockedByManagement));
+  }
   updateModePanels();
   updatePreview();
 }
