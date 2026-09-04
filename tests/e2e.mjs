@@ -180,7 +180,7 @@ try {
     }
     await route.fulfill({ status: 404, contentType: "application/json", body: "{}" });
   });
-  await context.route("https://wlinebwdmbnbjbyvqrig.supabase.co/**", async (route) => {
+  await context.route("https://qdzdskryxwjjwtwigztl.supabase.co/**", async (route) => {
     managementCompletionPayload = route.request().postDataJSON();
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true }) });
   });

@@ -1,7 +1,7 @@
 const STORAGE_KEY = "orderAutoContracts";
 const MANAGEMENT_HANDOFF_PREFIX = "orderAutoContractHandoff:";
-const MANAGEMENT_COMPLETION_ENDPOINT = "https://wlinebwdmbnbjbyvqrig.supabase.co/rest/v1/rpc/complete_contract_handoff";
-const MANAGEMENT_PUBLISHABLE_KEY = "sb_publishable_298gkO4cyTqi21SwRtLnWQ_1-c5FTJe";
+const MANAGEMENT_COMPLETION_ENDPOINT = "https://qdzdskryxwjjwtwigztl.supabase.co/rest/v1/rpc/complete_contract_handoff";
+const MANAGEMENT_PUBLISHABLE_KEY = "sb_publishable_NoQM4G6viEmlS3H_XIqFNw_zuXyzR96";
 const COMPANY = {
   name: "オーダーオート",
   representative: "空 篤志",
