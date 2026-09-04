@@ -31,6 +31,18 @@ test("管理者ログインのパスワード入力は1つだけ", async () => {
   assert.doesNotMatch(authSource, /orderAutoAdminCredential|PBKDF2|adminSetup/);
 });
 
+test("招待メールから安全にパスワードを設定できる", async () => {
+  const [html, source] = await Promise.all([text("admin-invite.html"), text("admin-invite.js")]);
+  assert.match(html, /name="password"[^>]+minlength="8"/);
+  assert.match(html, /name="passwordConfirm"[^>]+minlength="8"/);
+  assert.match(source, /hash\.get\("access_token"\)/);
+  assert.match(source, /hash\.get\("refresh_token"\)/);
+  assert.match(source, /method: "PUT"/);
+  assert.match(source, /body: JSON\.stringify\(\{ password \}\)/);
+  assert.match(source, /localStorage\.removeItem\(SESSION_KEY\)/);
+  assert.doesNotMatch(source, /console\.(?:log|debug).*Token/i);
+});
+
 test("ログイン後は同一サイト内にだけ遷移する", async () => {
   const source = await text("admin.js");
   assert.match(source, /destination\.origin !== window\.location\.origin/);

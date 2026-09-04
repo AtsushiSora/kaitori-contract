@@ -60,6 +60,7 @@ try {
   let requestedDownloadToken = "";
   let confirmedContractId = "";
   let managementCompletionPayload = null;
+  let invitedPasswordPayload = null;
   let adminNotificationRows = [
     {
       id: 1,
@@ -83,6 +84,23 @@ try {
   await context.route("https://cumvescylyetumupupmc.supabase.co/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
+    if (request.method() === "GET" && url.pathname === "/auth/v1/user") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ id: "invited-admin", email: "order.auto8996@gmail.com" }),
+      });
+      return;
+    }
+    if (request.method() === "PUT" && url.pathname === "/auth/v1/user") {
+      invitedPasswordPayload = request.postDataJSON();
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ id: "invited-admin", email: "order.auto8996@gmail.com" }),
+      });
+      return;
+    }
     if (request.method() === "POST" && url.pathname === "/auth/v1/token") {
       await route.fulfill({
         status: 200,
@@ -195,6 +213,19 @@ try {
       body: JSON.stringify({ status: 200, results: [address] }),
     });
   });
+
+  await page.goto(`${baseUrl}/admin-invite.html#access_token=invite-access&refresh_token=invite-refresh&expires_in=3600&type=invite`);
+  await page.locator("#invite-password-form").waitFor({ state: "visible" });
+  assert.match(await page.locator("#invite-description").textContent(), /order\.auto8996@gmail\.com/);
+  await page.locator('[name="password"]').fill("shared-password");
+  await page.locator('[name="passwordConfirm"]').fill("shared-password");
+  await page.getByRole("button", { name: "パスワードを設定" }).click();
+  await page.waitForFunction(() => document.querySelector("#login-link")?.hidden === false);
+  assert.deepEqual(invitedPasswordPayload, { password: "shared-password" });
+  assert.match(await page.locator("#invite-status").textContent(), /ログイン画面からログイン/);
+  assert.equal(await page.evaluate(() => localStorage.getItem("orderAutoSupabaseSession")), null);
+  logPass("招待メールからパスワードを設定し認証情報を画面から除去");
+
   await page.goto(`${baseUrl}/admin.html`);
   await page.locator("#admin-email").fill("admin@example.test");
   await page.locator("#admin-passcode").fill("e2e-password");

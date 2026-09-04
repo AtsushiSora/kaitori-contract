@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>パスワード設定｜オーダーオート</title>
+    <meta name="robots" content="noindex,nofollow" />
+    <link rel="stylesheet" href="styles.css?v=20260717-production" />
+    <script src="supabase-config.js"></script>
+    <script src="admin-invite.js?v=20260905" defer></script>
+  </head>
+  <body>
+    <header class="site-header" aria-label="サイトヘッダー">
+      <a class="brand" href="admin.html" aria-label="オーダーオート 管理画面">
+        <span class="brand-mark" aria-hidden="true">
+          <img src="assets/logo-mark.png" alt="" />
+        </span>
+        <span>
+          <strong>オーダーオート　管理画面</strong>
+          <small>契約作成システム</small>
+        </span>
+      </a>
+    </header>
+
+    <main class="page-main admin-main">
+      <section class="admin-layout">
+        <div class="admin-card">
+          <div>
+            <p class="eyebrow">ACCOUNT SETUP</p>
+            <h1>パスワード設定</h1>
+            <p id="invite-description">招待情報を確認しています。</p>
+          </div>
+
+          <form id="invite-password-form" class="admin-form" autocomplete="off" hidden>
+            <label>
+              新しいパスワード
+              <input name="password" type="password" minlength="8" autocomplete="new-password" required />
+            </label>
+            <label>
+              新しいパスワード（確認）
+              <input name="passwordConfirm" type="password" minlength="8" autocomplete="new-password" required />
+            </label>
+            <button class="button button-primary" type="submit">パスワードを設定</button>
+          </form>
+
+          <p id="invite-status" class="save-status" role="status" aria-live="polite"></p>
+          <a id="login-link" class="button" href="admin.html" hidden>ログイン画面へ</a>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
