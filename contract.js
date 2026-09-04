@@ -1,5 +1,6 @@
 const STORAGE_KEY = "orderAutoContracts";
 const MANAGEMENT_HANDOFF_PREFIX = "orderAutoContractHandoff:";
+const PENDING_MANAGEMENT_HANDOFF_KEY = "orderAutoPendingPurchaseHandoff";
 const MANAGEMENT_COMPLETION_ENDPOINT = "https://qdzdskryxwjjwtwigztl.supabase.co/rest/v1/rpc/complete_contract_handoff_v2";
 const MANAGEMENT_PUBLISHABLE_KEY = "sb_publishable_NoQM4G6viEmlS3H_XIqFNw_zuXyzR96";
 const COMPANY = {
@@ -45,6 +46,7 @@ let adminNotifications = [];
 let cloudContractsLoading = false;
 let managementHandoffLoaded = false;
 let pendingManagementHandoff = null;
+let pendingManagementHandoffExpiresAt = "";
 
 if ("scrollRestoration" in window.history) {
   window.history.scrollRestoration = "manual";
@@ -733,10 +735,60 @@ function defaultContractData() {
   };
 }
 
+function clearPendingManagementHandoff() {
+  sessionStorage.removeItem(PENDING_MANAGEMENT_HANDOFF_KEY);
+  pendingManagementHandoff = null;
+  pendingManagementHandoffExpiresAt = "";
+}
+
+function persistPendingManagementHandoff(data) {
+  if (!pendingManagementHandoff || !pendingManagementHandoffExpiresAt) return;
+  sessionStorage.setItem(PENDING_MANAGEMENT_HANDOFF_KEY, JSON.stringify({
+    version: 1,
+    target: "purchase",
+    expiresAt: pendingManagementHandoffExpiresAt,
+    data: {
+      ...data,
+      ...pendingManagementHandoff,
+    },
+  }));
+}
+
+function restorePendingManagementHandoff() {
+  let pending;
+  try {
+    pending = JSON.parse(sessionStorage.getItem(PENDING_MANAGEMENT_HANDOFF_KEY) || "null");
+  } catch {
+    pending = null;
+  }
+
+  const data = pending?.data;
+  if (
+    pending?.version !== 1
+    || pending?.target !== "purchase"
+    || Date.parse(pending?.expiresAt || "") <= Date.now()
+    || !/^[0-9a-f]{64}$/.test(data?.__managementCompletionToken || "")
+  ) {
+    clearPendingManagementHandoff();
+    return false;
+  }
+
+  pendingManagementHandoff = {
+    __managementAssignmentId: data.__managementAssignmentId || "",
+    __managementCompletionToken: data.__managementCompletionToken,
+  };
+  pendingManagementHandoffExpiresAt = pending.expiresAt;
+  activeId = "";
+  populateForm({ data, signatureData: "", identityFiles: [] });
+  managementHandoffLoaded = true;
+  setSaveStatus("管理システムからの買取契約を復元しました。保存・完了するまで連携情報を保持します。", "success");
+  return true;
+}
+
 function consumeManagementHandoff() {
   const url = new URL(window.location.href);
   const token = url.searchParams.get("handoff") || "";
-  if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(token)) return false;
+  if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(token)) return restorePendingManagementHandoff();
 
   const storageKey = `${MANAGEMENT_HANDOFF_PREFIX}${token}`;
   let envelope;
@@ -776,6 +828,8 @@ function consumeManagementHandoff() {
     __managementAssignmentId: data.__managementAssignmentId,
     __managementCompletionToken: data.__managementCompletionToken,
   };
+  pendingManagementHandoffExpiresAt = envelope.expiresAt;
+  persistPendingManagementHandoff(data);
   activeId = "";
   populateForm({ data, signatureData: "", identityFiles: [] });
   managementHandoffLoaded = true;
@@ -803,7 +857,7 @@ function createContractRecord(data = defaultContractData(), status = "下書き"
 
 function createBlankContract() {
   managementHandoffLoaded = false;
-  pendingManagementHandoff = null;
+  clearPendingManagementHandoff();
   let contract;
   try {
     contract = createContractRecord();
@@ -822,7 +876,8 @@ function createBlankContract() {
 
 function clearContractForm(showStatus = true) {
   managementHandoffLoaded = false;
-  pendingManagementHandoff = null;
+  if (showStatus) clearPendingManagementHandoff();
+  else pendingManagementHandoff = null;
   activeId = "";
   signatureData = "";
   identityFiles = [];
@@ -1046,6 +1101,9 @@ function saveActiveContract(status, options = {}) {
   renderVehicleList();
   renderRemoteSelectedContract();
   updatePreview();
+  if (saved && nextData.__managementCompletionToken) {
+    clearPendingManagementHandoff();
+  }
   if (saved) {
     setSaveStatus("この端末に保存しました。Supabase設定後はクラウドにも保存できます。");
   }
@@ -3327,6 +3385,7 @@ function setupEvents() {
     }
     updateModePanels();
     updatePreview();
+    persistPendingManagementHandoff(getFormData());
   });
 
   form.addEventListener("change", (event) => {
@@ -3338,6 +3397,7 @@ function setupEvents() {
     }
     updateModePanels();
     updatePreview();
+    persistPendingManagementHandoff(getFormData());
   });
 
   document.querySelectorAll("[data-app-page]").forEach((button) => {
@@ -3348,7 +3408,7 @@ function setupEvents() {
       }
       if (page === "create") {
         activeListMode = "manage";
-        clearContractForm(false);
+        clearContractForm(true);
         const completionMethod = button.dataset.completionMethod;
         if (completionMethod && form.elements.completionMethod) {
           form.elements.completionMethod.value = completionMethod;

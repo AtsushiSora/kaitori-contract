@@ -48,6 +48,14 @@ test("ログイン後は同一サイト内にだけ遷移する", async () => {
   assert.match(source, /destination\.origin !== window\.location\.origin/);
 });
 
+test("管理システムからの未保存契約は再読み込み後も連携情報を保持する", async () => {
+  const source = await text("contract.js");
+  assert.match(source, /PENDING_MANAGEMENT_HANDOFF_KEY/);
+  assert.match(source, /function restorePendingManagementHandoff\(\)/);
+  assert.match(source, /persistPendingManagementHandoff\(getFormData\(\)\)/);
+  assert.match(source, /保存・完了するまで連携情報を保持します/);
+});
+
 test("メール本文の空白をプラス記号へ変換しない", async () => {
   const source = await text("contract.js");
   assert.match(source, /subject=\$\{encodeMailtoValue\(subject\)\}&body=\$\{encodeMailtoValue\(emailBody\.value\)\}/);

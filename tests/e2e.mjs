@@ -262,6 +262,13 @@ try {
   assert.equal(await page.locator('[name="purchaseAmount"]').isEditable(), false);
   assert.equal(new URL(page.url()).searchParams.has("handoff"), false);
   assert.equal(await page.evaluate((token) => sessionStorage.getItem(`orderAutoContractHandoff:${token}`), purchaseHandoffToken), null);
+  await page.locator('[name="carColor"]').fill("白");
+  await page.reload();
+  await page.waitForFunction(() => document.querySelector('[data-app-view="create"]')?.hidden === false);
+  assert.equal(await page.locator('[name="sellerLastName"]').inputValue(), "山田");
+  assert.equal(await page.locator('[name="carName"]').inputValue(), "トヨタ プリウス");
+  assert.equal(await page.locator('[name="carColor"]').inputValue(), "白");
+  assert.match(await page.locator("#cloud-save-status").textContent(), /管理システムから買取契約/);
   logPass("管理システムからの買取契約を一度だけ自動入力");
   await page.evaluate(async () => {
     await notifyManagementOfContractCompletion({
