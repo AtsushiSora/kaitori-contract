@@ -242,6 +242,16 @@ try {
   assert.deepEqual(managementCompletionPayload, {
     p_completion_token: "a".repeat(64),
     p_external_contract_id: "external-contract-1",
+    p_contract_data: {
+      customerLabel: "",
+      amount: "0",
+      contractedOn: new Date().toISOString().slice(0, 10),
+      vehicleName: "",
+      chassisNumber: "",
+      plannedArrivalDate: new Date().toISOString().slice(0, 10),
+      storageLocation: "自宅",
+      paymentMethod: "振込",
+    },
   });
   logPass("買取契約の完了結果を管理システムへ通知");
   await page.locator('[aria-label="メインナビゲーション"] a[href="#top"]').click();

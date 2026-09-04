@@ -1,6 +1,6 @@
 const STORAGE_KEY = "orderAutoContracts";
 const MANAGEMENT_HANDOFF_PREFIX = "orderAutoContractHandoff:";
-const MANAGEMENT_COMPLETION_ENDPOINT = "https://qdzdskryxwjjwtwigztl.supabase.co/rest/v1/rpc/complete_contract_handoff";
+const MANAGEMENT_COMPLETION_ENDPOINT = "https://qdzdskryxwjjwtwigztl.supabase.co/rest/v1/rpc/complete_contract_handoff_v2";
 const MANAGEMENT_PUBLISHABLE_KEY = "sb_publishable_NoQM4G6viEmlS3H_XIqFNw_zuXyzR96";
 const COMPANY = {
   name: "オーダーオート",
@@ -699,7 +699,7 @@ function populateForm(contract) {
   renderIdentityFiles();
   renderVehicleFiles();
   const purchaseAmountField = form.elements.purchaseAmount;
-  const amountLockedByManagement = Boolean(data.__managementCompletionToken);
+  const amountLockedByManagement = Boolean(data.__managementCompletionToken && data.__managementAssignmentId);
   if (purchaseAmountField) {
     purchaseAmountField.readOnly = amountLockedByManagement;
     purchaseAmountField.classList.toggle("management-locked-field", amountLockedByManagement);
@@ -889,6 +889,16 @@ async function notifyManagementOfContractCompletion(contract) {
     body: JSON.stringify({
       p_completion_token: token,
       p_external_contract_id: contract.id,
+      p_contract_data: {
+        customerLabel: [contract.data?.sellerLastName, contract.data?.sellerFirstName].filter(Boolean).join(" ") || contract.data?.sellerName || contract.data?.customerName || "",
+        amount: String(contract.data?.purchaseAmount || "0"),
+        contractedOn: new Date().toISOString().slice(0, 10),
+        vehicleName: contract.data?.carName || "",
+        chassisNumber: contract.data?.chassisNumber || "",
+        plannedArrivalDate: contract.data?.pickupDate || new Date().toISOString().slice(0, 10),
+        storageLocation: contract.data?.pickupPlace || "自宅",
+        paymentMethod: contract.data?.paymentMethod || "振込",
+      },
     }),
   });
   const result = await response.json().catch(() => null);
