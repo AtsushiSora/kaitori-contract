@@ -242,6 +242,14 @@ try {
       expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
       payload: {
         customerName: "山田 太郎",
+        customerLastName: "山田",
+        customerFirstName: "太郎",
+        customerKana: "ヤマダ タロウ",
+        customerBirthDate: "1985-06-07",
+        customerPostalCode: "731-5124",
+        customerAddress: "広島県広島市佐伯区皆賀1-10-20",
+        customerPhone: "070-8996-6421",
+        customerEmail: "customer@example.test",
         assignmentId: "assignment-1",
         completionToken: "a".repeat(64),
         vehicleName: "トヨタ プリウス",
@@ -256,6 +264,13 @@ try {
   await page.waitForFunction(() => document.querySelector('[data-app-view="create"]')?.hidden === false);
   assert.equal(await page.locator('[name="sellerLastName"]').inputValue(), "山田");
   assert.equal(await page.locator('[name="sellerFirstName"]').inputValue(), "太郎");
+  assert.equal(await page.locator('[name="sellerLastKana"]').inputValue(), "ヤマダ");
+  assert.equal(await page.locator('[name="sellerFirstKana"]').inputValue(), "タロウ");
+  assert.equal(await page.locator('[name="sellerPostalCode"]').inputValue(), "731-5124");
+  assert.equal(await page.locator('[name="sellerAddress"]').inputValue(), "広島県広島市佐伯区皆賀1-10-20");
+  assert.equal(await page.locator('[name="sellerBirthdate"]').inputValue(), "1985-06-07");
+  assert.equal(await page.locator('[name="sellerMobile"]').inputValue(), "070-8996-6421");
+  assert.equal(await page.locator('[name="sellerEmail"]').inputValue(), "customer@example.test");
   assert.equal(await page.locator('[name="carName"]').inputValue(), "トヨタ プリウス");
   assert.equal(await page.locator('[name="chassisNumber"]').inputValue(), "ZVW30-1234567");
   assert.equal(await page.locator('[name="purchaseAmount"]').inputValue(), "450000");

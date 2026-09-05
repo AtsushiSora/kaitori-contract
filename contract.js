@@ -809,13 +809,24 @@ function consumeManagementHandoff() {
   const payload = envelope.payload || {};
   const text = (value, maxLength = 160) => String(value ?? "").trim().slice(0, maxLength);
   const nameParts = text(payload.customerName).split(/[\s　]+/).filter(Boolean);
+  const kanaParts = text(payload.customerKana).split(/[\s　]+/).filter(Boolean);
+  const sellerLastName = text(payload.customerLastName, 80) || nameParts[0] || "";
+  const sellerFirstName = text(payload.customerFirstName, 80) || nameParts.slice(1).join(" ");
   const amount = Number(payload.amount);
   const data = {
     ...defaultContractData(),
-    sellerLastName: nameParts[0] || "",
-    sellerFirstName: nameParts.slice(1).join(" "),
-    sellerName: nameParts.join(" "),
-    customerName: nameParts.join(" "),
+    sellerLastName,
+    sellerFirstName,
+    sellerName: joinName(sellerLastName, sellerFirstName),
+    customerName: joinName(sellerLastName, sellerFirstName),
+    sellerLastKana: kanaParts[0] || "",
+    sellerFirstKana: kanaParts.slice(1).join(" "),
+    sellerKana: kanaParts.join(" "),
+    sellerPostalCode: text(payload.customerPostalCode, 12),
+    sellerAddress: text(payload.customerAddress, 300),
+    sellerMobile: text(payload.customerPhone, 30),
+    sellerEmail: text(payload.customerEmail, 254),
+    sellerBirthdate: text(payload.customerBirthDate, 10),
     carName: text(payload.vehicleName),
     chassisNumber: text(payload.chassisNumber, 80),
     purchaseAmount: Number.isFinite(amount) && amount >= 0 ? String(Math.trunc(amount)) : "",
