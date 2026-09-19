@@ -128,7 +128,7 @@ test("契約削除はクラウド削除完了後に一度で一覧から消す",
   assert.doesNotMatch(source, /if \(deleteButton\) \{[\s\S]{0,120}saveActiveContract\(\)/);
 });
 
-test("メール・LINE契約は案内から完了通知まで同じ手順で表示する", async () => {
+test("メール・LINE契約は開始方法に応じて完了連絡と契約書送付を切り替える", async () => {
   const contractHtml = await text("contract.html");
   const contractSource = await text("contract.js");
   const consentHtml = await text("consent.html");
@@ -148,8 +148,12 @@ test("メール・LINE契約は案内から完了通知まで同じ手順で表�
   assert.match(consentHtml, /id="remote-seller-email-note"[^>]+hidden/);
   assert.match(consentSource, /function showCompletionScreen/);
   assert.match(consentSource, /prefilledRecipientEmail/);
-  assert.match(contractSource, /saveRemoteRecipientEmail\("送信済み", \{ required: true \}\)/);
+  assert.match(contractSource, /deliveryChannel: "line"/);
+  assert.match(contractSource, /deliveryChannel: "email"/);
+  assert.match(contractSource, /確認完了・LINE文面作成/);
   assert.match(consentSource, /【署名完了】車両売買契約の確認をお願いします/);
+  assert.match(consentSource, /LINEで完了を連絡/);
+  assert.match(consentSource, /line\.me\/R\/msg\/text/);
   assert.doesNotMatch(consentSource, /result\.downloadUrl/);
   assert.match(consentSource, /const ORDER_AUTO_EMAIL = "info@order-auto\.com"/);
   assert.doesNotMatch(consentSource, /sora29128616@gmail\.com/);
@@ -281,12 +285,14 @@ test("管理者確認後にだけ契約完了PDFの期限付きURLを発行す�
   assert.match(confirmSource, /download_access_hash: downloadAccessHash/);
   assert.match(confirmSource, /お客様控え契約書PDF（30日間有効）/);
   assert.match(confirmSource, /authenticatedUser\(request\)/);
-  assert.match(confirmSource, /contract\.consent_status !== "確認待ち"/);
-  assert.doesNotMatch(confirmSource, /contract\.consent_status !== "確認待ち" \|\| contract\.status !== "確認待ち"/);
+  assert.match(confirmSource, /const isPendingReview = contract\.consent_status === "確認待ち"/);
+  assert.match(confirmSource, /const isCompletedLineRetry/);
   assert.match(confirmSource, /emailId = await sendCustomerEmail/);
   assert.match(confirmSource, /status: "確認待ち"[\s\S]*confirmation_email_status: "sending"[\s\S]*emailId = await sendCustomerEmail[\s\S]*status: "完了"/);
   assert.match(confirmSource, /status: "完了"/);
   assert.match(confirmSource, /consent_status: "完了"/);
+  assert.match(confirmSource, /confirmation_email_status: "line_ready"/);
+  assert.match(confirmSource, /deliveryChannel,[\s\S]*downloadUrl/);
   assert.match(downloadSource, /sha256Hex\(token\)/);
   assert.match(downloadSource, /download_access_expires_at/);
   assert.match(downloadSource, /contract-files/);
@@ -301,6 +307,7 @@ test("管理者確認後にだけ契約完了PDFの期限付きURLを発行す�
   assert.match(config, /contractDownloadEndpoint/);
   assert.match(config, /contractConfirmEndpoint/);
   assert.match(contractSource, /result\?\.emailStatus !== "sent"/);
+  assert.match(contractSource, /result\?\.deliveryChannel !== "line"/);
   assert.match(contractSource, /契約は確認待ちのままです/);
 });
 

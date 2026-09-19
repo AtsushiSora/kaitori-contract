@@ -63,6 +63,7 @@ const PUBLIC_DATA_FIELDS = [
   "pickupDate",
   "pickupTime",
   "pickupPlace",
+  "remoteDeliveryChannel",
 ] as const;
 
 function publicContractData(data: Record<string, unknown> | null): Record<string, unknown> {

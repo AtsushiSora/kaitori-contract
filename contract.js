@@ -1083,6 +1083,9 @@ function saveActiveContract(status, options = {}) {
       }
     : pendingManagementHandoff;
   const nextData = {
+    ...(existing?.data?.remoteDeliveryChannel
+      ? { remoteDeliveryChannel: existing.data.remoteDeliveryChannel }
+      : {}),
     ...getFormData(),
     ...(managementHandoff || {}),
   };
@@ -2323,14 +2326,18 @@ function renderList() {
       const active = contract.id === activeId ? "active" : "";
       const isPendingReview = contract.status === "確認待ち" || contract.consentStatus === "確認待ち";
       const isComplete = contract.status === "完了" || contract.consentStatus === "完了";
+      const isLineDelivery = data.remoteDeliveryChannel === "line";
       const editAction = isComplete
         ? `<button class="mini-button" type="button" data-revise-contract="${contract.id}">複製して修正</button>`
         : `<button class="mini-button" type="button" data-edit-contract="${contract.id}">${isPendingReview ? "内容を確認" : "編集"}</button>`;
       const confirmationAction = isPendingReview
-        ? `<button class="mini-button selection-action" type="button" data-confirm-contract="${contract.id}">確認完了・メール送信</button>`
+        ? `<button class="mini-button selection-action" type="button" data-confirm-contract="${contract.id}">${isLineDelivery ? "確認完了・LINE文面作成" : "確認完了・メール送信"}</button>`
+        : "";
+      const completedLineAction = isComplete && isLineDelivery
+        ? `<button class="mini-button selection-action" type="button" data-copy-completed-line-contract="${contract.id}">契約書LINE文面コピー</button>`
         : "";
       const standardActions = `
-        ${isPendingReview ? confirmationAction : `<button class="mini-button" type="button" data-send-remote-contract="${contract.id}">メール・LINE契約</button>`}
+        ${isPendingReview ? confirmationAction : completedLineAction || (isComplete ? "" : `<button class="mini-button" type="button" data-send-remote-contract="${contract.id}">メール・LINE契約</button>`)}
         ${editAction}
         <button class="mini-button danger" type="button" data-delete-contract="${contract.id}">削除</button>
       `;
@@ -2338,7 +2345,7 @@ function renderList() {
         <button class="mini-button selection-action" type="button" data-print-list-contract="${contract.id}">この契約を印刷</button>
       `;
       const remoteActions = isComplete
-        ? '<span class="completed-contract-label">契約完了済み</span>'
+        ? completedLineAction || '<span class="completed-contract-label">契約完了済み</span>'
         : isPendingReview
           ? '<span class="completed-contract-label">確認待ち</span>'
           : `<button class="mini-button selection-action" type="button" data-send-remote-contract="${contract.id}">メール・LINEで送る</button>`;
@@ -2624,9 +2631,15 @@ function applyRemoteRecipientEmail({ required = false } = {}) {
   return true;
 }
 
-async function saveRemoteRecipientEmail(status, { required = false } = {}) {
+async function saveRemoteRecipientEmail(status, { required = false, deliveryChannel = "" } = {}) {
   if (!applyRemoteRecipientEmail({ required })) return false;
   if (!saveActiveContract(status)) return false;
+  const contract = currentContract();
+  if (contract && ["email", "line"].includes(deliveryChannel)) {
+    contract.data = { ...(contract.data || {}), remoteDeliveryChannel: deliveryChannel };
+    persistContracts();
+    renderList();
+  }
   if (window.OrderAutoCloud?.isConfigured() && !cloudEnabled()) {
     setRemoteActionStatus("管理者ログインの有効期限が切れています。再ログインしてください。", "warning");
     return false;
@@ -2823,10 +2836,10 @@ function buildLineMessage() {
     "2. 重要事項・契約条項を確認",
     "3. 必須項目にチェック",
     "4. 画面に電子署名を記入",
-    "5. 「同意して署名完了メールを作成」を押す",
-    "6. 確認依頼メールの内容を確認して送信",
+    "5. 「同意して電子署名を確定」を押す",
+    "6. 「LINEで完了を連絡」を押し、このトークへ送信",
     "7. オーダーオートで契約内容と本人確認書類を確認",
-    "8. 確認完了メールのURLからお客様控えPDFを保存",
+    "8. このトークに届く契約書URLからお客様控えPDFを保存",
     "9. 契約完了",
     "",
     `確認URL：${url}`,
@@ -2834,6 +2847,40 @@ function buildLineMessage() {
     "URLの有効期限は作成から7日間です。",
     "8桁の開封パスコードは別のメッセージでお送りします。",
   ].join("\n");
+}
+
+function setConsentUrlDeliveryChannel(channel) {
+  const field = document.querySelector("#email-url");
+  if (!field?.value.trim()) return;
+  try {
+    const url = new URL(field.value);
+    const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
+    hash.set("channel", channel === "line" ? "line" : "email");
+    url.hash = hash.toString();
+    field.value = url.toString();
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function buildCompletedLineMessage(contract, downloadUrl, confirmedAt = "") {
+  const data = contract?.data || {};
+  return [
+    customerGreeting(data),
+    "",
+    "オーダーオートです。",
+    "契約内容と本人確認書類の確認が完了しました。",
+    "",
+    `契約番号：${displayContractNumber(contract)}`,
+    `車名：${safePlain(data.carName)}`,
+    `金額：${amountLabel(data) || "未入力"}`,
+    confirmedAt ? `確認完了日時：${formatDateTime(new Date(confirmedAt))}` : "",
+    "",
+    "お客様控え契約書PDF（30日間有効）：",
+    downloadUrl,
+    "",
+    "期限内にPDFを保存してください。",
+  ].filter((line) => line !== "").join("\n");
 }
 
 function bytesToBase64Url(bytes) {
@@ -3060,7 +3107,8 @@ async function copyLineMessage() {
     return;
   }
 
-  if (!(await saveRemoteRecipientEmail("送信済み"))) return;
+  setConsentUrlDeliveryChannel("line");
+  if (!(await saveRemoteRecipientEmail("送信済み", { deliveryChannel: "line" }))) return;
   const message = buildLineMessage();
 
   try {
@@ -3273,7 +3321,9 @@ async function openEmail() {
     }
     return;
   }
-  if (!(await saveRemoteRecipientEmail("送信済み", { required: true }))) return;
+  setConsentUrlDeliveryChannel("email");
+  buildEmailBody();
+  if (!(await saveRemoteRecipientEmail("送信済み", { required: true, deliveryChannel: "email" }))) return;
   const data = getFormData();
   const subject = "【オーダーオート】車両売買契約のご確認と電子署名のお願い";
   const query = `subject=${encodeMailtoValue(subject)}&body=${encodeMailtoValue(emailBody.value)}`;
@@ -3598,27 +3648,57 @@ function setupEvents() {
   });
 
   document.querySelector("#contract-list").addEventListener("click", async (event) => {
+    const completedLineButton = event.target.closest("[data-copy-completed-line-contract]");
     const confirmButton = event.target.closest("[data-confirm-contract]");
-    if (confirmButton) {
-      const contract = contracts.find((item) => item.id === confirmButton.dataset.confirmContract);
+    const deliveryButton = confirmButton || completedLineButton;
+    if (deliveryButton) {
+      const contractId = confirmButton?.dataset.confirmContract || completedLineButton?.dataset.copyCompletedLineContract;
+      const contract = contracts.find((item) => item.id === contractId);
       if (!contract || !window.OrderAutoCloud?.confirmContract) return;
-      const email = contract.data?.sellerEmail || "お客様のメールアドレス";
-      if (!window.confirm(`契約内容と本人確認書類を確認済みにし、${email}へ契約書URLを送信します。よろしいですか？`)) return;
-      const originalLabel = confirmButton.textContent;
-      confirmButton.disabled = true;
-      confirmButton.textContent = "送信中";
+      const isLineDelivery = contract.data?.remoteDeliveryChannel === "line";
+      if (confirmButton) {
+        const email = contract.data?.sellerEmail || "お客様のメールアドレス";
+        const message = isLineDelivery
+          ? "契約内容と本人確認書類を確認済みにし、契約書URL入りのLINE文面を作成します。よろしいですか？"
+          : `契約内容と本人確認書類を確認済みにし、${email}へ契約書URLを送信します。よろしいですか？`;
+        if (!window.confirm(message)) return;
+      } else if (!window.confirm("お客様へ再送する契約書URLを発行し、LINE文面をコピーします。よろしいですか？")) {
+        return;
+      }
+      const originalLabel = deliveryButton.textContent;
+      deliveryButton.disabled = true;
+      deliveryButton.textContent = isLineDelivery ? "文面作成中" : "送信中";
       try {
         const result = await window.OrderAutoCloud.confirmContract(contract.id);
-        if (result?.emailStatus !== "sent") throw new Error("Confirmation email was not accepted");
-        setSaveStatus("確認完了メールと契約書URLをお客様へ送信しました。", "success");
+        if (isLineDelivery) {
+          if (result?.deliveryChannel !== "line" || !result?.downloadUrl) {
+            throw new Error("LINE delivery URL was not returned");
+          }
+          const message = buildCompletedLineMessage(contract, result.downloadUrl, result.confirmedAt);
+          const copied = await copyText(message);
+          if (!copied) window.prompt("次のLINE文面をコピーしてください。", message);
+          setSaveStatus("契約書URL入りのLINE文面をコピーしました。同じお客様のトークへ貼り付けて送信してください。", "success");
+        } else {
+          if (result?.emailStatus !== "sent") throw new Error("Confirmation email was not accepted");
+          setSaveStatus("確認完了メールと契約書URLをお客様へ送信しました。", "success");
+        }
         await Promise.all([loadCloudContracts(), loadAdminNotifications()]);
       } catch (error) {
         console.error(error);
-        setSaveStatus("確認完了メールを送信できませんでした。入力メールアドレスと通信状態を確認してください。", "warning");
+        setSaveStatus(
+          isLineDelivery
+            ? "契約書のLINE文面を作成できませんでした。通信状態を確認してください。"
+            : "確認完了メールを送信できませんでした。入力メールアドレスと通信状態を確認してください。",
+          "warning",
+        );
         await loadCloudContracts();
-        window.alert("確認完了メールを送信できませんでした。契約は確認待ちのままです。メールアドレスを確認して、もう一度お試しください。");
-        confirmButton.disabled = false;
-        confirmButton.textContent = originalLabel;
+        window.alert(
+          isLineDelivery
+            ? "契約書のLINE文面を作成できませんでした。もう一度お試しください。"
+            : "確認完了メールを送信できませんでした。契約は確認待ちのままです。メールアドレスを確認して、もう一度お試しください。",
+        );
+        deliveryButton.disabled = false;
+        deliveryButton.textContent = originalLabel;
       }
       return;
     }

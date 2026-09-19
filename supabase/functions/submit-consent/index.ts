@@ -160,6 +160,7 @@ async function sendAdminEmail(
   contractNumber: string,
   customerName: string,
   completedAt: string,
+  deliveryChannel: string,
 ) {
   const apiKey = Deno.env.get("RESEND_API_KEY");
   const to = Deno.env.get("ADMIN_NOTIFICATION_EMAIL");
@@ -179,7 +180,9 @@ async function sendAdminEmail(
           `署名者：${customerName}`,
           `署名日時：${completedAt}`,
           "",
-          "管理画面で契約内容と本人確認書類を確認し、「確認完了・メール送信」を押してください。",
+          deliveryChannel === "line"
+            ? "管理画面で契約内容と本人確認書類を確認し、「確認完了・LINE文面作成」を押してください。"
+            : "管理画面で契約内容と本人確認書類を確認し、「確認完了・メール送信」を押してください。",
           "安全のため、このメールには本人確認書類を添付していません。",
         ].join("\n"),
       }),
@@ -353,7 +356,8 @@ Deno.serve(async (request) => {
     }
 
     const contractNumber = clean(contract.contract_number || result.contractNumber, 30);
-    const emailStatus = await sendAdminEmail(contractNumber, customerName, completedAt);
+    const deliveryChannel = contract.data?.remoteDeliveryChannel === "line" ? "line" : "email";
+    const emailStatus = await sendAdminEmail(contractNumber, customerName, completedAt, deliveryChannel);
     const notificationResponse = await fetch(supabaseUrl("/rest/v1/admin_notifications"), {
       method: "POST",
       headers: serviceHeaders("return=minimal"),
@@ -362,7 +366,7 @@ Deno.serve(async (request) => {
         notification_type: "contract_review_required",
         title: "電子署名の確認が必要です",
         message: `契約番号 ${contractNumber} / ${customerName}`,
-        payload: { contractNumber, customerName, completedAt, emailStatus },
+        payload: { contractNumber, customerName, completedAt, emailStatus, deliveryChannel },
       }),
     });
     if (!notificationResponse.ok) {

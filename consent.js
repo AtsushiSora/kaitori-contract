@@ -26,6 +26,7 @@ let loadedContract = null;
 let isDrawing = false;
 let hasCustomerSignature = false;
 let completionEmail = null;
+let completionLineMessage = "";
 let preparedIdentityDocuments = [];
 let prefilledRecipientEmail = "";
 const DEFAULT_CRYPTO_ITERATIONS = 200000;
@@ -51,6 +52,19 @@ function decodeShortAccessToken() {
   const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   const token = String(params.get("r") || "").trim();
   return /^[A-Za-z0-9_-]{32}$/.test(token) ? token : "";
+}
+
+function deliveryChannel(data = loadedContract?.data) {
+  if (data?.remoteDeliveryChannel === "line") return "line";
+  if (data?.remoteDeliveryChannel === "email") return "email";
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  return params.get("channel") === "line" ? "line" : "email";
+}
+
+function completionButtonLabel(data = loadedContract?.data) {
+  return deliveryChannel(data) === "line"
+    ? "同意して電子署名を確定"
+    : "同意して署名完了メールを作成";
 }
 
 function normalizePasscode(value) {
@@ -482,6 +496,33 @@ function renderContract() {
   document.querySelector("#consent-progress").hidden = false;
   document.querySelector("#consent-unlock").hidden = true;
   document.querySelector("#consent-error").hidden = true;
+  const lineDelivery = deliveryChannel(data) === "line";
+  document.querySelector("#consent-guide-title").textContent = lineDelivery
+    ? "LINEでご契約"
+    : "メールでご契約";
+  document.querySelector("#consent-guide ol").innerHTML = lineDelivery
+    ? [
+      "契約内容をご確認ください",
+      "重要事項・契約条項をご確認ください",
+      "必須項目にチェックしてください",
+      "画面に電子署名をご記入ください",
+      "「同意して電子署名を確定」を押してください",
+      "「LINEで完了を連絡」を押し、この契約を受け取ったトークへ送信してください",
+      "オーダーオートの確認後、同じトークに届くURLからお客様控えを保存してください",
+    ].map((item) => `<li>${item}</li>`).join("")
+    : [
+      "契約内容をご確認ください",
+      "重要事項・契約条項をご確認ください",
+      "必須項目にチェックしてください",
+      "画面に電子署名をご記入ください",
+      "「同意して署名完了メールを作成」を押してください",
+      "確認依頼メールの内容を確認し、「送信」を押してください",
+      "オーダーオートの確認後、メールで届くURLからお客様控えを保存してください",
+    ].map((item) => `<li>${item}</li>`).join("");
+  document.querySelector("#complete-consent").textContent = completionButtonLabel(data);
+  document.querySelector("#complete-consent-note").textContent = lineDelivery
+    ? "この操作で電子署名が確定し、オーダーオートの確認待ちになります。続いて表示されるLINEの完了連絡を、この契約を受け取ったトークへ送信してください。"
+    : "この操作で電子署名が確定し、オーダーオートの確認待ちになります。作成された確認依頼メールを送信してください。";
   setConsentProgress("summary");
 }
 
@@ -718,6 +759,22 @@ function buildCompletionEmail(result, data) {
   };
 }
 
+function buildCompletionLineMessage(result, data) {
+  return [
+    "車両売買契約の内容確認、電子署名、本人確認書類の提出が完了しました。",
+    "契約内容と本人確認書類の確認をお願いします。",
+    "",
+    `契約番号：${result.contractNumber}`,
+    `署名者：${result.customerName}`,
+    `車名：${text(data.carName)}`,
+    `登録番号：${text(data.plateNumber)}`,
+    `金額：${result.amount}`,
+    `完了日時：${result.completedAt}`,
+    "",
+    "オーダーオートで確認後、このトークへお客様控え契約書のURLを送ってください。",
+  ].join("\n");
+}
+
 function openCompletionEmail() {
   if (!completionEmail) return;
   const link = document.createElement("a");
@@ -728,8 +785,23 @@ function openCompletionEmail() {
   link.remove();
 }
 
+function openCompletionLine() {
+  if (!completionLineMessage) return;
+  window.location.href = `https://line.me/R/msg/text/?${encodeURIComponent(completionLineMessage)}`;
+}
+
+function reopenCompletionContact() {
+  if (completionLineMessage) {
+    openCompletionLine();
+    return;
+  }
+  openCompletionEmail();
+}
+
 function showCompletionScreen(result, data) {
-  completionEmail = buildCompletionEmail(result, data);
+  const lineDelivery = deliveryChannel(data) === "line";
+  completionEmail = lineDelivery ? null : buildCompletionEmail(result, data);
+  completionLineMessage = lineDelivery ? buildCompletionLineMessage(result, data) : "";
   document.querySelector("#consent-summary").hidden = true;
   document.querySelector("#seller-input-section").hidden = true;
   document.querySelector("#consent-check-section").hidden = true;
@@ -744,6 +816,12 @@ function showCompletionScreen(result, data) {
     summaryRow("署名日時", result.completedAt),
     summaryRow("状態", "オーダーオート確認待ち"),
   ].join("");
+  document.querySelector("#completion-instructions").textContent = lineDelivery
+    ? "「LINEで完了を連絡」を押し、この契約を受け取ったトークへ送信してください。オーダーオートで確認後、同じトークへ契約書URLをお送りします。"
+    : "確認依頼メールを送信してください。オーダーオートで確認後、契約完了メールとお客様控えPDFのURLをお送りします。";
+  document.querySelector("#reopen-completion-contact").textContent = lineDelivery
+    ? "LINEで完了を連絡"
+    : "確認依頼メールを再作成";
   document.querySelector("#consent-complete-section").hidden = false;
   setConsentProgress("complete");
   document.querySelector("#consent-complete-section").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -925,7 +1003,7 @@ async function completeConsent() {
   } catch (error) {
     alert(error.message || "本人確認画像を読み込めませんでした。");
     completeButton.disabled = false;
-    completeButton.textContent = "同意して署名完了メールを作成";
+    completeButton.textContent = completionButtonLabel();
     return;
   }
 
@@ -968,12 +1046,13 @@ async function completeConsent() {
       console.error(error);
       alert("契約書PDFまたは同意結果をクラウド保存できませんでした。通信状況を確認してください。");
       completeButton.disabled = false;
-      completeButton.textContent = "同意して署名完了メールを作成";
+      completeButton.textContent = completionButtonLabel();
       return;
     }
   }
   showCompletionScreen(result, data);
-  openCompletionEmail();
+  if (deliveryChannel(data) === "line") openCompletionLine();
+  else openCompletionEmail();
   window.setTimeout(() => setConsentProgress("complete"), 0);
 }
 
@@ -988,7 +1067,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
   document.querySelector("#complete-consent").addEventListener("click", completeConsent);
-  document.querySelector("#reopen-completion-email").addEventListener("click", openCompletionEmail);
+  document.querySelector("#reopen-completion-contact").addEventListener("click", reopenCompletionContact);
   document.querySelector("#customer-name").addEventListener("input", () => {
     setFieldError(
       document.querySelector("#customer-name"),
@@ -1036,6 +1115,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.querySelector("#consent-summary").addEventListener("click", () => setConsentProgress("summary"));
   document.querySelector("#customer-sign-section").addEventListener("focusin", () => {
-    if (!completionEmail) setConsentProgress("sign");
+    if (!completionEmail && !completionLineMessage) setConsentProgress("sign");
   });
 });

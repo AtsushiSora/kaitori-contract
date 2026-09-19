@@ -113,7 +113,7 @@ Deno.serve(async (request) => {
 
     const query = new URLSearchParams({
       id: `eq.${contractId}`,
-      select: "id,contract_number,status,consent_status,data,customer_pdf_path",
+      select: "id,contract_number,status,consent_status,data,customer_pdf_path,reviewed_at,completed_at_text",
       limit: "1",
     });
     const contractResponse = await fetch(supabaseUrl(`/rest/v1/contracts?${query}`), {
@@ -122,16 +122,20 @@ Deno.serve(async (request) => {
     if (!contractResponse.ok) throw new Error(await contractResponse.text());
     const contract = (await contractResponse.json())?.[0];
     if (!contract) return jsonResponse({ error: "Contract not found" }, 404, origin);
-    if (contract.consent_status !== "確認待ち") {
+    const data = contract.data || {};
+    const deliveryChannel = data.remoteDeliveryChannel === "line" ? "line" : "email";
+    const isPendingReview = contract.consent_status === "確認待ち";
+    const isCompletedLineRetry = deliveryChannel === "line" &&
+      contract.consent_status === "完了" && contract.status === "完了";
+    if (!isPendingReview && !isCompletedLineRetry) {
       return jsonResponse({ error: "Contract is not awaiting confirmation" }, 409, origin);
     }
     if (!contract.customer_pdf_path) {
       return jsonResponse({ error: "Customer contract PDF is missing" }, 422, origin);
     }
 
-    const data = contract.data || {};
     const email = clean(data.sellerEmail, 200);
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (deliveryChannel === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return jsonResponse({ error: "Customer email address is missing" }, 422, origin);
     }
     const customerName = clean(data.sellerName || data.customerName, 100) || "お客様";
@@ -143,6 +147,68 @@ Deno.serve(async (request) => {
       Date.now() + DOWNLOAD_LINK_DAYS * 24 * 60 * 60 * 1000,
     ).toISOString();
     const downloadUrl = customerDownloadUrl(origin, downloadToken);
+
+    if (deliveryChannel === "line") {
+      const lineQuery = new URLSearchParams({
+        id: `eq.${contractId}`,
+        select: "id",
+      });
+      if (isPendingReview) lineQuery.set("consent_status", "eq.確認待ち");
+      else lineQuery.set("consent_status", "eq.完了");
+      const lineResponse = await fetch(supabaseUrl(`/rest/v1/contracts?${lineQuery}`), {
+        method: "PATCH",
+        headers: serviceHeaders("return=representation"),
+        body: JSON.stringify({
+          status: "完了",
+          consent_status: "完了",
+          reviewed_at: contract.reviewed_at || confirmedAt,
+          completed_at_text: contract.completed_at_text || confirmedAt,
+          customer_confirmation_sent_at: null,
+          confirmation_email_status: "line_ready",
+          download_access_hash: downloadAccessHash,
+          download_access_expires_at: downloadAccessExpiresAt,
+          updated_at: confirmedAt,
+        }),
+      });
+      if (!lineResponse.ok) throw new Error(await lineResponse.text());
+      if (!(await lineResponse.json())?.length) {
+        return jsonResponse({ error: "Contract delivery state could not be saved" }, 409, origin);
+      }
+
+      await Promise.allSettled([
+        fetch(supabaseUrl("/rest/v1/consent_events"), {
+          method: "POST",
+          headers: serviceHeaders("return=minimal"),
+          body: JSON.stringify({
+            contract_id: contractId,
+            event_type: isCompletedLineRetry
+              ? "customer_line_contract_reissued"
+              : "administrator_confirmed_contract",
+            payload: { confirmedAt, deliveryChannel, downloadAccessExpiresAt },
+          }),
+        }),
+        fetch(supabaseUrl("/rest/v1/admin_notifications"), {
+          method: "POST",
+          headers: serviceHeaders("return=minimal"),
+          body: JSON.stringify({
+            contract_id: contractId,
+            notification_type: "customer_line_delivery_ready",
+            title: "契約書のLINE文面を作成しました",
+            message: `契約番号 ${contractNumber} / ${customerName}`,
+            payload: { contractNumber, customerName, confirmedAt, deliveryChannel },
+          }),
+        }),
+      ]);
+
+      return jsonResponse({
+        ok: true,
+        confirmedAt,
+        deliveryChannel,
+        lineStatus: "ready",
+        downloadUrl,
+        downloadAccessExpiresAt,
+      }, 200, origin);
+    }
 
     const updateQuery = new URLSearchParams({
       id: `eq.${contractId}`,
@@ -241,7 +307,13 @@ Deno.serve(async (request) => {
       }),
     ]);
 
-    return jsonResponse({ ok: true, confirmedAt, emailStatus: "sent", emailId }, 200, origin);
+    return jsonResponse({
+      ok: true,
+      confirmedAt,
+      deliveryChannel,
+      emailStatus: "sent",
+      emailId,
+    }, 200, origin);
   } catch (error) {
     console.error("confirm-contract", error);
     return jsonResponse({ error: "Contract could not be confirmed or emailed" }, 500, origin);

@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="styles.css?v=20260811-consent-flow" />
     <script src="supabase-config.js?v=20260829-pdf-download"></script>
     <script src="supabase-api.js?v=20260829-pdf-download"></script>
-    <script src="consent.js?v=20260829-workplace" defer></script>
+    <script src="consent.js?v=20260920-delivery-channel" defer></script>
   </head>
   <body>
     <header class="site-header" aria-label="サイトヘッダー">
@@ -175,7 +175,7 @@
                 同意して署名完了メールを作成
               </button>
             </div>
-            <p class="form-note">
+            <p class="form-note" id="complete-consent-note">
               この操作で電子署名が確定し、オーダーオートの確認待ちになります。作成された確認依頼メールを送信してください。
             </p>
           </section>
@@ -183,10 +183,10 @@
           <section class="consent-complete" id="consent-complete-section" hidden>
             <p class="eyebrow">Submitted</p>
             <h2>電子署名を受け付けました</h2>
-            <p>確認依頼メールを送信してください。オーダーオートで確認後、契約完了メールとお客様控えPDFのURLをお送りします。</p>
+            <p id="completion-instructions">確認依頼メールを送信してください。オーダーオートで確認後、契約完了メールとお客様控えPDFのURLをお送りします。</p>
             <dl class="document-dl" id="completion-summary-list"></dl>
             <div class="toolbar-actions">
-              <button class="button button-primary" type="button" id="reopen-completion-email">確認依頼メールを再作成</button>
+              <button class="button button-primary" type="button" id="reopen-completion-contact">確認依頼メールを再作成</button>
             </div>
             <p class="form-note">お客様控えのURLは、オーダーオートの確認完了から30日間有効です。</p>
           </section>

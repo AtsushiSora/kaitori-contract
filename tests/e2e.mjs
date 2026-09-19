@@ -125,6 +125,8 @@ try {
     }
     if (request.method() === "POST" && url.pathname === "/functions/v1/confirm-contract") {
       confirmedContractId = request.postDataJSON()?.contractId || "";
+      const confirmedContract = cloudContractRows.find((contract) => contract.id === confirmedContractId);
+      const deliveryChannel = confirmedContract?.data?.remoteDeliveryChannel === "line" ? "line" : "email";
       cloudContractRows = cloudContractRows.map((contract) =>
         contract.id === confirmedContractId
           ? { ...contract, status: "完了", consent_status: "完了", completed_at_text: new Date().toISOString() }
@@ -133,7 +135,15 @@ try {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ ok: true, emailStatus: "sent" }),
+        body: JSON.stringify(deliveryChannel === "line"
+          ? {
+            ok: true,
+            deliveryChannel: "line",
+            lineStatus: "ready",
+            confirmedAt: new Date().toISOString(),
+            downloadUrl: "https://atsushisora.github.io/kaitori-contract/download.html#d=abcdefghijklmnopqrstuvwxyzABCDEF",
+          }
+          : { ok: true, deliveryChannel: "email", emailStatus: "sent" }),
       });
       return;
     }
@@ -648,7 +658,13 @@ try {
   const lineCloudStatus = await page.locator("#cloud-save-status").textContent();
   assert.match(copiedRemoteText, /車両売買契約の内容確認/, `LINEコピー状態: ${lineCopyStatus} / ${lineCloudStatus}`);
   assert.match(copiedRemoteText, new RegExp(shortUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(copiedRemoteText, /channel=line/);
   assert.match(await page.locator("#remote-action-status").textContent(), /LINE文面をコピーしました/);
+  const savedLineChannel = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("orderAutoContracts") || "[]")
+      .find((contract) => contract.data?.carName === "テスト車両")?.data?.remoteDeliveryChannel,
+  );
+  assert.equal(savedLineChannel, "line");
   logPass("LINE文面コピーが送信文面と確認URLをコピー");
 
   await page.locator("#copy-consent-passcode").click();
@@ -681,11 +697,17 @@ try {
       .find((contract) => contract.data?.carName === "テスト車両")?.data?.sellerEmail,
   );
   assert.equal(savedRecipientEmail, "customer@example.test");
-  logPass("契約案内の送信先メールアドレスを契約データへ保存");
+  const savedEmailChannel = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("orderAutoContracts") || "[]")
+      .find((contract) => contract.data?.carName === "テスト車両")?.data?.remoteDeliveryChannel,
+  );
+  assert.equal(savedEmailChannel, "email");
+  logPass("契約案内の送信先メールアドレスと送信方法を契約データへ保存");
 
   await page.evaluate(() => localStorage.removeItem("orderAutoSupabaseSession"));
   await page.locator("#generate-consent-url").click();
-  assert.equal(await page.locator("#email-url").inputValue(), shortUrl);
+  assert.match(await page.locator("#email-url").inputValue(), new RegExp(shortUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(await page.locator("#email-url").inputValue(), /channel=email/);
   assert.match(await page.locator("#cloud-save-status").textContent(), /再ログイン/);
   logPass("ログイン期限切れ時は旧式の長いURLを発行しない");
 
@@ -716,6 +738,29 @@ try {
     consent_result: { completedAt: "2026-08-28T00:12:20.000Z" },
     version_number: 1,
     updated_at: "2026-08-28T00:12:20.000Z",
+  }, {
+    id: `${staleContract.id}-line`,
+    contract_number: "26081102",
+    status: "確認待ち",
+    data: {
+      ...staleContract.data,
+      sellerLastName: "LINE",
+      sellerFirstName: "確認",
+      sellerName: "LINE 確認",
+      sellerMobile: "09000000001",
+      sellerEmail: "line-customer@example.test",
+      remoteDeliveryChannel: "line",
+    },
+    signature_data: "",
+    identity_files: [],
+    created_at_text: staleContract.createdAt,
+    updated_at_text: "2026/08/28 09:13",
+    completed_at_text: null,
+    signed_at_text: "2026-08-28T00:13:20.000Z",
+    consent_status: "確認待ち",
+    consent_result: { completedAt: "2026-08-28T00:13:20.000Z" },
+    version_number: 1,
+    updated_at: "2026-08-28T00:13:20.000Z",
   }];
   await page.evaluate(() => {
     localStorage.setItem("orderAutoSupabaseSession", JSON.stringify({
@@ -739,6 +784,18 @@ try {
   assert.equal(await syncedContractItem.locator("em").textContent(), "完了");
   logPass("遠隔署名を確認待ちで同期し、管理者確認後に完了メールを送信");
 
+  const lineContractItem = page.locator("article.contract-list-item").filter({ hasText: "26081102" }).first();
+  await lineContractItem.getByRole("button", { name: "確認完了・LINE文面作成" }).click();
+  await page.waitForFunction(() =>
+    (window.__copiedRemoteText || "").includes("download.html#d=abcdefghijklmnopqrstuvwxyzABCDEF"),
+  );
+  const completedLineText = await page.evaluate(() => window.__copiedRemoteText || "");
+  assert.match(completedLineText, /契約内容と本人確認書類の確認が完了しました/);
+  assert.match(completedLineText, /お客様控え契約書PDF/);
+  assert.equal(await lineContractItem.locator("em").textContent(), "完了");
+  assert.equal(await lineContractItem.getByRole("button", { name: "契約書LINE文面コピー" }).count(), 1);
+  logPass("LINE契約は管理者確認後に契約書URL入り文面をコピー");
+
   await page.locator('[aria-label="メインナビゲーション"] a[href="#list"]').click();
   await page.locator("#new-contract").click();
   assert.equal(await page.locator('[name="carName"]').inputValue(), "");
@@ -756,6 +813,23 @@ try {
   assert.equal(await page.locator("#consent-progress li").count(), 4);
   logPass("お客様向けに7手順と4段階の進行表示を用意");
   await page.evaluate(() => {
+    showCompletionScreen({
+      contractNumber: "26081102",
+      customerName: "LINE 確認",
+      amount: "20,000円",
+      completedAt: "2026/09/20 10:00",
+      checkedConsents: [],
+    }, {
+      remoteDeliveryChannel: "line",
+      carName: "LINEテスト車両",
+      plateNumber: "広島 500 あ 12-34",
+    });
+  });
+  assert.match(await page.locator("#completion-instructions").textContent(), /同じトークへ契約書URL/);
+  assert.equal(await page.locator("#reopen-completion-contact").textContent(), "LINEで完了を連絡");
+  logPass("LINE開始の契約は署名後の完了連絡をLINEへ自動切替");
+  await page.evaluate(() => {
+    document.querySelector("#consent-complete-section").hidden = true;
     document.querySelector("#seller-input-section").hidden = false;
     populateRemoteSeller({ sellerType: "individual", sellerEmail: "customer@example.test" });
     document.querySelector("#consent-check-section").hidden = false;
