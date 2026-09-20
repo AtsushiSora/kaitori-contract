@@ -311,6 +311,11 @@ test("管理者確認後にだけ契約完了PDFの期限付きURLを発行す�
   assert.match(contractSource, /契約は確認待ちのままです/);
 });
 
+test("お客様控えPDF用の公開データにリサイクル券金額を含める", async () => {
+  const source = await text("supabase/functions/public-contract/index.ts");
+  assert.match(source, /"recycleDepositAmount"/);
+});
+
 test("管理システムの買取連携情報を契約保存後も保持する", async () => {
   const source = await text("contract.js");
   assert.match(source, /let pendingManagementHandoff = null/);

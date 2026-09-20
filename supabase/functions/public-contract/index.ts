@@ -59,6 +59,7 @@ const PUBLIC_DATA_FIELDS = [
   "chassisNumber",
   "mileage",
   "purchaseAmount",
+  "recycleDepositAmount",
   "contractType",
   "pickupDate",
   "pickupTime",
