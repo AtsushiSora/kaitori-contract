@@ -106,7 +106,7 @@ Deno.serve(async (request) => {
     });
     if (id) query.set("id", `eq.${id}`);
     else query.set("remote_link_hash", `eq.${linkHash}`);
-    const response = await fetch(supabaseUrl(`/rest/v1/contracts?${query}`), {
+    const response = await fetch(supabaseUrl(`/rest/v1/purchase_contracts?${query}`), {
       headers: serviceHeaders(),
     });
     if (!response.ok) {
@@ -120,7 +120,7 @@ Deno.serve(async (request) => {
         remote_access_hash: `eq.${tokenHash}`,
         limit: "1",
       });
-      const legacyResponse = await fetch(supabaseUrl(`/rest/v1/contracts?${legacyQuery}`), {
+      const legacyResponse = await fetch(supabaseUrl(`/rest/v1/purchase_contracts?${legacyQuery}`), {
         headers: serviceHeaders(),
       });
       if (!legacyResponse.ok) {
@@ -141,7 +141,7 @@ Deno.serve(async (request) => {
       const nextLockedUntil = failedAttempts >= 5
         ? new Date(Date.now() + 15 * 60 * 1000).toISOString()
         : null;
-      await fetch(supabaseUrl(`/rest/v1/contracts?id=eq.${encodeURIComponent(contract.id)}`), {
+      await fetch(supabaseUrl(`/rest/v1/purchase_contracts?id=eq.${encodeURIComponent(contract.id)}`), {
         method: "PATCH",
         headers: serviceHeaders("return=minimal"),
         body: JSON.stringify({
@@ -161,7 +161,7 @@ Deno.serve(async (request) => {
 
     const openedAt = new Date().toISOString();
     const statusResponse = await fetch(
-      supabaseUrl(`/rest/v1/contracts?id=eq.${encodeURIComponent(contract.id)}&status=neq.%E5%AE%8C%E4%BA%86`),
+      supabaseUrl(`/rest/v1/purchase_contracts?id=eq.${encodeURIComponent(contract.id)}&status=neq.%E5%AE%8C%E4%BA%86`),
       {
         method: "PATCH",
         headers: serviceHeaders("return=minimal"),

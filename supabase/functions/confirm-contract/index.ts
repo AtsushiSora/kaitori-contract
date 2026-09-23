@@ -116,7 +116,7 @@ Deno.serve(async (request) => {
       select: "id,contract_number,status,consent_status,data,customer_pdf_path,reviewed_at,completed_at_text",
       limit: "1",
     });
-    const contractResponse = await fetch(supabaseUrl(`/rest/v1/contracts?${query}`), {
+    const contractResponse = await fetch(supabaseUrl(`/rest/v1/purchase_contracts?${query}`), {
       headers: serviceHeaders(),
     });
     if (!contractResponse.ok) throw new Error(await contractResponse.text());
@@ -155,7 +155,7 @@ Deno.serve(async (request) => {
       });
       if (isPendingReview) lineQuery.set("consent_status", "eq.確認待ち");
       else lineQuery.set("consent_status", "eq.完了");
-      const lineResponse = await fetch(supabaseUrl(`/rest/v1/contracts?${lineQuery}`), {
+      const lineResponse = await fetch(supabaseUrl(`/rest/v1/purchase_contracts?${lineQuery}`), {
         method: "PATCH",
         headers: serviceHeaders("return=representation"),
         body: JSON.stringify({
@@ -176,7 +176,7 @@ Deno.serve(async (request) => {
       }
 
       await Promise.allSettled([
-        fetch(supabaseUrl("/rest/v1/consent_events"), {
+        fetch(supabaseUrl("/rest/v1/purchase_consent_events"), {
           method: "POST",
           headers: serviceHeaders("return=minimal"),
           body: JSON.stringify({
@@ -187,7 +187,7 @@ Deno.serve(async (request) => {
             payload: { confirmedAt, deliveryChannel, downloadAccessExpiresAt },
           }),
         }),
-        fetch(supabaseUrl("/rest/v1/admin_notifications"), {
+        fetch(supabaseUrl("/rest/v1/purchase_admin_notifications"), {
           method: "POST",
           headers: serviceHeaders("return=minimal"),
           body: JSON.stringify({
@@ -215,7 +215,7 @@ Deno.serve(async (request) => {
       consent_status: "eq.確認待ち",
       select: "id",
     });
-    const updateResponse = await fetch(supabaseUrl(`/rest/v1/contracts?${updateQuery}`), {
+    const updateResponse = await fetch(supabaseUrl(`/rest/v1/purchase_contracts?${updateQuery}`), {
       method: "PATCH",
       headers: serviceHeaders("return=representation"),
       body: JSON.stringify({
@@ -244,7 +244,7 @@ Deno.serve(async (request) => {
         downloadUrl,
       );
     } catch (error) {
-      await fetch(supabaseUrl(`/rest/v1/contracts?id=eq.${encodeURIComponent(contractId)}`), {
+      await fetch(supabaseUrl(`/rest/v1/purchase_contracts?id=eq.${encodeURIComponent(contractId)}`), {
         method: "PATCH",
         headers: serviceHeaders("return=minimal"),
         body: JSON.stringify({
@@ -266,7 +266,7 @@ Deno.serve(async (request) => {
       confirmation_email_status: "eq.sending",
       select: "id",
     });
-    const completionResponse = await fetch(supabaseUrl(`/rest/v1/contracts?${completionQuery}`), {
+    const completionResponse = await fetch(supabaseUrl(`/rest/v1/purchase_contracts?${completionQuery}`), {
       method: "PATCH",
       headers: serviceHeaders("return=representation"),
       body: JSON.stringify({
@@ -285,7 +285,7 @@ Deno.serve(async (request) => {
     }
 
     await Promise.allSettled([
-      fetch(supabaseUrl("/rest/v1/consent_events"), {
+      fetch(supabaseUrl("/rest/v1/purchase_consent_events"), {
         method: "POST",
         headers: serviceHeaders("return=minimal"),
         body: JSON.stringify({
@@ -294,7 +294,7 @@ Deno.serve(async (request) => {
           payload: { confirmedAt, confirmationEmail: email, downloadAccessExpiresAt },
         }),
       }),
-      fetch(supabaseUrl("/rest/v1/admin_notifications"), {
+      fetch(supabaseUrl("/rest/v1/purchase_admin_notifications"), {
         method: "POST",
         headers: serviceHeaders("return=minimal"),
         body: JSON.stringify({

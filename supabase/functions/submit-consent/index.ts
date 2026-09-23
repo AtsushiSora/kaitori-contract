@@ -126,7 +126,7 @@ async function uploadIdentityDocument(contractId: string, document: IdentityDocu
   headers.set("Content-Type", document.type);
   headers.set("x-upsert", "false");
   const response = await fetch(
-    supabaseUrl(`/storage/v1/object/contract-files/${path.split("/").map(encodeURIComponent).join("/")}`),
+    supabaseUrl(`/storage/v1/object/purchase-contract-files/${path.split("/").map(encodeURIComponent).join("/")}`),
     { method: "POST", headers, body: dataUrlBytes(document) },
   );
   if (!response.ok) throw new Error(`Identity upload failed: ${response.status}`);
@@ -149,7 +149,7 @@ async function uploadCustomerPdf(contractId: string, dataUrl: string): Promise<s
   headers.set("Content-Type", "application/pdf");
   headers.set("x-upsert", "true");
   const response = await fetch(
-    supabaseUrl(`/storage/v1/object/contract-files/${path.split("/").map(encodeURIComponent).join("/")}`),
+    supabaseUrl(`/storage/v1/object/purchase-contract-files/${path.split("/").map(encodeURIComponent).join("/")}`),
     { method: "POST", headers, body: pdfDataUrlBytes(dataUrl) },
   );
   if (!response.ok) throw new Error(`Customer PDF upload failed: ${response.status}`);
@@ -222,7 +222,7 @@ Deno.serve(async (request) => {
       select: "id,contract_number,data,identity_files,consent_status,remote_access_hash,remote_access_expires_at,remote_used_at",
       limit: "1",
     });
-    const contractResponse = await fetch(supabaseUrl(`/rest/v1/contracts?${query}`), {
+    const contractResponse = await fetch(supabaseUrl(`/rest/v1/purchase_contracts?${query}`), {
       headers: serviceHeaders(),
     });
     if (!contractResponse.ok) throw new Error(await contractResponse.text());
@@ -311,7 +311,7 @@ Deno.serve(async (request) => {
       remote_used_at: "is.null",
       select: "id",
     });
-    const updateResponse = await fetch(supabaseUrl(`/rest/v1/contracts?${updateQuery}`), {
+    const updateResponse = await fetch(supabaseUrl(`/rest/v1/purchase_contracts?${updateQuery}`), {
       method: "PATCH",
       headers: serviceHeaders("return=representation"),
       body: JSON.stringify({
@@ -336,7 +336,7 @@ Deno.serve(async (request) => {
       return jsonResponse({ error: "Consent is already completed" }, 409, origin);
     }
 
-    const eventResponse = await fetch(supabaseUrl("/rest/v1/consent_events"), {
+    const eventResponse = await fetch(supabaseUrl("/rest/v1/purchase_consent_events"), {
       method: "POST",
       headers: serviceHeaders("return=minimal"),
       body: JSON.stringify({
@@ -358,7 +358,7 @@ Deno.serve(async (request) => {
     const contractNumber = clean(contract.contract_number || result.contractNumber, 30);
     const deliveryChannel = contract.data?.remoteDeliveryChannel === "line" ? "line" : "email";
     const emailStatus = await sendAdminEmail(contractNumber, customerName, completedAt, deliveryChannel);
-    const notificationResponse = await fetch(supabaseUrl("/rest/v1/admin_notifications"), {
+    const notificationResponse = await fetch(supabaseUrl("/rest/v1/purchase_admin_notifications"), {
       method: "POST",
       headers: serviceHeaders("return=minimal"),
       body: JSON.stringify({

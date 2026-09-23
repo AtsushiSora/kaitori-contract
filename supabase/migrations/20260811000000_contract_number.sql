@@ -1,19 +1,19 @@
-alter table public.contracts
+alter table public.purchase_contracts
   add column if not exists contract_number text;
 
-create unique index if not exists contracts_contract_number_key
-  on public.contracts (contract_number)
+create unique index if not exists purchase_contracts_contract_number_key
+  on public.purchase_contracts (contract_number)
   where contract_number is not null;
 
-create table if not exists public.contract_number_sequences (
+create table if not exists public.purchase_contract_number_sequences (
   sequence_date date primary key,
   last_value smallint not null check (last_value between 1 and 99),
   updated_at timestamptz not null default now()
 );
 
-alter table public.contract_number_sequences enable row level security;
+alter table public.purchase_contract_number_sequences enable row level security;
 
-create or replace function public.assign_contract_number(
+create or replace function public.assign_purchase_contract_number(
   p_contract_id text,
   p_preferred_number text default null
 )
@@ -36,11 +36,11 @@ begin
     raise exception 'Invalid contract id' using errcode = '22023';
   end if;
 
-  perform pg_advisory_xact_lock(hashtext('order-auto-contract-number'));
+  perform pg_advisory_xact_lock(hashtext('order-auto-purchase-contract-number'));
 
   select contract_number
     into current_number
-    from public.contracts
+    from public.purchase_contracts
    where id = p_contract_id
    for update;
 
@@ -51,7 +51,7 @@ begin
   if p_preferred_number ~ '^[0-9]{1,8}$'
      and not exists (
        select 1
-         from public.contracts
+         from public.purchase_contracts
         where contract_number = p_preferred_number
           and id <> p_contract_id
      ) then
@@ -59,23 +59,23 @@ begin
   else
     select coalesce(max(right(contract_number, 2)::smallint), 0) + 1
       into next_existing_value
-      from public.contracts
+      from public.purchase_contracts
      where contract_number ~ ('^' || to_char(sequence_date_jst, 'YYMMDD') || '[0-9]{2}$');
 
     if next_existing_value > 99 then
       raise exception 'Daily contract number limit reached' using errcode = '22000';
     end if;
 
-    insert into public.contract_number_sequences (sequence_date, last_value, updated_at)
+    insert into public.purchase_contract_number_sequences (sequence_date, last_value, updated_at)
     values (sequence_date_jst, next_existing_value, now())
     on conflict (sequence_date) do update
       set last_value = greatest(
-            public.contract_number_sequences.last_value,
+            public.purchase_contract_number_sequences.last_value,
             excluded.last_value - 1
           ) + 1,
           updated_at = now()
       where greatest(
-              public.contract_number_sequences.last_value,
+              public.purchase_contract_number_sequences.last_value,
               excluded.last_value - 1
             ) < 99
     returning last_value into sequence_value;
@@ -88,10 +88,10 @@ begin
       to_char(sequence_date_jst, 'YYMMDD') || lpad(sequence_value::text, 2, '0');
   end if;
 
-  insert into public.contracts (id, contract_number, updated_at)
+  insert into public.purchase_contracts (id, contract_number, updated_at)
   values (p_contract_id, assigned_number, now())
   on conflict (id) do update
-    set contract_number = coalesce(public.contracts.contract_number, excluded.contract_number),
+    set contract_number = coalesce(public.purchase_contracts.contract_number, excluded.contract_number),
         updated_at = now()
   returning contract_number into current_number;
 
@@ -99,6 +99,6 @@ begin
 end;
 $$;
 
-revoke all on table public.contract_number_sequences from anon, authenticated;
-revoke all on function public.assign_contract_number(text, text) from public, anon;
-grant execute on function public.assign_contract_number(text, text) to authenticated;
+revoke all on table public.purchase_contract_number_sequences from anon, authenticated;
+revoke all on function public.assign_purchase_contract_number(text, text) from public, anon;
+grant execute on function public.assign_purchase_contract_number(text, text) to authenticated;

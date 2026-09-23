@@ -98,7 +98,7 @@ Deno.serve(async (request) => {
       select: "id,contract_number,consent_status,customer_pdf_path,download_access_hash,download_access_expires_at",
       limit: "1",
     });
-    const contractResponse = await fetch(supabaseUrl(`/rest/v1/contracts?${query}`), {
+    const contractResponse = await fetch(supabaseUrl(`/rest/v1/purchase_contracts?${query}`), {
       headers: serviceHeaders(),
     });
     if (!contractResponse.ok) throw new Error(await contractResponse.text());
@@ -120,7 +120,7 @@ Deno.serve(async (request) => {
     const headers = new Headers(serviceHeaders());
     headers.delete("Content-Type");
     const storageResponse = await fetch(
-      supabaseUrl(`/storage/v1/object/contract-files/${path}`),
+      supabaseUrl(`/storage/v1/object/purchase-contract-files/${path}`),
       { headers },
     );
     if (!storageResponse.ok) throw new Error(`PDF download failed: ${storageResponse.status}`);

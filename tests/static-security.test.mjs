@@ -166,20 +166,20 @@ test("契約番号は日本時間の日付6桁と日別連番2桁で重複なく
   assert.match(contractSource, /timeZone:\s*"Asia\/Tokyo"/);
   assert.match(contractSource, /String\(nextSequence\)\.padStart\(2, "0"\)/);
   assert.match(contractSource, /nextSequence > 99/);
-  assert.match(apiSource, /rest\/v1\/rpc\/assign_contract_number/);
+  assert.match(apiSource, /rest\/v1\/rpc\/assign_purchase_contract_number/);
   assert.match(schema, /add column if not exists contract_number text/i);
-  assert.match(schema, /create unique index if not exists contracts_contract_number_key/i);
+  assert.match(schema, /create unique index if not exists purchase_contracts_contract_number_key/i);
   assert.match(schema, /pg_advisory_xact_lock/);
   assert.match(schema, /to_char\(sequence_date_jst, 'YYMMDD'\).*lpad\(sequence_value::text, 2, '0'\)/s);
-  assert.match(schema, /grant execute on function public\.assign_contract_number\(text, text\) to authenticated/i);
+  assert.match(schema, /grant execute on function public\.assign_purchase_contract_number\(text, text\) to authenticated/i);
 });
 
 test("契約データと本人確認ファイルは認証済み管理者だけが扱える", async () => {
   const schema = await text("supabase-schema.sql");
-  assert.match(schema, /alter table public\.contracts enable row level security/i);
-  assert.match(schema, /alter table public\.consent_events enable row level security/i);
+  assert.match(schema, /alter table public\.purchase_contracts enable row level security/i);
+  assert.match(schema, /alter table public\.purchase_consent_events enable row level security/i);
   assert.match(schema, /to authenticated[\s\S]*using \(true\)[\s\S]*with check \(true\)/i);
-  assert.match(schema, /values \('contract-files', 'contract-files', false\)/i);
+  assert.match(schema, /values \('purchase-contract-files', 'purchase-contract-files', false\)/i);
   assert.doesNotMatch(schema, /grant[^;]+\bto\s+(?:anon|public)\b/i);
 });
 
@@ -255,12 +255,12 @@ test("遠隔契約は個人・法人、免許証条件、完了ロック、管�
   assert.match(consentSource, /licenseBackStatus === "has_entries"/);
   assert.match(submitSource, /sellerType === "corporate"/);
   assert.match(submitSource, /customer-license-\$\{document\.side\}/);
-  assert.match(submitSource, /contract-files/);
+  assert.match(submitSource, /purchase-contract-files/);
   assert.match(submitSource, /安全のため、このメールには本人確認書類を添付していません/);
   assert.match(submitSource, /admin_notifications/);
-  assert.match(schema, /prevent_completed_contract_overwrite/);
+  assert.match(schema, /prevent_completed_purchase_contract_overwrite/);
   assert.match(schema, /old\.status = '完了'/);
-  assert.match(schema, /create table if not exists public\.admin_notifications/);
+  assert.match(schema, /create table if not exists public\.purchase_admin_notifications/);
   assert.match(apiSource, /listAdminNotifications/);
   assert.match(contractSource, /function reviseCompletedContract/);
   assert.match(contractSource, /parentContractId/);
@@ -295,7 +295,7 @@ test("管理者確認後にだけ契約完了PDFの期限付きURLを発行す�
   assert.match(confirmSource, /deliveryChannel,[\s\S]*downloadUrl/);
   assert.match(downloadSource, /sha256Hex\(token\)/);
   assert.match(downloadSource, /download_access_expires_at/);
-  assert.match(downloadSource, /contract-files/);
+  assert.match(downloadSource, /purchase-contract-files/);
   assert.match(downloadSource, /Content-Type": "application\/pdf"/);
   assert.match(downloadSource, /Deno\.env\.get\("SUPABASE_SERVICE_ROLE_KEY"\)/);
   assert.doesNotMatch(downloadSource, /eyJ[A-Za-z0-9_-]{20,}/);

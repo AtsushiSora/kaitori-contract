@@ -81,7 +81,7 @@ try {
   ];
 
   page.on("dialog", (dialog) => dialog.accept());
-  await context.route("https://cumvescylyetumupupmc.supabase.co/**", async (route) => {
+  await context.route("https://qdzdskryxwjjwtwigztl.supabase.co/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     if (request.method() === "GET" && url.pathname === "/auth/v1/user") {
@@ -147,7 +147,7 @@ try {
       });
       return;
     }
-    if (request.method() === "GET" && url.pathname === "/rest/v1/contracts") {
+    if (request.method() === "GET" && url.pathname === "/rest/v1/purchase_contracts") {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -155,7 +155,7 @@ try {
       });
       return;
     }
-    if (request.method() === "GET" && url.pathname === "/rest/v1/admin_notifications") {
+    if (request.method() === "GET" && url.pathname === "/rest/v1/purchase_admin_notifications") {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -163,7 +163,7 @@ try {
       });
       return;
     }
-    if (request.method() === "PATCH" && url.pathname === "/rest/v1/admin_notifications") {
+    if (request.method() === "PATCH" && url.pathname === "/rest/v1/purchase_admin_notifications") {
       const id = url.searchParams.get("id")?.replace(/^eq\./, "");
       adminNotificationRows = adminNotificationRows.map((notification) =>
         String(notification.id) === id
@@ -173,7 +173,7 @@ try {
       await route.fulfill({ status: 204, body: "" });
       return;
     }
-    if (request.method() === "DELETE" && url.pathname === "/rest/v1/admin_notifications") {
+    if (request.method() === "DELETE" && url.pathname === "/rest/v1/purchase_admin_notifications") {
       const id = url.searchParams.get("id")?.replace(/^eq\./, "");
       adminNotificationRows = id
         ? adminNotificationRows.filter((notification) => String(notification.id) !== id)
@@ -181,7 +181,7 @@ try {
       await route.fulfill({ status: 204, body: "" });
       return;
     }
-    if (request.method() === "POST" && url.pathname === "/rest/v1/contracts") {
+    if (request.method() === "POST" && url.pathname === "/rest/v1/purchase_contracts") {
       const body = request.postDataJSON();
       await route.fulfill({
         status: 200,
@@ -190,11 +190,11 @@ try {
       });
       return;
     }
-    if (request.method() === "PATCH" && url.pathname === "/rest/v1/contracts") {
+    if (request.method() === "PATCH" && url.pathname === "/rest/v1/purchase_contracts") {
       await route.fulfill({ status: 204, body: "" });
       return;
     }
-    if (request.method() === "POST" && url.pathname === "/rest/v1/rpc/assign_contract_number") {
+    if (request.method() === "POST" && url.pathname === "/rest/v1/rpc/assign_purchase_contract_number") {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -202,13 +202,13 @@ try {
       });
       return;
     }
-    if (request.method() === "PUT" && url.pathname.startsWith("/storage/v1/object/contract-files/")) {
+    if (request.method() === "PUT" && url.pathname.startsWith("/storage/v1/object/purchase-contract-files/")) {
       await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
       return;
     }
     await route.fulfill({ status: 404, contentType: "application/json", body: "{}" });
   });
-  await context.route("https://qdzdskryxwjjwtwigztl.supabase.co/**", async (route) => {
+  await context.route("https://qdzdskryxwjjwtwigztl.supabase.co/rest/v1/rpc/complete_contract_handoff_v2", async (route) => {
     managementCompletionPayload = route.request().postDataJSON();
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true }) });
   });

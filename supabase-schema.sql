@@ -1,4 +1,4 @@
-create table if not exists public.contracts (
+create table if not exists public.purchase_contracts (
   id text primary key,
   status text not null default '下書き',
   data jsonb not null default '{}'::jsonb,
@@ -29,7 +29,7 @@ create table if not exists public.contracts (
   updated_at timestamptz not null default now()
 );
 
-alter table public.contracts
+alter table public.purchase_contracts
   add column if not exists remote_access_hash text,
   add column if not exists remote_link_hash text,
   add column if not exists remote_access_expires_at timestamptz,
@@ -47,31 +47,31 @@ alter table public.contracts
   add column if not exists locked_at timestamptz,
   add column if not exists contract_number text;
 
-create index if not exists contracts_remote_link_hash_idx
-  on public.contracts (remote_link_hash)
+create index if not exists purchase_contracts_remote_link_hash_idx
+  on public.purchase_contracts (remote_link_hash)
   where remote_link_hash is not null;
 
-create index if not exists contracts_parent_contract_id_idx
-  on public.contracts (parent_contract_id)
+create index if not exists purchase_contracts_parent_contract_id_idx
+  on public.purchase_contracts (parent_contract_id)
   where parent_contract_id is not null;
 
-create unique index if not exists contracts_download_access_hash_key
-  on public.contracts (download_access_hash)
+create unique index if not exists purchase_contracts_download_access_hash_key
+  on public.purchase_contracts (download_access_hash)
   where download_access_hash is not null;
 
-create unique index if not exists contracts_contract_number_key
-  on public.contracts (contract_number)
+create unique index if not exists purchase_contracts_contract_number_key
+  on public.purchase_contracts (contract_number)
   where contract_number is not null;
 
-create table if not exists public.contract_number_sequences (
+create table if not exists public.purchase_contract_number_sequences (
   sequence_date date primary key,
   last_value smallint not null check (last_value between 1 and 99),
   updated_at timestamptz not null default now()
 );
 
-alter table public.contract_number_sequences enable row level security;
+alter table public.purchase_contract_number_sequences enable row level security;
 
-create or replace function public.assign_contract_number(
+create or replace function public.assign_purchase_contract_number(
   p_contract_id text,
   p_preferred_number text default null
 )
@@ -94,11 +94,11 @@ begin
     raise exception 'Invalid contract id' using errcode = '22023';
   end if;
 
-  perform pg_advisory_xact_lock(hashtext('order-auto-contract-number'));
+  perform pg_advisory_xact_lock(hashtext('order-auto-purchase-contract-number'));
 
   select contract_number
     into current_number
-    from public.contracts
+    from public.purchase_contracts
    where id = p_contract_id
    for update;
 
@@ -109,7 +109,7 @@ begin
   if p_preferred_number ~ '^[0-9]{1,8}$'
      and not exists (
        select 1
-         from public.contracts
+         from public.purchase_contracts
         where contract_number = p_preferred_number
           and id <> p_contract_id
      ) then
@@ -117,23 +117,23 @@ begin
   else
     select coalesce(max(right(contract_number, 2)::smallint), 0) + 1
       into next_existing_value
-      from public.contracts
+      from public.purchase_contracts
      where contract_number ~ ('^' || to_char(sequence_date_jst, 'YYMMDD') || '[0-9]{2}$');
 
     if next_existing_value > 99 then
       raise exception 'Daily contract number limit reached' using errcode = '22000';
     end if;
 
-    insert into public.contract_number_sequences (sequence_date, last_value, updated_at)
+    insert into public.purchase_contract_number_sequences (sequence_date, last_value, updated_at)
     values (sequence_date_jst, next_existing_value, now())
     on conflict (sequence_date) do update
       set last_value = greatest(
-            public.contract_number_sequences.last_value,
+            public.purchase_contract_number_sequences.last_value,
             excluded.last_value - 1
           ) + 1,
           updated_at = now()
       where greatest(
-              public.contract_number_sequences.last_value,
+              public.purchase_contract_number_sequences.last_value,
               excluded.last_value - 1
             ) < 99
     returning last_value into sequence_value;
@@ -146,10 +146,10 @@ begin
       to_char(sequence_date_jst, 'YYMMDD') || lpad(sequence_value::text, 2, '0');
   end if;
 
-  insert into public.contracts (id, contract_number, updated_at)
+  insert into public.purchase_contracts (id, contract_number, updated_at)
   values (p_contract_id, assigned_number, now())
   on conflict (id) do update
-    set contract_number = coalesce(public.contracts.contract_number, excluded.contract_number),
+    set contract_number = coalesce(public.purchase_contracts.contract_number, excluded.contract_number),
         updated_at = now()
   returning contract_number into current_number;
 
@@ -157,21 +157,21 @@ begin
 end;
 $$;
 
-revoke all on table public.contract_number_sequences from anon, authenticated;
-revoke all on function public.assign_contract_number(text, text) from public, anon;
-grant execute on function public.assign_contract_number(text, text) to authenticated;
+revoke all on table public.purchase_contract_number_sequences from anon, authenticated;
+revoke all on function public.assign_purchase_contract_number(text, text) from public, anon;
+grant execute on function public.assign_purchase_contract_number(text, text) to authenticated;
 
-create table if not exists public.consent_events (
+create table if not exists public.purchase_consent_events (
   id bigint generated always as identity primary key,
-  contract_id text not null references public.contracts(id) on delete cascade,
+  contract_id text not null references public.purchase_contracts(id) on delete cascade,
   event_type text not null,
   payload jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
 
-create table if not exists public.admin_notifications (
+create table if not exists public.purchase_admin_notifications (
   id bigint generated always as identity primary key,
-  contract_id text references public.contracts(id) on delete cascade,
+  contract_id text references public.purchase_contracts(id) on delete cascade,
   notification_type text not null,
   title text not null,
   message text not null,
@@ -180,47 +180,47 @@ create table if not exists public.admin_notifications (
   created_at timestamptz not null default now()
 );
 
-alter table public.contracts enable row level security;
-alter table public.consent_events enable row level security;
-alter table public.admin_notifications enable row level security;
+alter table public.purchase_contracts enable row level security;
+alter table public.purchase_consent_events enable row level security;
+alter table public.purchase_admin_notifications enable row level security;
 
 grant usage on schema public to authenticated;
-grant select, insert, update, delete on table public.contracts to authenticated;
-grant select on table public.consent_events to authenticated;
-grant select, update, delete on table public.admin_notifications to authenticated;
+grant select, insert, update, delete on table public.purchase_contracts to authenticated;
+grant select on table public.purchase_consent_events to authenticated;
+grant select, update, delete on table public.purchase_admin_notifications to authenticated;
 
 -- Edge Functions use the service role after validating the one-time access token.
 grant usage on schema public to service_role;
-grant select, update on table public.contracts to service_role;
-grant insert on table public.consent_events to service_role;
-grant insert on table public.admin_notifications to service_role;
-grant usage, select on sequence public.consent_events_id_seq to service_role;
-grant usage, select on sequence public.admin_notifications_id_seq to service_role;
+grant select, update on table public.purchase_contracts to service_role;
+grant insert on table public.purchase_consent_events to service_role;
+grant insert on table public.purchase_admin_notifications to service_role;
+grant usage, select on sequence public.purchase_consent_events_id_seq to service_role;
+grant usage, select on sequence public.purchase_admin_notifications_id_seq to service_role;
 
-drop policy if exists "authenticated users can manage contracts" on public.contracts;
-create policy "authenticated users can manage contracts"
-on public.contracts
+drop policy if exists "authenticated users can manage purchase contracts" on public.purchase_contracts;
+create policy "authenticated users can manage purchase contracts"
+on public.purchase_contracts
 for all
 to authenticated
 using (true)
 with check (true);
 
-drop policy if exists "authenticated users can read consent events" on public.consent_events;
-create policy "authenticated users can read consent events"
-on public.consent_events
+drop policy if exists "authenticated users can read purchase consent events" on public.purchase_consent_events;
+create policy "authenticated users can read purchase consent events"
+on public.purchase_consent_events
 for select
 to authenticated
 using (true);
 
-drop policy if exists "authenticated users can manage admin notifications" on public.admin_notifications;
-create policy "authenticated users can manage admin notifications"
-on public.admin_notifications
+drop policy if exists "authenticated users can manage purchase admin notifications" on public.purchase_admin_notifications;
+create policy "authenticated users can manage purchase admin notifications"
+on public.purchase_admin_notifications
 for all
 to authenticated
 using (true)
 with check (true);
 
-create or replace function public.prevent_completed_contract_overwrite()
+create or replace function public.prevent_completed_purchase_contract_overwrite()
 returns trigger
 language plpgsql
 security definer
@@ -234,20 +234,20 @@ begin
 end;
 $$;
 
-drop trigger if exists protect_completed_contracts on public.contracts;
-create trigger protect_completed_contracts
-before update on public.contracts
+drop trigger if exists protect_completed_purchase_contracts on public.purchase_contracts;
+create trigger protect_completed_purchase_contracts
+before update on public.purchase_contracts
 for each row
-execute function public.prevent_completed_contract_overwrite();
+execute function public.prevent_completed_purchase_contract_overwrite();
 
 insert into storage.buckets (id, name, public)
-values ('contract-files', 'contract-files', false)
+values ('purchase-contract-files', 'purchase-contract-files', false)
 on conflict (id) do nothing;
 
-drop policy if exists "authenticated users can manage contract files" on storage.objects;
-create policy "authenticated users can manage contract files"
+drop policy if exists "authenticated users can manage purchase contract files" on storage.objects;
+create policy "authenticated users can manage purchase contract files"
 on storage.objects
 for all
 to authenticated
-using (bucket_id = 'contract-files')
-with check (bucket_id = 'contract-files');
+using (bucket_id = 'purchase-contract-files')
+with check (bucket_id = 'purchase-contract-files');

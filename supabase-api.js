@@ -140,7 +140,7 @@ function localContractToDb(contract, identityFiles = []) {
 
 async function listCloudContracts() {
   const rows = await supabaseRequest(
-    "/rest/v1/contracts?select=*&order=updated_at.desc",
+    "/rest/v1/purchase_contracts?select=*&order=updated_at.desc",
     { method: "GET" },
   );
   return (rows || []).map(dbContractToLocal);
@@ -179,7 +179,7 @@ async function createConsentAccess(contractId, linkToken, credential, expiresAt)
     hashAccessToken(linkToken),
     hashAccessToken(credential),
   ]);
-  await supabaseRequest(`/rest/v1/contracts?id=eq.${encodeURIComponent(contractId)}`, {
+  await supabaseRequest(`/rest/v1/purchase_contracts?id=eq.${encodeURIComponent(contractId)}`, {
     method: "PATCH",
     headers: { Prefer: "return=minimal" },
     body: JSON.stringify({
@@ -195,12 +195,12 @@ async function createConsentAccess(contractId, linkToken, credential, expiresAt)
 
 async function upsertCloudContract(contract, identityFiles = []) {
   const payload = localContractToDb(contract, identityFiles);
-  const rows = await supabaseRequest("/rest/v1/contracts?on_conflict=id", {
+  const rows = await supabaseRequest("/rest/v1/purchase_contracts?on_conflict=id", {
     method: "POST",
     headers: { Prefer: "resolution=merge-duplicates,return=representation" },
     body: JSON.stringify(payload),
   });
-  const assignedNumber = await supabaseRequest("/rest/v1/rpc/assign_contract_number", {
+  const assignedNumber = await supabaseRequest("/rest/v1/rpc/assign_purchase_contract_number", {
     method: "POST",
     body: JSON.stringify({
       p_contract_id: contract.id,
@@ -213,14 +213,14 @@ async function upsertCloudContract(contract, identityFiles = []) {
 
 async function deleteCloudContract(id) {
   const rows = await supabaseRequest(
-    `/rest/v1/contracts?id=eq.${encodeURIComponent(id)}&select=identity_files`,
+    `/rest/v1/purchase_contracts?id=eq.${encodeURIComponent(id)}&select=identity_files`,
     { method: "GET" },
   );
   const files = rows?.[0]?.identity_files || [];
   await Promise.allSettled(
     files.filter((file) => file.storagePath).map((file) => deleteCloudFile(file.storagePath)),
   );
-  await supabaseRequest(`/rest/v1/contracts?id=eq.${encodeURIComponent(id)}`, {
+  await supabaseRequest(`/rest/v1/purchase_contracts?id=eq.${encodeURIComponent(id)}`, {
     method: "DELETE",
     headers: { Prefer: "return=minimal" },
   });
@@ -238,7 +238,7 @@ function dataUrlToBlob(dataUrl) {
 }
 
 async function uploadCloudFile(path, dataUrl) {
-  const bucket = supabaseConfig().storageBucket || "contract-files";
+  const bucket = supabaseConfig().storageBucket || "purchase-contract-files";
   const blob = dataUrlToBlob(dataUrl);
   const response = await fetch(
     supabaseUrl(`/storage/v1/object/${bucket}/${path}`),
@@ -262,7 +262,7 @@ async function uploadCloudFile(path, dataUrl) {
 }
 
 async function getPrivateFileUrl(path, expiresIn = 600) {
-  const bucket = supabaseConfig().storageBucket || "contract-files";
+  const bucket = supabaseConfig().storageBucket || "purchase-contract-files";
   const response = await supabaseRequest(
     `/storage/v1/object/sign/${bucket}/${path.split("/").map(encodeURIComponent).join("/")}`,
     {
@@ -277,7 +277,7 @@ async function getPrivateFileUrl(path, expiresIn = 600) {
 
 async function deleteCloudFile(path) {
   if (!path) return;
-  const bucket = supabaseConfig().storageBucket || "contract-files";
+  const bucket = supabaseConfig().storageBucket || "purchase-contract-files";
   await supabaseRequest(
     `/storage/v1/object/${bucket}`,
     {
@@ -368,14 +368,14 @@ async function downloadCompletedContract(token) {
 
 async function listAdminNotifications() {
   const rows = await supabaseRequest(
-    "/rest/v1/admin_notifications?select=*&order=created_at.desc&limit=50",
+    "/rest/v1/purchase_admin_notifications?select=*&order=created_at.desc&limit=50",
     { method: "GET" },
   );
   return rows || [];
 }
 
 async function markNotificationRead(id) {
-  await supabaseRequest(`/rest/v1/admin_notifications?id=eq.${encodeURIComponent(id)}`, {
+  await supabaseRequest(`/rest/v1/purchase_admin_notifications?id=eq.${encodeURIComponent(id)}`, {
     method: "PATCH",
     headers: { Prefer: "return=minimal" },
     body: JSON.stringify({ read_at: new Date().toISOString() }),
@@ -383,14 +383,14 @@ async function markNotificationRead(id) {
 }
 
 async function deleteAdminNotification(id) {
-  await supabaseRequest(`/rest/v1/admin_notifications?id=eq.${encodeURIComponent(id)}`, {
+  await supabaseRequest(`/rest/v1/purchase_admin_notifications?id=eq.${encodeURIComponent(id)}`, {
     method: "DELETE",
     headers: { Prefer: "return=minimal" },
   });
 }
 
 async function deleteReadAdminNotifications() {
-  await supabaseRequest("/rest/v1/admin_notifications?read_at=not.is.null", {
+  await supabaseRequest("/rest/v1/purchase_admin_notifications?read_at=not.is.null", {
     method: "DELETE",
     headers: { Prefer: "return=minimal" },
   });

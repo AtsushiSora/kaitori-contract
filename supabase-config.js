@@ -1,9 +1,9 @@
 window.ORDER_AUTO_SUPABASE = {
-  url: "https://cumvescylyetumupupmc.supabase.co",
-  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN1bXZlc2N5bHlldHVtdXB1cG1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwMjg1NjIsImV4cCI6MjA5OTYwNDU2Mn0.0M-W29Xz11N-Jfwrs5shLOK9htDcz33KwHkP6Z8AKqQ",
-  storageBucket: "contract-files",
-  publicContractEndpoint: "https://cumvescylyetumupupmc.supabase.co/functions/v1/public-contract",
-  consentSubmitEndpoint: "https://cumvescylyetumupupmc.supabase.co/functions/v1/submit-consent",
-  contractDownloadEndpoint: "https://cumvescylyetumupupmc.supabase.co/functions/v1/download-contract",
-  contractConfirmEndpoint: "https://cumvescylyetumupupmc.supabase.co/functions/v1/confirm-contract",
+  url: "https://qdzdskryxwjjwtwigztl.supabase.co",
+  anonKey: "sb_publishable_NoQM4G6viEmlS3H_XIqFNw_zuXyzR96",
+  storageBucket: "purchase-contract-files",
+  publicContractEndpoint: "https://qdzdskryxwjjwtwigztl.supabase.co/functions/v1/public-contract",
+  consentSubmitEndpoint: "https://qdzdskryxwjjwtwigztl.supabase.co/functions/v1/submit-consent",
+  contractDownloadEndpoint: "https://qdzdskryxwjjwtwigztl.supabase.co/functions/v1/download-contract",
+  contractConfirmEndpoint: "https://qdzdskryxwjjwtwigztl.supabase.co/functions/v1/confirm-contract",
 };

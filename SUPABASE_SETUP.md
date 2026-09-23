@@ -8,7 +8,7 @@
 window.ORDER_AUTO_SUPABASE = {
   url: "https://xxxx.supabase.co",
   anonKey: "public-anon-key",
-  storageBucket: "contract-files",
+  storageBucket: "purchase-contract-files",
   publicContractEndpoint: "https://xxxx.supabase.co/functions/v1/public-contract",
   consentSubmitEndpoint: "https://xxxx.supabase.co/functions/v1/submit-consent",
   contractDownloadEndpoint: "https://xxxx.supabase.co/functions/v1/download-contract",
@@ -18,9 +18,11 @@ window.ORDER_AUTO_SUPABASE = {
 
 ## 2. DBとStorage
 
-Supabase SQL Editorで `supabase-schema.sql` を実行します。
+本番DB・Storageは、管理システム `order-auto-management` 側の
+`supabase/migrations/202609240001_purchase_contract_backend.sql` で管理します。
+買取契約リポジトリから本番DBへ `supabase db push` は実行しないでください。
 
-このSQLは管理者ログイン済みユーザーだけが契約データと本人確認書類を扱える設定です。
+`supabase-schema.sql` は新規環境の参照用です。本番では管理者ログイン済みユーザーだけが契約データと本人確認書類を扱える設定です。
 匿名ユーザーに契約データを直接読ませたり更新させたりしません。
 
 ## 3. お客様同意の自動反映
@@ -49,7 +51,6 @@ URLとパスコードの両方がそろわない限り、契約内容は取得�
 Supabase CLIを使う場合は、プロジェクトをリンクしてから次を実行します。
 
 ```bash
-supabase db push
 supabase functions deploy public-contract --no-verify-jwt
 supabase functions deploy submit-consent --no-verify-jwt
 supabase functions deploy download-contract --no-verify-jwt
@@ -72,7 +73,7 @@ supabase secrets set NOTIFICATION_FROM_EMAIL="オーダーオート <contract@ex
 
 `NOTIFICATION_FROM_EMAIL`はResendで認証済みのドメインを使います。本人確認書類はメールに添付されません。未設定または送信失敗時は、管理画面内の通知に状態が残ります。
 
-本人確認書類は非公開の `contract-files` Storageに保存され、自動削除は行いません。削除は管理者が運用方針に沿って実施します。
+本人確認書類は非公開の `purchase-contract-files` Storageに保存され、自動削除は行いません。削除は管理者が運用方針に沿って実施します。
 
 署名完了時には3ページのお客様控えPDFを非公開Storageへ保存します。この時点では契約は「確認待ち」です。管理者が内容と本人確認書類を確認して「確認完了・メール送信」を押した時に、30日間有効なダウンロードURLをお客様へ送信し、契約を「完了」にします。期限切れになってもPDFファイル自体は自動削除しません。
 
